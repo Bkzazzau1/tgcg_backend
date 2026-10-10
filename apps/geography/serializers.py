@@ -32,7 +32,7 @@ class LgaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lga
-        fields = ["code", "slug", "name", "state", "senatorial_district"]
+        fields = ["code", "slug", "name", "state", "senatorial_district", "inec_code"]
 
 
 class WardSerializer(serializers.ModelSerializer):
@@ -48,4 +48,12 @@ class PollingUnitSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PollingUnit
-        fields = ["code", "name", "ward", "registered_voters", "latitude", "longitude"]
+        fields = [
+            "code",
+            "name",
+            "location",
+            "ward",
+            "registered_voters",
+            "latitude",
+            "longitude",
+        ]

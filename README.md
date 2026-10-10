@@ -16,7 +16,8 @@ Programme**. It serves the Flutter client in `../TheGameChangerGroup`.
 ```bash
 uv sync                                   # create .venv and install
 cp .env.example .env                      # then set DJANGO_SECRET_KEY
-uv run python manage.py migrate           # also seeds Nigerian geography
+uv run python manage.py migrate           # also seeds zones, states, districts, LGAs, parties
+uv run python manage.py load_polling_units  # 8,809 wards + 176,846 INEC polling units (~5s)
 uv run python manage.py createsuperuser   # prompts for access ID + full name
 uv run python manage.py runserver
 ```
@@ -94,6 +95,23 @@ uv run python manage.py load_geography
 ```
 
 Migration `geography.0002` seeds it automatically on a fresh database.
+
+### Wards and polling units
+
+`load_polling_units` loads all 8,809 wards and 176,846 polling units from
+`apps/geography/data/inec_polling_units.csv.gz`. It uses INEC codes: ward
+`18-23-01`, polling unit `18-23-01-001`, and each LGA's INEC code (`18-23`) is
+stored. The file's source, checksum and the checks it passed (including
+agreement with an independent INEC list for Zaria) are in
+`apps/geography/data/README.md`.
+
+- Re-running is safe. Names are refreshed, but `registered_voters` and
+  coordinates added locally are kept.
+- Units dropped from a newer file are reported, not deleted.
+- `--lga KD-ZARIA` loads a single LGA.
+- The data has **no registered voter counts or coordinates**. Until they are
+  added, the "accredited exceeds registered" check uses the figure on the
+  submitted result sheet.
 
 ## Users and scope
 

@@ -51,6 +51,13 @@ class Lga(models.Model):
     senatorial_district = models.ForeignKey(
         SenatorialDistrict, on_delete=models.PROTECT, related_name="lgas"
     )
+    inec_code = models.CharField(  # noqa: DJ001 - NULL until polling units are loaded
+        max_length=8,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="INEC state-LGA code, e.g. 18-23 for Zaria.",
+    )
 
     class Meta:
         ordering = ["state__name", "name"]
@@ -65,7 +72,7 @@ class Lga(models.Model):
 
 
 class Ward(models.Model):
-    code = models.CharField(max_length=64, unique=True)
+    code = models.CharField(max_length=64, unique=True, help_text="INEC ward code, e.g. 18-23-01.")
     name = models.CharField(max_length=128)
     lga = models.ForeignKey(Lga, on_delete=models.PROTECT, related_name="wards")
 
@@ -77,8 +84,11 @@ class Ward(models.Model):
 
 
 class PollingUnit(models.Model):
-    code = models.CharField(max_length=64, unique=True)
+    code = models.CharField(
+        max_length=64, unique=True, help_text="INEC polling unit code, e.g. 18-23-01-001."
+    )
     name = models.CharField(max_length=255)
+    location = models.CharField(max_length=255, blank=True, help_text="INEC location note.")
     ward = models.ForeignKey(Ward, on_delete=models.PROTECT, related_name="polling_units")
     registered_voters = models.PositiveIntegerField(null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
