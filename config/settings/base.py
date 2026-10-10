@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "apps.core",
     "apps.geography",
     "apps.accounts",
+    "apps.membership",
 ]
 
 MIDDLEWARE = [
@@ -121,6 +122,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 100,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "apps.core.exceptions.exception_handler",
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
@@ -149,6 +151,13 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
+    "ENUM_NAME_OVERRIDES": {
+        "AccreditationStatus": "apps.core.choices.AccreditationStatus",
+        "RecordStatus": "apps.core.choices.RecordStatus",
+        "RecordOrigin": "apps.core.choices.RecordOrigin",
+        "Role": "apps.core.choices.Role",
+        "GeographyLevel": "apps.core.choices.GeographyLevel",
+    },
 }
 
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])

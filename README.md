@@ -35,6 +35,7 @@ config/            settings (base / dev / test / prod), urls, wsgi, asgi
 apps/core/         shared base model, enums mirrored from the Flutter client, health
 apps/geography/    zones, states, senatorial districts, LGAs, wards, polling units
 apps/accounts/     operator accounts: access ID or phone login, role, scope
+apps/membership/   members, agent accreditation, accreditation audit trail
 ```
 
 ## API (v1)
@@ -47,6 +48,13 @@ apps/accounts/     operator accounts: access ID or phone login, role, scope
 | POST | `/api/v1/auth/logout/` | `{"refresh": ...}` revokes it |
 | GET | `/api/v1/auth/me/` | Current user, with `scope` shaped like the client's `GeographicScope` |
 | GET | `/api/v1/geography/{zones,states,senatorial-districts,lgas,wards,polling-units}/` | Read-only reference data; filter with e.g. `?state__code=LA` |
+| GET, POST | `/api/v1/members/` | List or register members in your scope; filter `status`, `state__code`, `lga__code`; search name, phone, number |
+| GET, PATCH | `/api/v1/members/{membership_number}/` | e.g. `TGCG-000001` |
+| GET, POST | `/api/v1/agents/` | List or accredit agents (`member`, `role`, `scope`) |
+| GET | `/api/v1/agents/{agent_id}/` | e.g. `AG-00001` |
+| PATCH | `/api/v1/agents/{agent_id}/readiness/` | `training_completed`, `biometric_enrolled`, `device_id`, `sim_fingerprint` |
+| POST | `/api/v1/agents/{agent_id}/status/` | `{"status": "approved" \| "suspended" \| "revoked", "reason": ...}` |
+| GET | `/api/v1/agents/{agent_id}/events/` | Accreditation audit trail |
 
 Enum values (roles, levels, statuses) use the Flutter client's camelCase names,
 so payloads map straight onto `Enum.values.byName(...)` in Dart.
@@ -74,6 +82,34 @@ most specific unit (for example an LGA) and the parent units (district, state,
 zone) are filled in automatically. Coordinator and agent roles must match their
 scope level: a state coordinator needs a state, and a polling unit agent needs a
 polling unit.
+
+## Permissions
+
+Role capabilities in `apps/core/permissions.py` are ported from the client's
+`TgcgPermissionPolicy`; keep the two in sync. `GET /auth/me/` returns the
+caller's capabilities. Every list is limited to the caller's scope: a Kaduna
+state coordinator only sees Kaduna members and agents.
+
+| Action | Capability |
+|---|---|
+| View members / agents | `manageMembership`, `accreditAgents` or `manageAgentAssignments` |
+| Register or edit members | `manageMembership` |
+| Accredit, approve, suspend, revoke | `accreditAgents` |
+| Update agent readiness | `accreditAgents` or `manageAgentAssignments` |
+
+## Accreditation rules
+
+- Status flow: `pending → approved | revoked`, `approved → suspended | revoked`,
+  `suspended → approved | revoked`. `revoked` is final.
+- Approval requires `training_completed` and `biometric_enrolled`.
+- Suspending or revoking requires a reason. Every change is recorded in the
+  audit trail with the actor.
+- A member holds at most one active (pending or approved) accreditation.
+- A polling unit has at most one approved polling-unit agent.
+- The role must match the scope level, for example a polling-unit agent must
+  be assigned to a polling unit.
+- Members and agents get sequential numbers (`TGCG-000001`, `AG-00001`).
+  Sending a device `client_id` makes offline retries idempotent.
 
 ## Quality checks
 

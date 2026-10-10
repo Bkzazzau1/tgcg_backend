@@ -7,6 +7,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from apps.accounts.views import LoginView, LogoutView, MeView
 from apps.core.views import HealthView
 from apps.geography import views as geography
+from apps.membership.views import AgentViewSet, MemberViewSet
 
 router = DefaultRouter()
 router.register("geography/zones", geography.ZoneViewSet)
@@ -15,6 +16,8 @@ router.register("geography/senatorial-districts", geography.SenatorialDistrictVi
 router.register("geography/lgas", geography.LgaViewSet)
 router.register("geography/wards", geography.WardViewSet)
 router.register("geography/polling-units", geography.PollingUnitViewSet)
+router.register("members", MemberViewSet, basename="member")
+router.register("agents", AgentViewSet, basename="agent")
 
 api_v1 = [
     path("health/", HealthView.as_view(), name="health"),
