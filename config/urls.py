@@ -9,6 +9,7 @@ from apps.core.views import HealthView
 from apps.field.views import EvidenceDownloadView, FieldReportViewSet, IncidentViewSet
 from apps.geography import views as geography
 from apps.membership.views import AgentViewSet, MemberViewSet
+from apps.results.views import CollationView, ElectionViewSet, PartyViewSet, ResultViewSet
 
 router = DefaultRouter()
 router.register("geography/zones", geography.ZoneViewSet)
@@ -21,6 +22,9 @@ router.register("members", MemberViewSet, basename="member")
 router.register("agents", AgentViewSet, basename="agent")
 router.register("incidents", IncidentViewSet, basename="incident")
 router.register("field-reports", FieldReportViewSet, basename="field-report")
+router.register("parties", PartyViewSet)
+router.register("elections", ElectionViewSet)
+router.register("results", ResultViewSet, basename="result")
 
 api_v1 = [
     path("health/", HealthView.as_view(), name="health"),
@@ -33,6 +37,7 @@ api_v1 = [
         EvidenceDownloadView.as_view(),
         name="evidence-download",
     ),
+    path("collation/", CollationView.as_view(), name="collation"),
     path("", include(router.urls)),
 ]
 

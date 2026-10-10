@@ -117,3 +117,25 @@ SEVERITY_RANK = {
     IncidentSeverity.HIGH: 4,
     IncidentSeverity.CRITICAL: 5,
 }
+
+
+class SubmissionSource(models.TextChoices):
+    APP = "app", "App"
+    SMS = "sms", "SMS"
+    USSD = "ussd", "USSD"
+    MANUAL = "manual", "Manual"
+
+
+class ElectionType(models.TextChoices):
+    PRESIDENTIAL = "presidential", "Presidential"
+    GOVERNORSHIP = "governorship", "Governorship"
+    SENATORIAL = "senatorial", "Senatorial"
+    HOUSE_OF_REPRESENTATIVES = "houseOfRepresentatives", "House of Representatives"
+    STATE_ASSEMBLY = "stateAssembly", "State House of Assembly"
+    AREA_COUNCIL = "areaCouncil", "LGA / area council"
+
+
+class ElectionStatus(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    OPEN = "open", "Open for results"
+    CLOSED = "closed", "Closed"

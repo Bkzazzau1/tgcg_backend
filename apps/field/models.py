@@ -201,7 +201,7 @@ def evidence_upload_path(instance, filename):
 
 
 class Evidence(TimeStampedModel):
-    """A file attached to an incident or a field report."""
+    """A file attached to an incident, a field report or a result submission."""
 
     type = models.CharField(max_length=16, choices=EvidenceType.choices)
     file = models.FileField(upload_to=evidence_upload_path)
@@ -228,13 +228,21 @@ class Evidence(TimeStampedModel):
     report = models.ForeignKey(
         FieldReport, on_delete=models.PROTECT, null=True, blank=True, related_name="evidence"
     )
+    result = models.ForeignKey(
+        "results.ResultSubmission",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="evidence",
+    )
 
     class Meta:
         ordering = ["created_at"]
         constraints = [
             models.CheckConstraint(
-                condition=Q(incident__isnull=False, report__isnull=True)
-                | Q(incident__isnull=True, report__isnull=False),
+                condition=Q(incident__isnull=False, report__isnull=True, result__isnull=True)
+                | Q(incident__isnull=True, report__isnull=False, result__isnull=True)
+                | Q(incident__isnull=True, report__isnull=True, result__isnull=False),
                 name="evidence_belongs_to_one_record",
             ),
         ]
@@ -244,4 +252,4 @@ class Evidence(TimeStampedModel):
 
     @property
     def parent(self):
-        return self.incident or self.report
+        return self.incident or self.report or self.result

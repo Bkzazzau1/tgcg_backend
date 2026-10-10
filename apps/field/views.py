@@ -246,13 +246,17 @@ class EvidenceDownloadView(APIView):
     @extend_schema(responses={(200, "application/octet-stream"): OpenApiTypes.BINARY})
     def get(self, request, uuid):
         evidence = get_object_or_404(
-            Evidence.objects.select_related("incident", "report"), uuid=uuid
+            Evidence.objects.select_related("incident", "report", "result"), uuid=uuid
         )
         user = request.user
         if evidence.incident_id:
             visible = visible_incidents(user).filter(pk=evidence.incident_id).exists()
-        else:
+        elif evidence.report_id:
             visible = visible_reports(user).filter(pk=evidence.report_id).exists()
+        else:
+            from apps.results.views import visible_results
+
+            visible = visible_results(user).filter(pk=evidence.result_id).exists()
         if not visible:
             return Response(status=status.HTTP_404_NOT_FOUND)
         is_own = evidence.parent.reporter_id == user.pk or evidence.uploader_id == user.pk

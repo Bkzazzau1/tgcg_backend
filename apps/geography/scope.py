@@ -240,3 +240,64 @@ class ScopeField(serializers.Field):
 
 
 SCOPE_SELECT_RELATED = tuple(SCOPE_FIELDS)
+
+
+class ScopeRef:
+    """An in-memory scope (level + unit chain) usable wherever a ScopedModel is.
+
+    Build with `ScopeRef.resolve(level, code)`; parent units are derived.
+    """
+
+    def __init__(self, level, **units):
+        self.scope_level = level
+        for field in SCOPE_FIELDS:
+            setattr(self, field, units.get(field))
+
+    def __getattr__(self, name):
+        # Provide `<field>_id` like a model instance would.
+        if name.endswith("_id") and name[:-3] in SCOPE_FIELDS:
+            unit = getattr(self, name[:-3])
+            return unit.pk if unit is not None else None
+        raise AttributeError(name)
+
+    scope_unit_field = ScopedModel.scope_unit_field
+
+    @classmethod
+    def national(cls):
+        return cls(GeographyLevel.COUNTRY)
+
+    @classmethod
+    def resolve(cls, level, code=None):
+        """Look up the unit for `level`/`code` and derive its parents.
+
+        Raises ValidationError for an unknown level or code.
+        """
+        from django.apps import apps
+
+        if level == GeographyLevel.COUNTRY:
+            return cls.national()
+        if level not in LEVEL_FIELD:
+            raise ValidationError({"level": f"Unknown level {level!r}."})
+        field = LEVEL_FIELD[level]
+        model = apps.get_model(_MODEL_FOR_FIELD[field])
+        unit = model.objects.filter(code=code).first() if code else None
+        if unit is None:
+            raise ValidationError({"code": f"Unknown {field.replace('_', ' ')} {code!r}."})
+        units = {field: unit}
+        if field == "polling_unit":
+            units["ward"] = unit.ward
+        if "ward" in units:
+            units["lga"] = units["ward"].lga
+        if "lga" in units:
+            units["senatorial_district"] = units["lga"].senatorial_district
+            units["state"] = units["lga"].state
+        if "senatorial_district" in units:
+            units["state"] = units["senatorial_district"].state
+        if "state" in units:
+            units["zone"] = units["state"].zone
+        return cls(level, **units)
+
+    @classmethod
+    def of(cls, obj):
+        """Copy the scope of any ScopedModel instance."""
+        return cls(obj.scope_level, **{f: getattr(obj, f) for f in SCOPE_FIELDS})

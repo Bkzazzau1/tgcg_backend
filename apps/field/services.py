@@ -316,6 +316,7 @@ def add_evidence(
         client_id=client_id,
         incident=parent if isinstance(parent, Incident) else None,
         report=parent if isinstance(parent, FieldReport) else None,
+        result=parent if parent._meta.label == "results.ResultSubmission" else None,
     )
     _save(evidence)
     if isinstance(parent, Incident):

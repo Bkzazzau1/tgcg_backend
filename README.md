@@ -37,6 +37,7 @@ apps/geography/    zones, states, senatorial districts, LGAs, wards, polling uni
 apps/accounts/     operator accounts: access ID or phone login, role, scope
 apps/membership/   members, agent accreditation, accreditation audit trail
 apps/field/        incidents, field reports, evidence uploads, incident audit trail
+apps/results/      parties, elections, result submissions, integrity checks, collation
 ```
 
 ## API (v1)
@@ -66,6 +67,15 @@ apps/field/        incidents, field reports, evidence uploads, incident audit tr
 | POST | `/api/v1/field-reports/{reference}/review/` | `{"accepted": bool, "reason": ...}` |
 | GET, POST | `/api/v1/field-reports/{reference}/evidence/` | As for incidents |
 | GET | `/api/v1/evidence/{id}/download/` | Authenticated, scope-checked file download |
+| GET | `/api/v1/parties/`, `/api/v1/elections/` | Ballot reference data |
+| GET, POST | `/api/v1/results/` | Submit a polling-unit result (see below); filter `election__code`, `status`, scope codes |
+| GET | `/api/v1/results/{reference}/` | e.g. `RES-000001`, with validation and result form |
+| POST | `/api/v1/results/{reference}/verify/` | `{"note": ...}` |
+| POST | `/api/v1/results/{reference}/dispute/` | `{"reason": ...}` |
+| POST | `/api/v1/results/{reference}/reject/` | `{"reason": ...}` |
+| GET | `/api/v1/results/{reference}/events/` | Result audit trail |
+| GET, POST | `/api/v1/results/{reference}/evidence/` | Upload the signed result sheet (`type=resultForm`) |
+| GET | `/api/v1/collation/?election=...&level=...&code=...` | Unofficial totals from verified results, with a child breakdown |
 
 Enum values (roles, levels, statuses) use the Flutter client's camelCase names,
 so payloads map straight onto `Enum.values.byName(...)` in Dart.
@@ -162,6 +172,47 @@ state coordinator only sees Kaduna members and agents.
 - Files are stored under random names and never served from `/media/`.
   Downloads go through `/evidence/{id}/download/`, which checks scope and
   `viewEvidence`. In production, use private object storage.
+
+## Results and collation
+
+TGCG collation is **unofficial**: every result and collation response carries
+`"official": false`, and it never replaces INEC declarations.
+
+- **Elections:** created in the admin with a type, an area (presidential:
+  country, governorship: state, senatorial: district) and the parties on the
+  ballot. Results are accepted only while an election is `open`.
+- **Parties:** the 18 parties registered by INEC for 2023 are seeded. Check
+  them against INEC's current register before each election.
+- **Submitting:** send `election`, `polling_unit`, `party_votes`
+  (`{"APC": 120, ...}`), `total_valid_votes`, `accredited_voters` and
+  optionally `rejected_votes`, `registered_voters`, `ocr_party_votes`,
+  `ocr_confidence`, `client_id`. The polling unit must be inside both the
+  election and the submitter's scope. Parties left out count as 0, and
+  parties not on the ballot are rejected.
+- **Integrity checks** (ported from the client's `ResultIntegrityPolicy`):
+  - the party votes add up to the total;
+  - valid plus rejected votes do not exceed accredited voters;
+  - accredited voters do not exceed registered voters, using master data
+    when it is known;
+  - there is no other live submission for the same polling unit;
+  - the submitter is that polling unit's own agent;
+  - the OCR figures match the typed figures.
+
+  Any failure sends the result to `underReview`.
+- **Review:**
+  - Verifying needs `verifyElectionResult` and cannot be done on your own
+    submission or on a result that fails arithmetic.
+  - Each polling unit has only one verified result per election.
+  - Disputing (`disputeElectionResult`) and rejecting both need a reason.
+  - Submissions are never edited: correct a result by resubmitting it.
+- **Collation:** computed live from verified results only.
+  - Defaults to the caller's own scope; `level` and `code` narrow it.
+  - Returns expected, reported, verified, under-review, disputed and missing
+    polling units, completion, party totals and the leading party.
+  - Includes a breakdown by the next level down, limited to the election's
+    area.
+  - Expected polling units come from master data, so load wards and polling
+    units to get completion figures.
 
 ## Quality checks
 

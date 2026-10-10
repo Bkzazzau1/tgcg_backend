@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.membership",
     "apps.field",
+    "apps.results",
 ]
 
 MIDDLEWARE = [
