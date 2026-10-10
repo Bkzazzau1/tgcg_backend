@@ -88,11 +88,23 @@ def confirm_check_in(*, actor, check_in: AgentCheckIn) -> AgentCheckIn:
     return check
 
 
-def start_duty(*, user, gps=None) -> DutySession:
+def _device_time(at):
+    """Phone time for an offline duty change, clamped to the last day and now."""
+    now = timezone.now()
+    if at is None or at > now:
+        return now
+    return max(at, now - timedelta(days=1))
+
+
+def start_duty(*, user, gps=None, at=None) -> DutySession:
+    """Start sharing location. `at` is the phone time, for changes synced later."""
     _require_field_role(user)
+    started = _device_time(at)
     try:
         with transaction.atomic():
-            session, _ = DutySession.objects.get_or_create(user=user, ended_at__isnull=True)
+            session, created = DutySession.objects.get_or_create(
+                user=user, ended_at__isnull=True, defaults={"started_at": started}
+            )
     except IntegrityError:  # two "start" taps at once
         session = DutySession.objects.get(user=user, ended_at__isnull=True)
     if gps:
@@ -100,11 +112,11 @@ def start_duty(*, user, gps=None) -> DutySession:
     return session
 
 
-def stop_duty(*, user) -> DutySession | None:
+def stop_duty(*, user, at=None) -> DutySession | None:
     _require_field_role(user)
     session = DutySession.objects.filter(user=user, ended_at__isnull=True).first()
     if session:
-        session.ended_at = timezone.now()
+        session.ended_at = max(_device_time(at), session.started_at)
         session.save(update_fields=["ended_at"])
     return session
 

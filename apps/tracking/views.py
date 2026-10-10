@@ -115,6 +115,9 @@ class DutyView(APIView):
             "DutyRequest",
             {
                 "on_duty": serializers.BooleanField(),
+                "at": serializers.DateTimeField(
+                    required=False, help_text="Phone time of the change (for offline sync)"
+                ),
                 "gps": GpsFixSerializer(required=False, allow_null=True),
             },
         ),
@@ -125,15 +128,19 @@ class DutyView(APIView):
     )
     def post(self, request):
         on_duty = request.data.get("on_duty") in (True, "true", "True", "1", 1)
+        at = None
+        if request.data.get("at"):
+            stamp = serializers.DateTimeField()
+            at = stamp.to_internal_value(request.data["at"])
         if on_duty:
             gps = None
             if request.data.get("gps"):
                 fix = GpsFixSerializer(data=request.data["gps"])
                 fix.is_valid(raise_exception=True)
                 gps = fix.validated_data
-            session = services.start_duty(user=request.user, gps=gps)
+            session = services.start_duty(user=request.user, gps=gps, at=at)
             return Response({"on_duty": True, "since": session.started_at})
-        services.stop_duty(user=request.user)
+        services.stop_duty(user=request.user, at=at)
         return Response({"on_duty": False, "since": None})
 
     @extend_schema(responses={200: OpenApiTypes.OBJECT})

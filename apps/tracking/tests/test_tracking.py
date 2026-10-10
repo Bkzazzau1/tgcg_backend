@@ -299,3 +299,24 @@ def test_purge_old_pings(agent):
     call_command("purge_location_pings")
     assert LocationPing.objects.count() == 0
     assert DutySession.objects.count() == 1
+
+
+def test_duty_changes_synced_later_keep_phone_time(agent):
+    went_on_duty = timezone.now() - timedelta(minutes=50)
+    agent.post(
+        "/api/v1/tracking/duty/",
+        {"on_duty": True, "at": went_on_duty.isoformat()},
+        format="json",
+    )
+    stored = agent.post(
+        "/api/v1/tracking/pings/", {"pings": [fix(minutes_ago=40)]}, format="json"
+    ).json()
+    assert stored["stored"] == 1  # captured offline, after duty started
+    agent.post(
+        "/api/v1/tracking/duty/",
+        {"on_duty": False, "at": (timezone.now() - timedelta(minutes=10)).isoformat()},
+        format="json",
+    )
+    session = DutySession.objects.get()
+    assert abs((session.started_at - went_on_duty).total_seconds()) < 1
+    assert session.ended_at < timezone.now() - timedelta(minutes=9)

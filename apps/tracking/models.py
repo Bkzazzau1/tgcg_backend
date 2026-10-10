@@ -7,6 +7,7 @@ deleted after LOCATION_PING_RETENTION_DAYS (see purge_location_pings).
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 from apps.core.models import TimeStampedModel
 from apps.geography.gps import GpsCheckFields
@@ -54,7 +55,9 @@ class DutySession(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="duty_sessions"
     )
-    started_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(
+        default=timezone.now, help_text="Phone time the agent went on duty."
+    )
     ended_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
