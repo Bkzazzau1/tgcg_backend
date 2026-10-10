@@ -6,6 +6,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.accounts.views import LoginView, LogoutView, MeView
 from apps.core.views import HealthView
+from apps.field.views import EvidenceDownloadView, FieldReportViewSet, IncidentViewSet
 from apps.geography import views as geography
 from apps.membership.views import AgentViewSet, MemberViewSet
 
@@ -18,6 +19,8 @@ router.register("geography/wards", geography.WardViewSet)
 router.register("geography/polling-units", geography.PollingUnitViewSet)
 router.register("members", MemberViewSet, basename="member")
 router.register("agents", AgentViewSet, basename="agent")
+router.register("incidents", IncidentViewSet, basename="incident")
+router.register("field-reports", FieldReportViewSet, basename="field-report")
 
 api_v1 = [
     path("health/", HealthView.as_view(), name="health"),
@@ -25,6 +28,11 @@ api_v1 = [
     path("auth/refresh/", TokenRefreshView.as_view(), name="auth-refresh"),
     path("auth/logout/", LogoutView.as_view(), name="auth-logout"),
     path("auth/me/", MeView.as_view(), name="auth-me"),
+    path(
+        "evidence/<uuid:uuid>/download/",
+        EvidenceDownloadView.as_view(),
+        name="evidence-download",
+    ),
     path("", include(router.urls)),
 ]
 

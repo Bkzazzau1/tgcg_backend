@@ -36,6 +36,7 @@ apps/core/         shared base model, enums mirrored from the Flutter client, he
 apps/geography/    zones, states, senatorial districts, LGAs, wards, polling units
 apps/accounts/     operator accounts: access ID or phone login, role, scope
 apps/membership/   members, agent accreditation, accreditation audit trail
+apps/field/        incidents, field reports, evidence uploads, incident audit trail
 ```
 
 ## API (v1)
@@ -55,6 +56,16 @@ apps/membership/   members, agent accreditation, accreditation audit trail
 | PATCH | `/api/v1/agents/{agent_id}/readiness/` | `training_completed`, `biometric_enrolled`, `device_id`, `sim_fingerprint` |
 | POST | `/api/v1/agents/{agent_id}/status/` | `{"status": "approved" \| "suspended" \| "revoked", "reason": ...}` |
 | GET | `/api/v1/agents/{agent_id}/events/` | Accreditation audit trail |
+| GET, POST | `/api/v1/incidents/` | Filters: `status`, `severity`, `min_severity`, `category`, `open`, scope codes. Most severe first |
+| GET | `/api/v1/incidents/{reference}/` | e.g. `INC-000001`, with evidence |
+| POST | `/api/v1/incidents/{reference}/status/` | `{"status": ..., "note": ...}` |
+| POST | `/api/v1/incidents/{reference}/assign/` | `{"team": ..., "note": ...}` |
+| GET | `/api/v1/incidents/{reference}/events/` | Incident audit trail |
+| GET, POST | `/api/v1/incidents/{reference}/evidence/` | Multipart upload: `file`, `type`, `caption`, `latitude`, `longitude`, `captured_at`, `content_hash`, `client_id` |
+| GET, POST | `/api/v1/field-reports/` | Optional `incident` reference |
+| POST | `/api/v1/field-reports/{reference}/review/` | `{"accepted": bool, "reason": ...}` |
+| GET, POST | `/api/v1/field-reports/{reference}/evidence/` | As for incidents |
+| GET | `/api/v1/evidence/{id}/download/` | Authenticated, scope-checked file download |
 
 Enum values (roles, levels, statuses) use the Flutter client's camelCase names,
 so payloads map straight onto `Enum.values.byName(...)` in Dart.
@@ -110,6 +121,47 @@ state coordinator only sees Kaduna members and agents.
   be assigned to a polling unit.
 - Members and agents get sequential numbers (`TGCG-000001`, `AG-00001`).
   Sending a device `client_id` makes offline retries idempotent.
+
+## Incidents and field reports
+
+- New incidents and reports default to the reporter's own scope, and can only
+  be filed inside it. A polling-unit agent reports at their polling unit.
+- People with `viewIncidents` see every incident in their scope. Others
+  (polling-unit agents, observers) see only what they reported.
+- Status flow:
+
+  | From | To |
+  |---|---|
+  | reported | acknowledged, escalated, closed |
+  | acknowledged | investigating, escalated, resolved, closed, or assigned via `/assign/` |
+  | assigned / investigating / escalated | investigating, escalated, resolved |
+  | resolved | closed, or investigating to reopen |
+  | closed | final |
+
+- Who can move an incident: acknowledge, investigate or escalate needs
+  `acknowledgeIncident`. Assigning needs `assignIncident`. Resolving needs
+  `assignIncident` or `closeIncident`. Closing needs `closeIncident`.
+- Escalating, resolving, closing and reopening need a note. Every change is
+  kept in `/events/` with the actor.
+- Coordinates must fall inside Nigeria and must be sent as a pair.
+- Field reports are reviewed (verified or rejected) by holders of
+  `verifyFieldReport`. Rejecting needs a reason, and nobody can review their
+  own report.
+
+## Evidence
+
+- Only the record's reporter, or someone with `manageEvidence` in scope, can
+  attach evidence. Nothing can be attached to a closed incident.
+- Accepted files: photo (jpg, png, webp, heic), video (mp4, mov, 3gp, webm),
+  audio (m4a, aac, mp3, wav, ogg, amr), document (pdf), and result form
+  (image or pdf).
+- Size limits: 25 MB, or 150 MB for video (`EVIDENCE_MAX_UPLOAD_MB`,
+  `EVIDENCE_MAX_VIDEO_MB`).
+- The server checks the file signature, computes SHA-256, and rejects the
+  upload if it differs from the `content_hash` recorded on the device.
+- Files are stored under random names and never served from `/media/`.
+  Downloads go through `/evidence/{id}/download/`, which checks scope and
+  `viewEvidence`. In production, use private object storage.
 
 ## Quality checks
 

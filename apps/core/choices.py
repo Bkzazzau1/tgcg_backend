@@ -74,3 +74,46 @@ class AccreditationStatus(models.TextChoices):
     APPROVED = "approved", "Approved"
     SUSPENDED = "suspended", "Suspended"
     REVOKED = "revoked", "Revoked"
+
+
+class EvidenceType(models.TextChoices):
+    PHOTO = "photo", "Photo"
+    VIDEO = "video", "Video"
+    AUDIO = "audio", "Audio"
+    DOCUMENT = "document", "Document"
+    RESULT_FORM = "resultForm", "Result form"
+    LOCATION = "location", "Location"
+
+
+# Category values are the exact strings the Flutter client offers
+# (lib/tgcg/field/field_monitoring_page.dart).
+class IncidentCategory(models.TextChoices):
+    ACCESS = "Access"
+    SECURITY = "Security"
+    VIOLENCE_THREAT = "Violence / threat"
+    EVIDENCE_QUALITY = "Evidence quality"
+    GEOLOCATION = "Geolocation"
+    TECHNICAL = "Technical"
+    MATERIALS_LOGISTICS = "Materials / logistics"
+    PROCESS_IRREGULARITY = "Process irregularity"
+    OTHER = "Other"
+
+
+class ReportCategory(models.TextChoices):
+    OPENING_STATUS = "Opening status"
+    OPERATIONAL_UPDATE = "Operational update"
+    MATERIALS_UPDATE = "Materials update"
+    QUEUE_TURNOUT = "Queue / turnout observation"
+    CONNECTIVITY_UPDATE = "Connectivity update"
+    CLOSING_STATUS = "Closing status"
+    AGENT_CHECK_IN = "Agent check-in"
+    OTHER = "Other"
+
+
+SEVERITY_RANK = {
+    IncidentSeverity.INFO: 1,
+    IncidentSeverity.LOW: 2,
+    IncidentSeverity.MEDIUM: 3,
+    IncidentSeverity.HIGH: 4,
+    IncidentSeverity.CRITICAL: 5,
+}

@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.geography",
     "apps.accounts",
     "apps.membership",
+    "apps.field",
 ]
 
 MIDDLEWARE = [
@@ -157,6 +158,11 @@ SPECTACULAR_SETTINGS = {
         "RecordOrigin": "apps.core.choices.RecordOrigin",
         "Role": "apps.core.choices.Role",
         "GeographyLevel": "apps.core.choices.GeographyLevel",
+        "IncidentStatus": "apps.core.choices.IncidentStatus",
+        "IncidentSeverity": "apps.core.choices.IncidentSeverity",
+        "IncidentCategory": "apps.core.choices.IncidentCategory",
+        "ReportCategory": "apps.core.choices.ReportCategory",
+        "EvidenceType": "apps.core.choices.EvidenceType",
     },
 }
 
@@ -168,3 +174,10 @@ LOGGING = {
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "root": {"handlers": ["console"], "level": env("LOG_LEVEL", default="INFO")},
 }
+
+# --- Evidence uploads --------------------------------------------------------
+# Evidence is never served from MEDIA_URL; downloads go through an
+# authenticated, scope-checked endpoint. Use private object storage in prod.
+EVIDENCE_MAX_UPLOAD_MB = env.int("EVIDENCE_MAX_UPLOAD_MB", default=25)
+EVIDENCE_MAX_VIDEO_MB = env.int("EVIDENCE_MAX_VIDEO_MB", default=150)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
