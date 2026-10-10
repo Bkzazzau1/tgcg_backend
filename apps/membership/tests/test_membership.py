@@ -5,7 +5,7 @@ from apps.accounts.models import User
 from apps.core.choices import GeographyLevel, Role
 from apps.geography.models import Lga, PollingUnit, State, Ward
 from apps.membership.models import AccreditationEvent
-from conftest import PASSWORD
+from conftest import PASSWORD, make_member
 
 pytestmark = pytest.mark.django_db
 
@@ -78,17 +78,9 @@ def kd_lga(db):
     )
 
 
-def create_member(client, phone="08031112222", lga="KD-KADUNA-NORTH", **extra):
-    return client.post(
-        "/api/v1/members/",
-        {
-            "full_name": "  Musa   Bello ",
-            "phone_number": phone,
-            "scope": {"level": "lga", "lgaId": lga},
-            **extra,
-        },
-        format="json",
-    )
+def new_member(phone="08031112222", lga="KD-KADUNA-NORTH"):
+    """Create a member directly; registration itself is tested in test_registration."""
+    return make_member(phone=phone, lga=lga).membership_number
 
 
 def pu_scope(pu):
@@ -111,53 +103,8 @@ def accredit(client, member_number, pu, **extra):
 # --- members --------------------------------------------------------------
 
 
-def test_admin_creates_member_with_derived_scope(admin):
-    response = create_member(admin)
-    assert response.status_code == 201, response.content
-    body = response.json()
-    assert body["membership_number"] == "TGCG-000001"
-    assert body["full_name"] == "Musa Bello"
-    assert body["phone_number"] == "+2348031112222"
-    assert body["status"] == "submitted"
-    assert body["scope"]["stateId"] == "KD"
-    assert body["scope"]["zoneId"] == "NW"
-    assert body["active_accreditation"] is None
-
-
-def test_member_numbers_increment(admin):
-    create_member(admin)
-    second = create_member(admin, phone="08031112223").json()
-    assert second["membership_number"] == "TGCG-000002"
-
-
-def test_duplicate_phone_rejected(admin):
-    create_member(admin)
-    response = create_member(admin, phone="+234 803 111 2222")
-    assert response.status_code == 400
-    assert "phone_number" in response.json()
-
-
-def test_invalid_phone_rejected(admin):
-    response = create_member(admin, phone="12345")
-    assert response.status_code == 400
-    assert "phone_number" in response.json()
-
-
-def test_client_id_makes_create_idempotent(admin):
-    first = create_member(admin, client_id="device-1:MEM-0001").json()
-    retry = create_member(admin, client_id="device-1:MEM-0001")
-    assert retry.status_code == 201
-    assert retry.json()["membership_number"] == first["membership_number"]
-
-
-def test_state_coordinator_reads_but_cannot_register_members(admin, kd_state):
-    create_member(admin)
-    assert kd_state.get("/api/v1/members/").json()["count"] == 1
-    assert create_member(kd_state, phone="08039998888").status_code == 403
-
-
 def test_members_are_limited_to_scope(admin, la_state):
-    number = create_member(admin).json()["membership_number"]
+    number = new_member()
     assert la_state.get("/api/v1/members/").json()["count"] == 0
     assert la_state.get(f"/api/v1/members/{number}/").status_code == 404
 
@@ -168,7 +115,7 @@ def test_observer_cannot_see_members(db):
 
 
 def test_update_member_status(admin):
-    number = create_member(admin).json()["membership_number"]
+    number = new_member()
     response = admin.patch(f"/api/v1/members/{number}/", {"status": "verified"}, format="json")
     assert response.status_code == 200
     assert response.json()["status"] == "verified"
@@ -178,7 +125,7 @@ def test_update_member_status(admin):
 
 
 def test_state_coordinator_accredits_agent(admin, kd_state, kd_polling_units):
-    number = create_member(admin).json()["membership_number"]
+    number = new_member()
     response = accredit(kd_state, number, kd_polling_units[0], device_id="DEV-1")
     assert response.status_code == 201, response.content
     body = response.json()
@@ -198,7 +145,7 @@ def test_state_coordinator_accredits_agent(admin, kd_state, kd_polling_units):
 
 
 def test_role_must_match_scope_level(admin, kd_state):
-    number = create_member(admin).json()["membership_number"]
+    number = new_member()
     response = kd_state.post(
         "/api/v1/agents/",
         {
@@ -213,7 +160,7 @@ def test_role_must_match_scope_level(admin, kd_state):
 
 
 def test_national_roles_cannot_be_accredited(admin, kd_polling_units):
-    number = create_member(admin).json()["membership_number"]
+    number = new_member()
     response = admin.post(
         "/api/v1/agents/",
         {"member": number, "role": "nationalAdministrator", "scope": {"level": "country"}},
@@ -224,19 +171,19 @@ def test_national_roles_cannot_be_accredited(admin, kd_polling_units):
 
 
 def test_cannot_accredit_member_outside_scope(admin, la_state, la_polling_unit):
-    number = create_member(admin).json()["membership_number"]
+    number = new_member()
     response = accredit(la_state, number, la_polling_unit)
     assert response.status_code == 400
     assert "member" in response.json()
 
 
 def test_cannot_assign_outside_scope(admin, kd_state, la_polling_unit):
-    number = create_member(admin).json()["membership_number"]
+    number = new_member()
     assert accredit(kd_state, number, la_polling_unit).status_code == 403
 
 
 def test_one_active_accreditation_per_member(admin, kd_state, kd_polling_units):
-    number = create_member(admin).json()["membership_number"]
+    number = new_member()
     accredit(kd_state, number, kd_polling_units[0])
     response = accredit(kd_state, number, kd_polling_units[1])
     assert response.status_code == 400
@@ -246,7 +193,7 @@ def test_one_active_accreditation_per_member(admin, kd_state, kd_polling_units):
 def test_lga_coordinator_updates_readiness_but_cannot_approve(
     admin, kd_state, kd_lga, kd_polling_units
 ):
-    number = create_member(admin).json()["membership_number"]
+    number = new_member()
     agent_id = accredit(kd_state, number, kd_polling_units[0]).json()["agent_id"]
 
     ready = kd_lga.patch(
@@ -262,7 +209,7 @@ def test_lga_coordinator_updates_readiness_but_cannot_approve(
 
 
 def test_approval_requires_readiness(admin, kd_state, kd_polling_units):
-    number = create_member(admin).json()["membership_number"]
+    number = new_member()
     agent_id = accredit(kd_state, number, kd_polling_units[0]).json()["agent_id"]
 
     early = kd_state.post(f"/api/v1/agents/{agent_id}/status/", {"status": "approved"})
@@ -279,7 +226,7 @@ def test_approval_requires_readiness(admin, kd_state, kd_polling_units):
 
 
 def ready_agent(admin, coordinator, pu, phone):
-    number = create_member(admin, phone=phone).json()["membership_number"]
+    number = new_member(phone=phone)
     agent_id = accredit(coordinator, number, pu).json()["agent_id"]
     coordinator.patch(
         f"/api/v1/agents/{agent_id}/readiness/",
@@ -325,7 +272,7 @@ def test_one_approved_agent_per_polling_unit(admin, kd_state, kd_polling_units):
 
 
 def test_agents_are_limited_to_scope(admin, kd_state, la_state, kd_polling_units):
-    number = create_member(admin).json()["membership_number"]
+    number = new_member()
     agent_id = accredit(kd_state, number, kd_polling_units[0]).json()["agent_id"]
     assert la_state.get("/api/v1/agents/").json()["count"] == 0
     assert la_state.get(f"/api/v1/agents/{agent_id}/").status_code == 404

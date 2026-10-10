@@ -119,6 +119,14 @@ class ScopedModel(models.Model):
         return LEVEL_FIELD[self.scope_level]
 
 
+def default_to_actor_scope(actor, fields: dict) -> None:
+    """Give a new record the actor's own scope when none was supplied."""
+    if "scope_level" not in fields:
+        fields["scope_level"] = actor.scope_level
+        for name in SCOPE_FIELDS:
+            fields[name] = getattr(actor, name)
+
+
 def within_scope_q(actor: ScopedModel, prefix: str = "") -> Q:
     """Filter for rows (with scope fields under `prefix`) inside actor's scope."""
     field = actor.scope_unit_field
@@ -215,8 +223,15 @@ class ScopeField(serializers.Field):
         return instance
 
     def to_internal_value(self, data):
+        import json
+
         from django.apps import apps
 
+        if isinstance(data, str):  # multipart forms send the scope as JSON text
+            try:
+                data = json.loads(data)
+            except ValueError as exc:
+                raise serializers.ValidationError("Expected a scope object.") from exc
         if not isinstance(data, dict):
             raise serializers.ValidationError("Expected a scope object.")
         level = data.get("level", GeographyLevel.COUNTRY)
@@ -301,3 +316,16 @@ class ScopeRef:
     def of(cls, obj):
         """Copy the scope of any ScopedModel instance."""
         return cls(obj.scope_level, **{f: getattr(obj, f) for f in SCOPE_FIELDS})
+
+
+def covering_q(target, prefix: str = "") -> Q:
+    """Filter for rows whose scope covers `target` (national, or any unit above it).
+
+    Example: announcements that apply to a member in a given polling unit.
+    """
+    condition = Q(**{f"{prefix}scope_level": GeographyLevel.COUNTRY})
+    for level, field in LEVEL_FIELD.items():
+        unit_id = getattr(target, f"{field}_id")
+        if unit_id is not None:
+            condition |= Q(**{f"{prefix}scope_level": level, f"{prefix}{field}_id": unit_id})
+    return condition

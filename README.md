@@ -36,7 +36,9 @@ config/            settings (base / dev / test / prod), urls, wsgi, asgi
 apps/core/         shared base model, enums mirrored from the Flutter client, health
 apps/geography/    zones, states, senatorial districts, LGAs, wards, polling units
 apps/accounts/     operator accounts: access ID or phone login, role, scope
-apps/membership/   members, agent accreditation, accreditation audit trail
+apps/membership/   member registration, member home, membership card, volunteering,
+                   agent accreditation and its audit trail
+apps/announcements/ news for members, addressed to an area
 apps/field/        incidents, field reports, evidence uploads, incident audit trail
 apps/results/      parties, elections, result submissions, integrity checks, collation
 ```
@@ -51,8 +53,19 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | POST | `/api/v1/auth/logout/` | `{"refresh": ...}` revokes it |
 | GET | `/api/v1/auth/me/` | Current user, with `scope` shaped like the client's `GeographicScope` |
 | GET | `/api/v1/geography/{zones,states,senatorial-districts,lgas,wards,polling-units}/` | Read-only reference data; filter with e.g. `?state__code=LA` |
-| GET, POST | `/api/v1/members/` | List or register members in your scope; filter `status`, `state__code`, `lga__code`; search name, phone, number |
+| POST | `/api/v1/register/code/` | Public. `{"phone_number", "vin"}` checks both are free and sends an SMS code |
+| POST | `/api/v1/register/` | Public, multipart. Self-registration from a scanned PVC; returns a signed-in member session |
+| POST | `/api/v1/register/pin-code/`, `/api/v1/register/pin/` | Public. Set or reset a member's PIN by SMS code |
+| POST | `/api/v1/members/register/` | Coordinator registers someone in person (multipart, PVC optional) |
+| GET | `/api/v1/members/` | Members in your scope; filter `status`, `registration_channel`, `gender`, scope codes; search name, phone, number |
 | GET, PATCH | `/api/v1/members/{membership_number}/` | e.g. `TGCG-000001` |
+| GET | `/api/v1/members/{membership_number}/photo/` | Member photo (scope-checked) |
+| GET | `/api/v1/members/verify/?token=` | Staff scan a membership card QR code |
+| GET, PATCH | `/api/v1/me/member/` | Member home: own card and profile (email and occupation are editable) |
+| GET | `/api/v1/me/member/photo/`, `/api/v1/me/polling-unit/`, `/api/v1/me/announcements/` | Member home |
+| GET, POST | `/api/v1/me/volunteer/` | Apply to serve as a polling-unit agent |
+| GET | `/api/v1/volunteers/` | Coordinators' queue; `POST .../{id}/accept/` or `.../{id}/decline/` |
+| GET, POST, PATCH, DELETE | `/api/v1/announcements/` | Staff with `sendBroadcast`; addressed to an area inside their scope |
 | GET, POST | `/api/v1/agents/` | List or accredit agents (`member`, `role`, `scope`) |
 | GET | `/api/v1/agents/{agent_id}/` | e.g. `AG-00001` |
 | PATCH | `/api/v1/agents/{agent_id}/readiness/` | `training_completed`, `biometric_enrolled`, `device_id`, `sim_fingerprint` |
@@ -135,6 +148,58 @@ state coordinator only sees Kaduna members and agents.
 | Register or edit members | `manageMembership` |
 | Accredit, approve, suspend, revoke | `accreditAgents` |
 | Update agent readiness | `accreditAgents` or `manageAgentAssignments` |
+
+## Member registration
+
+**Self-registration in the app.** The PVC is required.
+
+1. The app scans the PVC and reads the name, VIN, gender, date of birth and
+   DELIM code. The member confirms the details and takes a selfie.
+2. `POST /register/code/` with the phone and VIN. It rejects a phone or PVC
+   that is already registered, then sends a 6-digit SMS code.
+3. `POST /register/` (multipart) with: `phone_number`, `code`, `vin`,
+   `delim`, `full_name`, `gender`, `date_of_birth`, `occupation`, `email`,
+   `pin`, `consent=true`, `photo` (the selfie) and `pvc_image`.
+   - The DELIM code (e.g. `18/23/01/001`) places the member at that INEC
+     polling unit.
+   - The member is active immediately and receives a sign-in session.
+
+**Assisted registration.** A coordinator with `registerMembers` (zonal,
+state, LGA or ward coordinators) or `manageMembership` uses
+`POST /members/register/`.
+
+- The PVC is optional. Without one, the member must be placed at least at
+  their LGA.
+- The member reads out the SMS code sent to their phone, so a basic phone is
+  enough.
+- The member can later get the app with `register/pin-code/` and
+  `register/pin/`.
+
+**Signing in.** Members sign in at `/auth/login/` with their phone and a
+6-digit PIN. Obvious PINs (`123456`, `111111` and so on) are refused. After
+5 failed attempts (members and staff alike), the account locks for
+15 minutes.
+
+**Rules:**
+
+- **One PVC and one phone per member.** A phone that already belongs to a
+  staff account cannot be reused.
+- **SMS codes:** 6 digits, expire after 10 minutes, at most 5 tries, 1 per
+  minute and 5 per hour per phone. Codes are stored only as a keyed hash.
+  Wrong attempts are recorded even though the request fails, because these
+  views (and login) run outside the request transaction. Validation happens
+  before the code is used up, so a typo does not cost the member their code.
+- **Privacy:** selfies and PVC images are private files, never served from
+  `/media/`. Staff see only the last 4 digits of a VIN. Recording consent is
+  mandatory under the Nigeria Data Protection Act.
+- **Membership card:** the QR code holds a signed token, so cards cannot be
+  forged or found by guessing numbers. Staff scan it at `/members/verify/`.
+- **INEC:** the backend cannot confirm a PVC with INEC (there is no public
+  API). It checks the VIN format and that the DELIM is a real polling unit.
+
+**SMS:** set `SMS_BACKEND=termii`, `TERMII_API_KEY` and `TERMII_SENDER_ID`
+(the sender ID must be approved by Termii). The default `console` backend
+writes codes to the server log, and production refuses to start with it.
 
 ## Accreditation rules
 

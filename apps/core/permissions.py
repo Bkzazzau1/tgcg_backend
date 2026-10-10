@@ -13,6 +13,7 @@ class Capability(models.TextChoices):
     VIEW_SITUATION_ROOM = "viewSituationRoom"
     VIEW_GEOGRAPHY = "viewGeography"
     MANAGE_MEMBERSHIP = "manageMembership"
+    REGISTER_MEMBERS = "registerMembers"
     ACCREDIT_AGENTS = "accreditAgents"
     MANAGE_AGENT_ASSIGNMENTS = "manageAgentAssignments"
     VIEW_INCIDENTS = "viewIncidents"
@@ -267,6 +268,24 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
         }
     ),
 }
+
+
+# Coordinators register members in person (with or without a PVC).
+for _role in (
+    Role.ZONAL_COORDINATOR,
+    Role.STATE_COORDINATOR,
+    Role.LGA_COORDINATOR,
+    Role.WARD_COORDINATOR,
+):
+    ROLE_CAPABILITIES[_role] = ROLE_CAPABILITIES[_role] | {C.REGISTER_MEMBERS}
+
+# Members use only their own member-home endpoints; they hold no staff capability.
+ROLE_CAPABILITIES[Role.MEMBER] = frozenset()
+
+
+def is_staff_operator(user) -> bool:
+    """Authenticated platform operator (any role except plain member)."""
+    return bool(getattr(user, "is_authenticated", False)) and user.role != Role.MEMBER
 
 
 def capabilities_for(user) -> frozenset[str]:

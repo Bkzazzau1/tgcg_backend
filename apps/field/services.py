@@ -12,7 +12,7 @@ from django.utils import timezone
 from apps.core.choices import EvidenceType, IncidentStatus, RecordStatus
 from apps.core.models import Sequence
 from apps.core.permissions import Capability, has_capability
-from apps.geography.scope import SCOPE_FIELDS, scope_contains
+from apps.geography.scope import default_to_actor_scope, scope_contains
 
 from .models import Evidence, FieldReport, Incident, IncidentEvent
 
@@ -49,14 +49,6 @@ def _require_scope(actor, target, what):
         raise PermissionDenied(f"The {what} is outside your operational scope.")
 
 
-def _copy_actor_scope(actor, fields):
-    """Default a new record's scope to the reporter's own scope."""
-    if "scope_level" not in fields:
-        fields["scope_level"] = actor.scope_level
-        for name in SCOPE_FIELDS:
-            fields[name] = getattr(actor, name)
-
-
 def _save(instance, exclude=None):
     instance.full_clean(exclude=exclude)
     try:
@@ -73,7 +65,7 @@ def report_incident(*, actor, **fields) -> Incident:
         existing = Incident.objects.filter(client_id=client_id, reporter=actor).first()
         if existing is not None:
             return existing  # offline retry
-    _copy_actor_scope(actor, fields)
+    default_to_actor_scope(actor, fields)
     incident = Incident(reporter=actor, status=I.REPORTED, **fields)
     incident.full_clean(exclude=["reference", "severity_rank"])
     _require_scope(actor, incident, "incident location")
@@ -169,7 +161,7 @@ def submit_report(*, actor, **fields) -> FieldReport:
         existing = FieldReport.objects.filter(client_id=client_id, reporter=actor).first()
         if existing is not None:
             return existing
-    _copy_actor_scope(actor, fields)
+    default_to_actor_scope(actor, fields)
     report = FieldReport(reporter=actor, status=RecordStatus.SUBMITTED, **fields)
     report.full_clean(exclude=["reference"])
     _require_scope(actor, report, "report location")

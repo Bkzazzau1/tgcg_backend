@@ -38,3 +38,21 @@ def lga_coordinator(make_user):
 def auth_client(api_client, make_user):
     api_client.force_authenticate(make_user())
     return api_client
+
+
+def make_member(phone="08031112222", lga="KD-KADUNA-NORTH", **extra):
+    """A registered member, created directly (registration flows have their own tests)."""
+    from apps.core.models import Sequence
+    from apps.membership.models import Member
+
+    member = Member(
+        full_name=extra.pop("full_name", "Musa Bello"),
+        phone_number=phone,
+        scope_level=GeographyLevel.LGA,
+        lga=Lga.objects.get(code=lga),
+        membership_number=f"TGCG-{Sequence.next_value('member'):06d}",
+        **extra,
+    )
+    member.full_clean()
+    member.save()
+    return member

@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "apps.membership",
     "apps.field",
     "apps.results",
+    "apps.announcements",
 ]
 
 MIDDLEWARE = [
@@ -133,6 +134,7 @@ REST_FRAMEWORK = {
         "anon": env("API_THROTTLE_ANON", default="60/min"),
         "user": env("API_THROTTLE_USER", default="600/min"),
         "login": env("API_THROTTLE_LOGIN", default="10/min"),
+        "registration": env("API_THROTTLE_REGISTRATION", default="30/hour"),
     },
 }
 
@@ -182,3 +184,21 @@ LOGGING = {
 EVIDENCE_MAX_UPLOAD_MB = env.int("EVIDENCE_MAX_UPLOAD_MB", default=25)
 EVIDENCE_MAX_VIDEO_MB = env.int("EVIDENCE_MAX_VIDEO_MB", default=150)
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+
+# --- Login protection ----------------------------------------------------------
+LOGIN_MAX_FAILED_ATTEMPTS = env.int("LOGIN_MAX_FAILED_ATTEMPTS", default=5)
+LOGIN_LOCKOUT_MINUTES = env.int("LOGIN_LOCKOUT_MINUTES", default=15)
+
+# --- SMS (phone verification codes) ---------------------------------------------
+# "console" logs codes (development only); "termii" sends real SMS.
+SMS_BACKEND = env("SMS_BACKEND", default="console")
+TERMII_API_KEY = env("TERMII_API_KEY", default="")
+TERMII_SENDER_ID = env("TERMII_SENDER_ID", default="TGCG")
+TERMII_BASE_URL = env("TERMII_BASE_URL", default="https://api.ng.termii.com")
+OTP_TTL_MINUTES = env.int("OTP_TTL_MINUTES", default=10)
+OTP_MAX_ATTEMPTS = 5
+OTP_RESEND_SECONDS = 60
+OTP_MAX_PER_HOUR = 5
+
+# --- Member registration ---------------------------------------------------------
+MEMBER_PHOTO_MAX_MB = env.int("MEMBER_PHOTO_MAX_MB", default=8)

@@ -57,6 +57,9 @@ class User(AbstractBaseUser, PermissionsMixin, ScopedModel):
     email = models.EmailField(blank=True)
     role = models.CharField(max_length=32, choices=Role.choices, default=Role.OBSERVER)
 
+    failed_login_attempts = models.PositiveSmallIntegerField(default=0, editable=False)
+    locked_until = models.DateTimeField(null=True, blank=True, editable=False)
+
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
@@ -91,3 +94,6 @@ class User(AbstractBaseUser, PermissionsMixin, ScopedModel):
 
         self.normalize_scope()
         self.validate_role_scope(self.role)
+
+
+from .verification import PhoneVerification  # noqa: E402,F401 - register the model

@@ -1,5 +1,7 @@
 """Production settings: PostgreSQL, HTTPS only, strict hosts."""
 
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *  # noqa: F403
 from .base import env
 
@@ -20,3 +22,7 @@ SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+
+# Phone verification must use a real SMS provider in production.
+if env("SMS_BACKEND", default="console") == "console":
+    raise ImproperlyConfigured("Set SMS_BACKEND=termii (and TERMII_API_KEY) in production.")

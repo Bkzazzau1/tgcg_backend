@@ -30,6 +30,7 @@ class Role(models.TextChoices):
     LEGAL_OFFICER = "legalOfficer", "Legal officer"
     TECHNICAL_SUPPORT = "technicalSupport", "Technical support"
     READ_ONLY_EXECUTIVE = "readOnlyExecutive", "Read-only executive"
+    MEMBER = "member", "Member"
 
 
 class RecordStatus(models.TextChoices):
@@ -139,3 +140,13 @@ class ElectionStatus(models.TextChoices):
     DRAFT = "draft", "Draft"
     OPEN = "open", "Open for results"
     CLOSED = "closed", "Closed"
+
+
+class Gender(models.TextChoices):
+    MALE = "male", "Male"
+    FEMALE = "female", "Female"
+
+
+class RegistrationChannel(models.TextChoices):
+    SELF = "self", "Self-registration (app)"
+    ASSISTED = "assisted", "Registered by a coordinator"

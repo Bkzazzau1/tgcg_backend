@@ -1,12 +1,24 @@
 """Members and agent accreditation (mirrors TgcgMember / AccreditedAgent)."""
 
+import uuid
+from pathlib import Path
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 from apps.accounts.phone import normalize_ng_phone
-from apps.core.choices import AccreditationStatus, RecordOrigin, RecordStatus, Role
+from apps.core.choices import (
+    AccreditationStatus,
+    Gender,
+    RecordOrigin,
+    RecordStatus,
+    RegistrationChannel,
+    Role,
+)
 from apps.core.models import TimeStampedModel
 from apps.geography.scope import ScopedModel
 
@@ -23,6 +35,23 @@ ACCREDITABLE_ROLES = (
 )
 
 ACTIVE_ACCREDITATION = (AccreditationStatus.PENDING, AccreditationStatus.APPROVED)
+
+
+# INEC voter identification numbers are 19 letters/digits.
+VIN_VALIDATOR = RegexValidator(r"^[A-Z0-9]{19}$", "A VIN has 19 letters and digits.")
+
+
+def _private_path(folder, filename):
+    suffix = Path(filename).suffix.lower()[:10] or ".jpg"
+    return f"{folder}/{timezone.now():%Y/%m}/{uuid.uuid4().hex}{suffix}"
+
+
+def member_photo_path(instance, filename):
+    return _private_path("members/photos", filename)
+
+
+def member_pvc_path(instance, filename):
+    return _private_path("members/pvc", filename)
 
 
 def _normalize_phone_field(instance, field, required):
@@ -45,6 +74,30 @@ class Member(TimeStampedModel, ScopedModel):
     full_name = models.CharField(max_length=150)
     phone_number = models.CharField(max_length=16, unique=True)
     email = models.EmailField(blank=True)
+
+    # Identity from the Permanent Voter Card. Empty only for assisted
+    # registrations a coordinator made without a PVC.
+    vin = models.CharField(  # noqa: DJ001 - NULL keeps the unique index sparse
+        "voter identification number",
+        max_length=19,
+        unique=True,
+        null=True,
+        blank=True,
+        validators=[VIN_VALIDATOR],
+    )
+    gender = models.CharField(max_length=8, choices=Gender.choices, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    occupation = models.CharField(max_length=100, blank=True)
+    photo = models.ImageField(upload_to=member_photo_path, blank=True)
+    pvc_image = models.ImageField(upload_to=member_pvc_path, blank=True)
+
+    registration_channel = models.CharField(
+        max_length=8, choices=RegistrationChannel.choices, default=RegistrationChannel.ASSISTED
+    )
+    phone_verified_at = models.DateTimeField(null=True, blank=True)
+    consent_at = models.DateTimeField(
+        null=True, blank=True, help_text="When the member accepted the data-use notice."
+    )
     status = models.CharField(
         max_length=16, choices=RecordStatus.choices, default=RecordStatus.SUBMITTED
     )
@@ -84,8 +137,17 @@ class Member(TimeStampedModel, ScopedModel):
         super().clean()
         self.full_name = " ".join(self.full_name.split())
         self.email = self.email.strip().lower()
+        self.occupation = " ".join(self.occupation.split())
         _normalize_phone_field(self, "phone_number", required=True)
+        if self.vin:
+            self.vin = "".join(self.vin.split()).upper()
+        else:
+            self.vin = None
         self.normalize_scope()
+
+    @property
+    def has_pvc(self) -> bool:
+        return bool(self.vin)
 
 
 class AccreditedAgent(TimeStampedModel, ScopedModel):
@@ -175,3 +237,48 @@ class AccreditationEvent(models.Model):
 
     def __str__(self):
         return f"{self.agent.agent_id}: {self.from_status} → {self.to_status}"
+
+
+class VolunteerApplication(TimeStampedModel):
+    """A member offering to serve as an agent, reviewed by a coordinator."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        DECLINED = "declined", "Declined"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="volunteering")
+    role = models.CharField(max_length=32, choices=Role.choices, default=Role.POLLING_UNIT_AGENT)
+    message = models.TextField(blank=True, max_length=1000)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_reason = models.TextField(blank=True)
+    agent = models.OneToOneField(
+        "AccreditedAgent",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="application",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["member"],
+                condition=Q(status="pending"),
+                name="one_pending_application_per_member",
+                violation_error_message="You already have a pending application.",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.member.membership_number} → {self.role} ({self.status})"

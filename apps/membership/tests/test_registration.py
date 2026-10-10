@@ -1,0 +1,441 @@
+"""Member registration, member home, card verification, volunteering, announcements."""
+
+import io
+import re
+
+import pytest
+from PIL import Image
+from rest_framework.test import APIClient
+
+from apps.accounts.models import User
+from apps.accounts.verification import PhoneVerification
+from apps.core.choices import GeographyLevel, Role
+from apps.geography.models import Lga, State
+from apps.geography.polling_units import load_polling_units
+from apps.membership.models import Member
+from conftest import PASSWORD
+
+# Code-checking views run outside the request transaction (so failed attempts
+# count); use real transactions so a failed request does not poison the test.
+pytestmark = pytest.mark.django_db(transaction=True, serialized_rollback=True)
+
+VIN = "90F5B0E8D0295847263"
+PHONE = "08031234567"
+PIN = "482915"
+
+
+@pytest.fixture(autouse=True)
+def setup(settings, tmp_path, monkeypatch):
+    settings.MEDIA_ROOT = tmp_path
+    load_polling_units(lga_codes=["KD-ZARIA"])
+    outbox = []
+    monkeypatch.setattr(
+        "apps.accounts.verification.send_sms", lambda phone, text: outbox.append((phone, text))
+    )
+    return outbox
+
+
+@pytest.fixture
+def outbox(setup):
+    return setup
+
+
+def last_code(outbox):
+    return re.search(r"\b(\d{6})\b", outbox[-1][1]).group(1)
+
+
+def image(fmt="JPEG", name="photo.jpg"):
+    buffer = io.BytesIO()
+    Image.new("RGB", (40, 40), (10, 36, 99)).save(buffer, fmt)
+    buffer.seek(0)
+    buffer.name = name
+    return buffer
+
+
+def staff(access_id, **fields):
+    user = User.objects.create_user(access_id, PASSWORD, full_name=access_id, **fields)
+    client = APIClient()
+    client.force_authenticate(user)
+    return client
+
+
+def kd_coordinator():
+    return staff(
+        "SC-KD",
+        role=Role.STATE_COORDINATOR,
+        scope_level=GeographyLevel.STATE,
+        state=State.objects.get(code="KD"),
+    )
+
+
+def register(client, outbox, phone=PHONE, vin=VIN, **overrides):
+    assert (
+        client.post(
+            "/api/v1/register/code/", {"phone_number": phone, "vin": vin}, format="json"
+        ).status_code
+        == 200
+    )
+    data = {
+        "phone_number": phone,
+        "code": last_code(outbox),
+        "vin": vin,
+        "delim": "18/23/01/001",
+        "full_name": "Musa Bello",
+        "gender": "male",
+        "date_of_birth": "1990-05-14",
+        "occupation": "Teacher",
+        "pin": PIN,
+        "consent": True,
+        "photo": image(),
+        "pvc_image": image("PNG", "pvc.png"),
+        **overrides,
+    }
+    return client.post("/api/v1/register/", data, format="multipart")
+
+
+# --- self-registration ----------------------------------------------------------
+
+
+def test_self_registration_end_to_end(outbox):
+    client = APIClient()
+    response = register(client, outbox)
+    assert response.status_code == 201, response.content
+    body = response.json()
+    card = body["member"]
+    assert body["access"] and body["refresh"]
+    assert card["membership_number"] == "TGCG-000001"
+    assert card["vin"].endswith("7263") and VIN not in str(body)
+    assert card["phone_number"] == "+2348031234567"
+    assert card["scope"]["pollingUnitId"] == "18-23-01-001"
+    assert card["scope"]["lgaId"] == "KD-ZARIA"
+    assert card["polling_unit"]["name"] == "KWARBAI I/ PRI. SCH. MADARKACI"
+    assert card["qr_token"]
+
+    member = Member.objects.get()
+    assert member.registration_channel == "self"
+    assert member.phone_verified_at and member.consent_at
+    assert member.user.role == Role.MEMBER
+
+    login = client.post(
+        "/api/v1/auth/login/", {"username": "0803 123 4567", "password": PIN}, format="json"
+    )
+    assert login.status_code == 200
+    assert login.json()["user"]["role"] == "member"
+    assert login.json()["user"]["capabilities"] == []
+
+
+@pytest.mark.parametrize("delim", ["18-23-01-001", "18/23/1/1", " 18 / 23 / 01 / 001 "])
+def test_delim_formats(outbox, delim):
+    assert register(APIClient(), outbox, delim=delim).status_code == 201
+
+
+def test_unknown_delim_rejected(outbox):
+    response = register(APIClient(), outbox, delim="18/23/99/999")
+    assert response.status_code == 400
+    assert "delim" in response.json()
+
+
+def test_validation_does_not_burn_the_code(outbox):
+    client = APIClient()
+    bad = register(client, outbox, delim="nonsense")
+    assert bad.status_code == 400
+    # The same code still works once the mistake is fixed.
+    data = {
+        "phone_number": PHONE,
+        "code": last_code(outbox),
+        "vin": VIN,
+        "delim": "18/23/01/001",
+        "full_name": "Musa Bello",
+        "gender": "male",
+        "pin": PIN,
+        "consent": True,
+        "photo": image(),
+        "pvc_image": image(),
+    }
+    assert client.post("/api/v1/register/", data, format="multipart").status_code == 201
+
+
+def test_wrong_codes_are_counted_and_lock_the_code(outbox):
+    client = APIClient()
+    for _ in range(5):
+        assert register_with_code(client, outbox, "000000").status_code == 400
+    verification = PhoneVerification.objects.get()
+    assert verification.attempts == 5
+    response = register_with_code(client, outbox, last_code(outbox), request_code=False)
+    assert response.status_code == 400  # even the right code is now refused
+
+
+def register_with_code(client, outbox, code, request_code=True):
+    if request_code and not outbox:
+        client.post("/api/v1/register/code/", {"phone_number": PHONE, "vin": VIN}, format="json")
+    data = {
+        "phone_number": PHONE,
+        "code": code,
+        "vin": VIN,
+        "delim": "18/23/01/001",
+        "full_name": "Musa Bello",
+        "gender": "male",
+        "pin": PIN,
+        "consent": True,
+        "photo": image(),
+        "pvc_image": image(),
+    }
+    return client.post("/api/v1/register/", data, format="multipart")
+
+
+def test_code_resend_is_rate_limited(outbox):
+    client = APIClient()
+    payload = {"phone_number": PHONE, "vin": VIN}
+    assert client.post("/api/v1/register/code/", payload, format="json").status_code == 200
+    assert client.post("/api/v1/register/code/", payload, format="json").status_code == 400
+    assert len(outbox) == 1
+
+
+@pytest.mark.parametrize(
+    "overrides, field",
+    [
+        ({"pin": "123456"}, "pin"),
+        ({"pin": "777777"}, "pin"),
+        ({"pin": "12a456"}, "pin"),
+        ({"consent": False}, "consent"),
+        ({"vin": "TOO-SHORT"}, "vin"),
+        ({"photo": io.BytesIO(b"not an image")}, "photo"),
+        ({"gender": "other"}, "gender"),
+    ],
+)
+def test_invalid_registrations_rejected(outbox, overrides, field):
+    if "photo" in overrides:
+        overrides["photo"].name = "selfie.jpg"
+    response = register(APIClient(), outbox, **overrides)
+    assert response.status_code == 400
+    assert field in response.json(), response.json()
+    assert not Member.objects.exists()
+
+
+def test_one_member_per_pvc_and_phone(outbox):
+    client = APIClient()
+    assert register(client, outbox).status_code == 201
+    same_vin = client.post(
+        "/api/v1/register/code/", {"phone_number": "08039990000", "vin": VIN}, format="json"
+    )
+    assert same_vin.status_code == 400 and "vin" in same_vin.json()
+    same_phone = client.post("/api/v1/register/code/", {"phone_number": PHONE}, format="json")
+    assert same_phone.status_code == 400 and "phone_number" in same_phone.json()
+
+
+def test_pin_lockout_after_five_failures(outbox, settings):
+    client = APIClient()
+    register(client, outbox)
+    for _ in range(settings.LOGIN_MAX_FAILED_ATTEMPTS):
+        client.post("/api/v1/auth/login/", {"username": PHONE, "password": "999999"}, format="json")
+    locked = client.post("/api/v1/auth/login/", {"username": PHONE, "password": PIN}, format="json")
+    assert locked.status_code == 401
+    assert User.objects.get(phone_number="+2348031234567").locked_until is not None
+
+
+# --- assisted registration and PIN setup ----------------------------------------
+
+
+def assisted(client, outbox, phone="08037776666", **overrides):
+    APIClient().post("/api/v1/register/code/", {"phone_number": phone}, format="json")
+    data = {
+        "phone_number": phone,
+        "code": last_code(outbox),
+        "full_name": "Hauwa Sani",
+        "gender": "female",
+        "consent": True,
+        "photo": image(),
+        "scope": '{"level": "lga", "lgaId": "KD-ZARIA"}',
+        **overrides,
+    }
+    return client.post("/api/v1/members/register/", data, format="multipart")
+
+
+def test_coordinator_registers_without_pvc_then_member_sets_pin(outbox):
+    coordinator = kd_coordinator()
+    response = assisted(coordinator, outbox)
+    assert response.status_code == 201, response.content
+    body = response.json()
+    assert body["registration_channel"] == "assisted"
+    assert body["has_pvc"] is False
+    assert body["has_app_account"] is False
+    assert body["phone_verified"] is True
+    assert body["scope"]["lgaId"] == "KD-ZARIA"
+
+    member_app = APIClient()
+    assert (
+        member_app.post(
+            "/api/v1/register/pin-code/", {"phone_number": "08037776666"}, format="json"
+        ).status_code
+        == 200
+    )
+    session = member_app.post(
+        "/api/v1/register/pin/",
+        {"phone_number": "08037776666", "code": last_code(outbox), "pin": "739104"},
+        format="json",
+    )
+    assert session.status_code == 200, session.content
+    assert session.json()["member"]["membership_number"] == body["membership_number"]
+    assert (
+        member_app.post(
+            "/api/v1/auth/login/", {"username": "08037776666", "password": "739104"}, format="json"
+        ).status_code
+        == 200
+    )
+
+
+def test_coordinator_registration_with_pvc_uses_delim(outbox):
+    response = assisted(kd_coordinator(), outbox, vin=VIN, delim="18/23/01/002", scope="")
+    assert response.status_code == 201, response.content
+    assert response.json()["scope"]["pollingUnitId"] == "18-23-01-002"
+
+
+def test_without_pvc_location_must_be_precise(outbox):
+    response = assisted(kd_coordinator(), outbox, scope='{"level": "state", "stateId": "KD"}')
+    assert response.status_code == 400 and "scope" in response.json()
+
+
+def test_assisted_registration_permissions(outbox):
+    lagos = staff(
+        "SC-LA",
+        role=Role.STATE_COORDINATOR,
+        scope_level=GeographyLevel.STATE,
+        state=State.objects.get(code="LA"),
+    )
+    assert assisted(lagos, outbox).status_code == 403
+    observer = staff("OB-1", role=Role.OBSERVER)
+    assert assisted(observer, outbox, phone="08037776667").status_code == 403
+
+
+def test_pin_code_for_unknown_phone_sends_nothing(outbox):
+    response = APIClient().post(
+        "/api/v1/register/pin-code/", {"phone_number": "08030000000"}, format="json"
+    )
+    assert response.status_code == 200
+    assert outbox == []
+
+
+# --- member home -------------------------------------------------------------------
+
+
+def member_client(outbox, phone=PHONE, vin=VIN):
+    session = register(APIClient(), outbox, phone=phone, vin=vin).json()
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {session['access']}")
+    return client, session["member"]
+
+
+def test_member_home(outbox):
+    me, card = member_client(outbox)
+    member_client(outbox, phone="08031234568", vin="90F5B0E8D0295847264")
+
+    profile = me.get("/api/v1/me/member/").json()
+    assert profile["membership_number"] == card["membership_number"]
+    updated = me.patch(
+        "/api/v1/me/member/", {"email": "musa@example.com", "full_name": "Hacker"}, format="json"
+    ).json()
+    assert updated["email"] == "musa@example.com"
+    assert updated["full_name"] == "Musa Bello"  # identity fields come from the PVC
+
+    photo = me.get("/api/v1/me/member/photo/")
+    assert photo.status_code == 200 and photo["Content-Type"] == "image/jpeg"
+
+    unit = me.get("/api/v1/me/polling-unit/").json()
+    assert unit["polling_unit"]["code"] == "18-23-01-001"
+    assert unit["members_in_unit"] == 2
+
+    assert kd_coordinator().get("/api/v1/me/member/").status_code == 403
+
+
+def test_card_verification(outbox):
+    me, card = member_client(outbox)
+    coordinator = kd_coordinator()
+    verified = coordinator.get("/api/v1/members/verify/", {"token": card["qr_token"]}).json()
+    assert verified["valid"] is True
+    assert verified["membership_number"] == card["membership_number"]
+    assert coordinator.get(verified["photo_url"]).status_code == 200
+
+    assert coordinator.get("/api/v1/members/verify/", {"token": "forged"}).status_code == 404
+    assert me.get("/api/v1/members/verify/", {"token": card["qr_token"]}).status_code == 403
+
+
+def test_staff_can_view_member_photo(outbox):
+    _, card = member_client(outbox)
+    coordinator = kd_coordinator()
+    member = coordinator.get(f"/api/v1/members/{card['membership_number']}/").json()
+    assert coordinator.get(member["photo_url"]).status_code == 200
+
+
+# --- volunteering -------------------------------------------------------------------
+
+
+def test_volunteer_to_accreditation(outbox):
+    me, card = member_client(outbox)
+    applied = me.post("/api/v1/me/volunteer/", {"message": "I live beside the unit."})
+    assert applied.status_code == 201
+    assert me.post("/api/v1/me/volunteer/", {}).status_code == 400  # one pending at a time
+
+    coordinator = kd_coordinator()
+    queue = coordinator.get("/api/v1/volunteers/", {"status": "pending"}).json()
+    assert queue["count"] == 1
+    application_id = queue["results"][0]["id"]
+    assert coordinator.post(f"/api/v1/volunteers/{application_id}/decline/", {}).status_code == 400
+    accepted = coordinator.post(f"/api/v1/volunteers/{application_id}/accept/", {}).json()
+    assert accepted["status"] == "accepted"
+    assert accepted["agent_id"] == "AG-00001"
+
+    agent = coordinator.get("/api/v1/agents/AG-00001/").json()
+    assert agent["status"] == "pending"
+    assert agent["scope"]["pollingUnitId"] == "18-23-01-001"
+    assert me.get("/api/v1/me/member/").json()["active_accreditation"]["agent_id"] == "AG-00001"
+
+
+def test_member_without_polling_unit_cannot_volunteer(outbox):
+    assisted(kd_coordinator(), outbox)
+    member = Member.objects.get()
+    user = User.objects.create_user(
+        member.membership_number, "x", full_name=member.full_name, role=Role.MEMBER
+    )
+    member.user = user
+    member.save()
+    client = APIClient()
+    client.force_authenticate(user)
+    assert client.post("/api/v1/me/volunteer/", {}).status_code == 400
+
+
+# --- announcements ---------------------------------------------------------------
+
+
+def test_announcements_reach_members_in_the_area(outbox):
+    me, _ = member_client(outbox)
+    kd = kd_coordinator()
+    assert (
+        kd.post(
+            "/api/v1/announcements/",
+            {"title": "Kaduna rally", "body": "Saturday 10am."},
+            format="json",
+        ).status_code
+        == 201
+    )
+    assert (
+        kd.post(
+            "/api/v1/announcements/",
+            {"title": "Lagos", "body": "x", "scope": {"level": "state", "stateId": "LA"}},
+            format="json",
+        ).status_code
+        == 403
+    )
+    lagos_admin = staff("NA-1", role=Role.NATIONAL_ADMINISTRATOR)
+    lagos_admin.post(
+        "/api/v1/announcements/",
+        {"title": "Lagos only", "body": "x", "scope": {"level": "state", "stateId": "LA"}},
+        format="json",
+    )
+    lagos_admin.post(
+        "/api/v1/announcements/",
+        {"title": "Zaria LGA", "body": "x", "scope": {"level": "lga", "lgaId": "KD-ZARIA"}},
+        format="json",
+    )
+    titles = [a["title"] for a in me.get("/api/v1/me/announcements/").json()["results"]]
+    assert sorted(titles) == ["Kaduna rally", "Zaria LGA"]
+    assert Lga.objects.get(code="KD-ZARIA").inec_code == "18-23"
