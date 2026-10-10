@@ -39,6 +39,7 @@ apps/accounts/     operator accounts: access ID or phone login, role, scope
 apps/membership/   member registration, member home, membership card, volunteering,
                    agent accreditation and its audit trail
 apps/announcements/ news for members, addressed to an area
+apps/tracking/     agent GPS: check-ins, on-duty live location, coverage
 apps/field/        incidents, field reports, evidence uploads, incident audit trail
 apps/results/      parties, elections, result submissions, integrity checks, collation
 ```
@@ -89,6 +90,11 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | POST | `/api/v1/results/{reference}/reject/` | `{"reason": ...}` |
 | GET | `/api/v1/results/{reference}/events/` | Result audit trail |
 | GET, POST | `/api/v1/results/{reference}/evidence/` | Upload the signed result sheet (`type=resultForm`) |
+| GET, POST | `/api/v1/tracking/check-ins/` | Agent checks in with a GPS fix (required). `POST .../{id}/confirm-location/` lets a coordinator confirm it |
+| GET, POST | `/api/v1/tracking/duty/` | `{"on_duty": true, "gps": {...}}` starts sharing live location, and `false` stops it |
+| POST | `/api/v1/tracking/pings/` | Upload up to 500 queued on-duty GPS readings |
+| GET | `/api/v1/tracking/live/` | On-duty agents and their latest position in an area (`viewSituationRoom`) |
+| GET | `/api/v1/tracking/coverage/?level=&code=&date=` | Check-in coverage per area: on site, away, suspect, not checked in |
 | GET | `/api/v1/collation/?election=...&level=...&code=...` | Unofficial totals from verified results, with a child breakdown |
 
 Enum values (roles, levels, statuses) use the Flutter client's camelCase names,
@@ -296,6 +302,37 @@ TGCG collation is **unofficial**: every result and collation response carries
     area.
   - Expected polling units come from master data, so load wards and polling
     units to get completion figures.
+
+## Agent GPS
+
+The field app sends a GPS fix with every check-in, incident, result and
+piece of evidence: `{"latitude", "longitude", "accuracy_m", "captured_at",
+"is_mocked"}`. The server judges each fix against the agent's polling unit
+and gives it one of these statuses:
+
+| Status | Meaning |
+|---|---|
+| `onSite` | Within `PU_PROXIMITY_METERS` (300 m) of the unit, after allowing for the GPS accuracy |
+| `away` | Further than that |
+| `unverified` | The unit's location is not known yet, or the fix is less accurate than `GPS_MAX_ACCURACY_M` (150 m) |
+| `suspect` | Android reported a mock-location app |
+| `noGps` | No fix |
+
+- **Check-in and app results require GPS.** Results sent by SMS, USSD or
+  manual entry cannot carry GPS and are not flagged for it. Incidents never
+  require GPS, so someone in danger is never blocked, but they show `noGps`.
+- **Learning polling unit locations.** INEC publishes no coordinates. When a
+  ward, LGA, state or zonal coordinator confirms a check-in
+  (`confirmAgentLocation`), a unit with no location takes that check-in's
+  position. The fix must not be suspect and must be within 150 m accuracy.
+  Later check-ins and results are measured against it. You cannot confirm
+  your own check-in.
+- **Results:** an app result that is `away` or `suspect` goes to
+  `underReview`, with a note giving the distance.
+- **Live location** is shared only between "on duty" and "off duty" in the
+  app (agents and observers), and readings outside a duty session are
+  dropped. Pings are deleted after `LOCATION_PING_RETENTION_DAYS` (30). Run
+  `uv run python manage.py purge_location_pings` daily.
 
 ## Quality checks
 

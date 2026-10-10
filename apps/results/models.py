@@ -18,6 +18,7 @@ from apps.core.choices import (
     SubmissionSource,
 )
 from apps.core.models import TimeStampedModel
+from apps.geography.gps import GpsCheckFields, LocationStatus
 from apps.geography.scope import ScopedModel
 
 # Statuses that still count as a live claim for a polling unit.
@@ -81,7 +82,7 @@ class Election(ScopedModel):
             )
 
 
-class ResultSubmission(TimeStampedModel, ScopedModel):
+class ResultSubmission(TimeStampedModel, ScopedModel, GpsCheckFields):
     """One polling unit's result sheet as submitted from the field.
 
     The scope is always the polling unit (with its derived ward, LGA, etc).
@@ -110,6 +111,10 @@ class ResultSubmission(TimeStampedModel, ScopedModel):
         help_text="Total votes recorded on the sheet (client: totalVotesRecorded)."
     )
     rejected_votes = models.PositiveIntegerField(null=True, blank=True)
+
+    # Where the submitter was (required for app submissions).
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
 
     # Integrity checks (client: ResultValidationSummary)
     arithmetic_valid = models.BooleanField()
@@ -163,6 +168,7 @@ class ResultSubmission(TimeStampedModel, ScopedModel):
             or not self.polling_unit_matched
             or not self.agent_scope_matched
             or self.ocr_matched_manual_entry is False
+            or self.location_status in (LocationStatus.AWAY, LocationStatus.SUSPECT)
         )
 
 

@@ -13,6 +13,12 @@ from conftest import PASSWORD
 pytestmark = pytest.mark.django_db
 
 RESULTS = "/api/v1/results/"
+GPS = {
+    "latitude": "10.523",
+    "longitude": "7.438",
+    "accuracy_m": 12,
+    "captured_at": "2027-02-20T10:00:00Z",
+}
 COLLATION = "/api/v1/collation/"
 JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
 
@@ -147,6 +153,7 @@ def submit(client, pu="KD-KN-W01-PU001", election="2027-kd-governorship", **extr
         "total_valid_votes": 218,
         "accredited_voters": 230,
         "rejected_votes": 7,
+        "gps": GPS,
         **extra,
     }
     return client.post(RESULTS, payload, format="json")
@@ -339,6 +346,7 @@ def test_lga_collation_counts_verified_only(agent1, agent2, lga_coord, kd_electi
             "party_votes": {"APC": 999},
             "total_valid_votes": 999,
             "accredited_voters": 999,
+            "gps": GPS,
         },
         format="json",
     )  # unverified: must not count

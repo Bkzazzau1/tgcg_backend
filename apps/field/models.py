@@ -24,6 +24,7 @@ from apps.core.choices import (
     ReportCategory,
 )
 from apps.core.models import TimeStampedModel
+from apps.geography.gps import GpsCheckFields
 from apps.geography.scope import ScopedModel
 
 # Generous bounding box around Nigeria; rejects swapped or zeroed coordinates.
@@ -94,7 +95,7 @@ class FieldRecord(TimeStampedModel, ScopedModel):
         abstract = True
 
 
-class Incident(FieldRecord):
+class Incident(FieldRecord, GpsCheckFields):
     title = models.CharField(max_length=200)
     category = models.CharField(max_length=40, choices=IncidentCategory.choices)
     severity = models.CharField(max_length=16, choices=IncidentSeverity.choices)

@@ -66,7 +66,13 @@ def report_incident(*, actor, **fields) -> Incident:
         if existing is not None:
             return existing  # offline retry
     default_to_actor_scope(actor, fields)
+    gps = fields.pop("gps", None)
+    if gps is None and fields.get("latitude") is not None:
+        # Older clients send bare coordinates without accuracy.
+        gps = {"latitude": fields["latitude"], "longitude": fields.get("longitude")}
     incident = Incident(reporter=actor, status=I.REPORTED, **fields)
+    incident.normalize_scope()
+    incident.apply_fix(gps, incident.polling_unit)
     incident.full_clean(exclude=["reference", "severity_rank"])
     _require_scope(actor, incident, "incident location")
     incident.reference = f"INC-{Sequence.next_value('incident'):06d}"

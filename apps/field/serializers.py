@@ -2,6 +2,7 @@ from django.urls import reverse
 from rest_framework import serializers
 
 from apps.core.choices import EvidenceType, IncidentSeverity, IncidentStatus
+from apps.geography.gps import GpsFixSerializer, GpsReadSerializer
 from apps.geography.scope import ScopeField
 
 from .models import Evidence, FieldReport, Incident, IncidentEvent
@@ -67,6 +68,10 @@ class IncidentSerializer(serializers.ModelSerializer):
     reporter = serializers.SlugRelatedField(slug_field="access_id", read_only=True)
     evidence = EvidenceSerializer(many=True, read_only=True)
     is_open = serializers.BooleanField(read_only=True)
+    gps = GpsFixSerializer(
+        write_only=True, required=False, allow_null=True, help_text="Phone GPS reading."
+    )
+    location = GpsReadSerializer(source="*", read_only=True)
 
     class Meta:
         model = Incident
@@ -83,6 +88,8 @@ class IncidentSerializer(serializers.ModelSerializer):
             "assigned_team",
             "latitude",
             "longitude",
+            "gps",
+            "location",
             "reporter",
             "reported_at",
             "acknowledged_at",

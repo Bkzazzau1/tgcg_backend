@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.field",
     "apps.results",
     "apps.announcements",
+    "apps.tracking",
 ]
 
 MIDDLEWARE = [
@@ -202,3 +203,9 @@ OTP_MAX_PER_HOUR = 5
 
 # --- Member registration ---------------------------------------------------------
 MEMBER_PHOTO_MAX_MB = env.int("MEMBER_PHOTO_MAX_MB", default=8)
+
+# --- GPS ---------------------------------------------------------------------------
+PU_PROXIMITY_METERS = env.int("PU_PROXIMITY_METERS", default=300)
+GPS_MAX_ACCURACY_M = env.int("GPS_MAX_ACCURACY_M", default=150)
+LIVE_STALE_MINUTES = env.int("LIVE_STALE_MINUTES", default=15)
+LOCATION_PING_RETENTION_DAYS = env.int("LOCATION_PING_RETENTION_DAYS", default=30)

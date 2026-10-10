@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from apps.core.choices import RecordOrigin, SubmissionSource
 from apps.field.serializers import EvidenceSerializer
+from apps.geography.gps import GpsFixSerializer, GpsReadSerializer
 from apps.geography.models import PollingUnit
 from apps.geography.scope import ScopeField
 
@@ -75,6 +76,7 @@ class ResultSubmissionSerializer(serializers.ModelSerializer):
     verified_by = serializers.SlugRelatedField(slug_field="access_id", read_only=True)
     result_form = serializers.SerializerMethodField()
     official = serializers.SerializerMethodField()
+    gps = GpsReadSerializer(source="*", read_only=True)
 
     class Meta:
         model = ResultSubmission
@@ -101,6 +103,7 @@ class ResultSubmissionSerializer(serializers.ModelSerializer):
             "verified_at",
             "review_reason",
             "result_form",
+            "gps",
             "official",
             "created_at",
         ]
@@ -139,6 +142,9 @@ class ResultSubmitSerializer(serializers.Serializer):
     ocr_party_votes = party_votes_input(required=False, allow_null=True)
     ocr_confidence = serializers.FloatField(
         required=False, allow_null=True, min_value=0, max_value=1
+    )
+    gps = GpsFixSerializer(
+        required=False, allow_null=True, help_text="Required when source is app."
     )
 
 

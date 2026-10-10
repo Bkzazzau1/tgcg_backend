@@ -14,6 +14,7 @@ class Capability(models.TextChoices):
     VIEW_GEOGRAPHY = "viewGeography"
     MANAGE_MEMBERSHIP = "manageMembership"
     REGISTER_MEMBERS = "registerMembers"
+    CONFIRM_AGENT_LOCATION = "confirmAgentLocation"
     ACCREDIT_AGENTS = "accreditAgents"
     MANAGE_AGENT_ASSIGNMENTS = "manageAgentAssignments"
     VIEW_INCIDENTS = "viewIncidents"
@@ -277,7 +278,11 @@ for _role in (
     Role.LGA_COORDINATOR,
     Role.WARD_COORDINATOR,
 ):
-    ROLE_CAPABILITIES[_role] = ROLE_CAPABILITIES[_role] | {C.REGISTER_MEMBERS}
+    ROLE_CAPABILITIES[_role] = ROLE_CAPABILITIES[_role] | {
+        C.REGISTER_MEMBERS,
+        # Confirming an agent's check-in also teaches the polling unit's location.
+        C.CONFIRM_AGENT_LOCATION,
+    }
 
 # Members use only their own member-home endpoints; they hold no staff capability.
 ROLE_CAPABILITIES[Role.MEMBER] = frozenset()

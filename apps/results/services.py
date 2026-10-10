@@ -5,9 +5,10 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.core.choices import ElectionStatus, GeographyLevel, RecordStatus
+from apps.core.choices import ElectionStatus, GeographyLevel, RecordStatus, SubmissionSource
 from apps.core.models import Sequence
 from apps.core.permissions import Capability, has_capability
+from apps.geography.gps import LocationStatus
 from apps.geography.scope import scope_contains
 
 from .models import ACTIVE_RESULT_STATUSES, PartyVote, ResultEvent, ResultSubmission
@@ -102,6 +103,7 @@ def submit_result(
     origin=None,
     ocr_party_votes=None,
     ocr_confidence=None,
+    gps=None,
 ) -> ResultSubmission:
     if client_id:
         existing = ResultSubmission.objects.filter(client_id=client_id, submitted_by=actor).first()
@@ -110,6 +112,8 @@ def submit_result(
 
     if election.status != ElectionStatus.OPEN:
         raise ValidationError({"election": "This election is not open for results."})
+    if source == SubmissionSource.APP and not gps:
+        raise ValidationError({"gps": "Turn on location: results from the app need a GPS reading."})
 
     submission = ResultSubmission(
         election=election,
@@ -150,6 +154,13 @@ def submit_result(
             )
         registered_voters = master_registered
     submission.registered_voters = registered_voters
+    submission.apply_fix(gps, polling_unit)
+    if submission.location_status == LocationStatus.AWAY:
+        notes.append(
+            f"Submitted {submission.distance_to_pu_m} m from the polling unit's known location."
+        )
+    elif submission.location_status == LocationStatus.SUSPECT:
+        notes.append("The phone reported a mock-location app: the GPS may be faked.")
 
     arithmetic_valid, ocr_matched, integrity_notes = check_integrity(
         party_votes=votes,

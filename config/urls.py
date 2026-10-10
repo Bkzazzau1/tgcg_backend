@@ -13,6 +13,13 @@ from apps.geography import views as geography
 from apps.membership import registration_views as reg
 from apps.membership.views import AgentViewSet, MemberViewSet, VolunteerViewSet
 from apps.results.views import CollationView, ElectionViewSet, PartyViewSet, ResultViewSet
+from apps.tracking.views import (
+    CheckInViewSet,
+    CoverageView,
+    DutyView,
+    LiveAgentsView,
+    PingsView,
+)
 
 router = DefaultRouter()
 router.register("geography/zones", geography.ZoneViewSet)
@@ -25,6 +32,7 @@ router.register("members", MemberViewSet, basename="member")
 router.register("agents", AgentViewSet, basename="agent")
 router.register("volunteers", VolunteerViewSet, basename="volunteer")
 router.register("announcements", AnnouncementViewSet, basename="announcement")
+router.register("tracking/check-ins", CheckInViewSet, basename="check-in")
 router.register("incidents", IncidentViewSet, basename="incident")
 router.register("field-reports", FieldReportViewSet, basename="field-report")
 router.register("parties", PartyViewSet)
@@ -44,6 +52,10 @@ api_v1 = [
         name="evidence-download",
     ),
     path("collation/", CollationView.as_view(), name="collation"),
+    path("tracking/duty/", DutyView.as_view(), name="tracking-duty"),
+    path("tracking/pings/", PingsView.as_view(), name="tracking-pings"),
+    path("tracking/live/", LiveAgentsView.as_view(), name="tracking-live"),
+    path("tracking/coverage/", CoverageView.as_view(), name="tracking-coverage"),
     # Registration. Views that check SMS codes must not run in the request
     # transaction, so failed code attempts are recorded.
     path("register/code/", reg.RegistrationCodeView.as_view(), name="register-code"),
