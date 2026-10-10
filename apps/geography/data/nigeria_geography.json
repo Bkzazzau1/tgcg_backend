@@ -1,0 +1,6221 @@
+{
+  "source": "TheGameChangerGroup Flutter GeographyRegistry",
+  "country": "Nigeria",
+  "zones": [
+    {
+      "code": "NC",
+      "name": "North Central"
+    },
+    {
+      "code": "NE",
+      "name": "North East"
+    },
+    {
+      "code": "NW",
+      "name": "North West"
+    },
+    {
+      "code": "SE",
+      "name": "South East"
+    },
+    {
+      "code": "SS",
+      "name": "South South"
+    },
+    {
+      "code": "SW",
+      "name": "South West"
+    }
+  ],
+  "states": [
+    {
+      "code": "BN",
+      "name": "Benue",
+      "zone": "NC",
+      "is_fct": false
+    },
+    {
+      "code": "FCT",
+      "name": "Federal Capital Territory",
+      "zone": "NC",
+      "is_fct": true
+    },
+    {
+      "code": "KO",
+      "name": "Kogi",
+      "zone": "NC",
+      "is_fct": false
+    },
+    {
+      "code": "KW",
+      "name": "Kwara",
+      "zone": "NC",
+      "is_fct": false
+    },
+    {
+      "code": "NA",
+      "name": "Nasarawa",
+      "zone": "NC",
+      "is_fct": false
+    },
+    {
+      "code": "NI",
+      "name": "Niger",
+      "zone": "NC",
+      "is_fct": false
+    },
+    {
+      "code": "PL",
+      "name": "Plateau",
+      "zone": "NC",
+      "is_fct": false
+    },
+    {
+      "code": "AD",
+      "name": "Adamawa",
+      "zone": "NE",
+      "is_fct": false
+    },
+    {
+      "code": "BA",
+      "name": "Bauchi",
+      "zone": "NE",
+      "is_fct": false
+    },
+    {
+      "code": "BO",
+      "name": "Borno",
+      "zone": "NE",
+      "is_fct": false
+    },
+    {
+      "code": "GO",
+      "name": "Gombe",
+      "zone": "NE",
+      "is_fct": false
+    },
+    {
+      "code": "TA",
+      "name": "Taraba",
+      "zone": "NE",
+      "is_fct": false
+    },
+    {
+      "code": "YO",
+      "name": "Yobe",
+      "zone": "NE",
+      "is_fct": false
+    },
+    {
+      "code": "JI",
+      "name": "Jigawa",
+      "zone": "NW",
+      "is_fct": false
+    },
+    {
+      "code": "KD",
+      "name": "Kaduna",
+      "zone": "NW",
+      "is_fct": false
+    },
+    {
+      "code": "KN",
+      "name": "Kano",
+      "zone": "NW",
+      "is_fct": false
+    },
+    {
+      "code": "KT",
+      "name": "Katsina",
+      "zone": "NW",
+      "is_fct": false
+    },
+    {
+      "code": "KE",
+      "name": "Kebbi",
+      "zone": "NW",
+      "is_fct": false
+    },
+    {
+      "code": "SO",
+      "name": "Sokoto",
+      "zone": "NW",
+      "is_fct": false
+    },
+    {
+      "code": "ZA",
+      "name": "Zamfara",
+      "zone": "NW",
+      "is_fct": false
+    },
+    {
+      "code": "AB",
+      "name": "Abia",
+      "zone": "SE",
+      "is_fct": false
+    },
+    {
+      "code": "AN",
+      "name": "Anambra",
+      "zone": "SE",
+      "is_fct": false
+    },
+    {
+      "code": "EB",
+      "name": "Ebonyi",
+      "zone": "SE",
+      "is_fct": false
+    },
+    {
+      "code": "EN",
+      "name": "Enugu",
+      "zone": "SE",
+      "is_fct": false
+    },
+    {
+      "code": "IM",
+      "name": "Imo",
+      "zone": "SE",
+      "is_fct": false
+    },
+    {
+      "code": "AK",
+      "name": "Akwa Ibom",
+      "zone": "SS",
+      "is_fct": false
+    },
+    {
+      "code": "BY",
+      "name": "Bayelsa",
+      "zone": "SS",
+      "is_fct": false
+    },
+    {
+      "code": "CR",
+      "name": "Cross River",
+      "zone": "SS",
+      "is_fct": false
+    },
+    {
+      "code": "DE",
+      "name": "Delta",
+      "zone": "SS",
+      "is_fct": false
+    },
+    {
+      "code": "ED",
+      "name": "Edo",
+      "zone": "SS",
+      "is_fct": false
+    },
+    {
+      "code": "RI",
+      "name": "Rivers",
+      "zone": "SS",
+      "is_fct": false
+    },
+    {
+      "code": "EK",
+      "name": "Ekiti",
+      "zone": "SW",
+      "is_fct": false
+    },
+    {
+      "code": "LA",
+      "name": "Lagos",
+      "zone": "SW",
+      "is_fct": false
+    },
+    {
+      "code": "OG",
+      "name": "Ogun",
+      "zone": "SW",
+      "is_fct": false
+    },
+    {
+      "code": "ON",
+      "name": "Ondo",
+      "zone": "SW",
+      "is_fct": false
+    },
+    {
+      "code": "OS",
+      "name": "Osun",
+      "zone": "SW",
+      "is_fct": false
+    },
+    {
+      "code": "OY",
+      "name": "Oyo",
+      "zone": "SW",
+      "is_fct": false
+    }
+  ],
+  "senatorial_districts": [
+    {
+      "code": "SD/019/BN",
+      "name": "Benue North East",
+      "state": "BN"
+    },
+    {
+      "code": "SD/020/BN",
+      "name": "Benue North West",
+      "state": "BN"
+    },
+    {
+      "code": "SD/021/BN",
+      "name": "Benue South",
+      "state": "BN"
+    },
+    {
+      "code": "SD/109/FCT",
+      "name": "Federal Capital Territory",
+      "state": "FCT"
+    },
+    {
+      "code": "SD/064/KG",
+      "name": "Kogi Central",
+      "state": "KO"
+    },
+    {
+      "code": "SD/065/KG",
+      "name": "Kogi East",
+      "state": "KO"
+    },
+    {
+      "code": "SD/066/KG",
+      "name": "Kogi West",
+      "state": "KO"
+    },
+    {
+      "code": "SD/067/KW",
+      "name": "Kwara North",
+      "state": "KW"
+    },
+    {
+      "code": "SD/068/KW",
+      "name": "Kwara Central",
+      "state": "KW"
+    },
+    {
+      "code": "SD/069/KW",
+      "name": "Kwara South",
+      "state": "KW"
+    },
+    {
+      "code": "SD/073/NW",
+      "name": "Nasarawa North",
+      "state": "NA"
+    },
+    {
+      "code": "SD/074/NW",
+      "name": "Nasarawa West",
+      "state": "NA"
+    },
+    {
+      "code": "SD/075/NW",
+      "name": "Nasarawa South",
+      "state": "NA"
+    },
+    {
+      "code": "SD/076/NG",
+      "name": "Niger East",
+      "state": "NI"
+    },
+    {
+      "code": "SD/077/NG",
+      "name": "Niger North",
+      "state": "NI"
+    },
+    {
+      "code": "SD/078/NG",
+      "name": "Niger South",
+      "state": "NI"
+    },
+    {
+      "code": "SD/091/PL",
+      "name": "Plateau South",
+      "state": "PL"
+    },
+    {
+      "code": "SD/092/PL",
+      "name": "Plateau Central",
+      "state": "PL"
+    },
+    {
+      "code": "SD/093/PL",
+      "name": "Plateau North",
+      "state": "PL"
+    },
+    {
+      "code": "SD/004/AD",
+      "name": "Adamawa North",
+      "state": "AD"
+    },
+    {
+      "code": "SD/005/AD",
+      "name": "Adamawa South",
+      "state": "AD"
+    },
+    {
+      "code": "SD/006/AD",
+      "name": "Adamawa Central",
+      "state": "AD"
+    },
+    {
+      "code": "SD/013/BA",
+      "name": "Bauchi South",
+      "state": "BA"
+    },
+    {
+      "code": "SD/014/BA",
+      "name": "Bauchi Central",
+      "state": "BA"
+    },
+    {
+      "code": "SD/015/BA",
+      "name": "Bauchi North",
+      "state": "BA"
+    },
+    {
+      "code": "SD/022/BO",
+      "name": "Borno North",
+      "state": "BO"
+    },
+    {
+      "code": "SD/023/BO",
+      "name": "Borno Central",
+      "state": "BO"
+    },
+    {
+      "code": "SD/024/BO",
+      "name": "Borno South",
+      "state": "BO"
+    },
+    {
+      "code": "SD/043/GM",
+      "name": "Gombe Central",
+      "state": "GO"
+    },
+    {
+      "code": "SD/044/GM",
+      "name": "Gombe South",
+      "state": "GO"
+    },
+    {
+      "code": "SD/045/GM",
+      "name": "Gombe North",
+      "state": "GO"
+    },
+    {
+      "code": "SD/100/TR",
+      "name": "Taraba South",
+      "state": "TA"
+    },
+    {
+      "code": "SD/101/TR",
+      "name": "Taraba Central",
+      "state": "TA"
+    },
+    {
+      "code": "SD/102/TR",
+      "name": "Taraba North",
+      "state": "TA"
+    },
+    {
+      "code": "SD/103/YB",
+      "name": "Yobe East",
+      "state": "YO"
+    },
+    {
+      "code": "SD/104/YB",
+      "name": "Yobe North",
+      "state": "YO"
+    },
+    {
+      "code": "SD/105/YB",
+      "name": "Yobe South",
+      "state": "YO"
+    },
+    {
+      "code": "SD/049/JG",
+      "name": "Jigawa South West",
+      "state": "JI"
+    },
+    {
+      "code": "SD/050/JG",
+      "name": "Jigawa North East",
+      "state": "JI"
+    },
+    {
+      "code": "SD/051/JG",
+      "name": "Jigawa North West",
+      "state": "JI"
+    },
+    {
+      "code": "SD/052/KD",
+      "name": "Kaduna North",
+      "state": "KD"
+    },
+    {
+      "code": "SD/053/KD",
+      "name": "Kaduna Central",
+      "state": "KD"
+    },
+    {
+      "code": "SD/054/KD",
+      "name": "Kaduna South",
+      "state": "KD"
+    },
+    {
+      "code": "SD/055/KN",
+      "name": "Kano Central",
+      "state": "KN"
+    },
+    {
+      "code": "SD/056/KN",
+      "name": "Kano North",
+      "state": "KN"
+    },
+    {
+      "code": "SD/057/KN",
+      "name": "Kano South",
+      "state": "KN"
+    },
+    {
+      "code": "SD/058/KT",
+      "name": "Katsina North",
+      "state": "KT"
+    },
+    {
+      "code": "SD/059/KT",
+      "name": "Katsina South",
+      "state": "KT"
+    },
+    {
+      "code": "SD/060/KT",
+      "name": "Katsina Central",
+      "state": "KT"
+    },
+    {
+      "code": "SD/061/KB",
+      "name": "Kebbi North",
+      "state": "KE"
+    },
+    {
+      "code": "SD/062/KB",
+      "name": "Kebbi Central",
+      "state": "KE"
+    },
+    {
+      "code": "SD/063/KB",
+      "name": "Kebbi South",
+      "state": "KE"
+    },
+    {
+      "code": "SD/097/SO",
+      "name": "Sokoto East",
+      "state": "SO"
+    },
+    {
+      "code": "SD/098/SO",
+      "name": "Sokoto North",
+      "state": "SO"
+    },
+    {
+      "code": "SD/099/SO",
+      "name": "Sokoto South",
+      "state": "SO"
+    },
+    {
+      "code": "SD/106/ZF",
+      "name": "Zamfara North",
+      "state": "ZA"
+    },
+    {
+      "code": "SD/107/ZF",
+      "name": "Zamfara Central",
+      "state": "ZA"
+    },
+    {
+      "code": "SD/108/ZF",
+      "name": "Zamfara West",
+      "state": "ZA"
+    },
+    {
+      "code": "SD/001/AB",
+      "name": "Abia North",
+      "state": "AB"
+    },
+    {
+      "code": "SD/002/AB",
+      "name": "Abia Central",
+      "state": "AB"
+    },
+    {
+      "code": "SD/003/AB",
+      "name": "Abia South",
+      "state": "AB"
+    },
+    {
+      "code": "SD/010/AN",
+      "name": "Anambra North",
+      "state": "AN"
+    },
+    {
+      "code": "SD/011/AN",
+      "name": "Anambra Central",
+      "state": "AN"
+    },
+    {
+      "code": "SD/012/AN",
+      "name": "Anambra South",
+      "state": "AN"
+    },
+    {
+      "code": "SD/031/EB",
+      "name": "Ebonyi North",
+      "state": "EB"
+    },
+    {
+      "code": "SD/032/EB",
+      "name": "Ebonyi Central",
+      "state": "EB"
+    },
+    {
+      "code": "SD/033/EB",
+      "name": "Ebonyi South",
+      "state": "EB"
+    },
+    {
+      "code": "SD/040/EN",
+      "name": "Enugu East",
+      "state": "EN"
+    },
+    {
+      "code": "SD/041/EN",
+      "name": "Enugu West",
+      "state": "EN"
+    },
+    {
+      "code": "SD/042/EN",
+      "name": "Enugu North",
+      "state": "EN"
+    },
+    {
+      "code": "SD/046/IM",
+      "name": "Imo East",
+      "state": "IM"
+    },
+    {
+      "code": "SD/047/IM",
+      "name": "Imo West",
+      "state": "IM"
+    },
+    {
+      "code": "SD/048/IM",
+      "name": "Imo North",
+      "state": "IM"
+    },
+    {
+      "code": "SD/007/AK",
+      "name": "Akwa Ibom North East",
+      "state": "AK"
+    },
+    {
+      "code": "SD/008/AK",
+      "name": "Akwa Ibom North West",
+      "state": "AK"
+    },
+    {
+      "code": "SD/009/AK",
+      "name": "Akwa Ibom South",
+      "state": "AK"
+    },
+    {
+      "code": "SD/016/BY",
+      "name": "Bayelsa East",
+      "state": "BY"
+    },
+    {
+      "code": "SD/017/BY",
+      "name": "Bayelsa Central",
+      "state": "BY"
+    },
+    {
+      "code": "SD/018/BY",
+      "name": "Bayelsa West",
+      "state": "BY"
+    },
+    {
+      "code": "SD/025/CR",
+      "name": "Cross River North",
+      "state": "CR"
+    },
+    {
+      "code": "SD/026/CR",
+      "name": "Cross River Central",
+      "state": "CR"
+    },
+    {
+      "code": "SD/027/CR",
+      "name": "Cross River South",
+      "state": "CR"
+    },
+    {
+      "code": "SD/028/DT",
+      "name": "Delta Central",
+      "state": "DE"
+    },
+    {
+      "code": "SD/029/DT",
+      "name": "Delta North",
+      "state": "DE"
+    },
+    {
+      "code": "SD/030/DT",
+      "name": "Delta South",
+      "state": "DE"
+    },
+    {
+      "code": "SD/034/ED",
+      "name": "Edo Central",
+      "state": "ED"
+    },
+    {
+      "code": "SD/035/ED",
+      "name": "Edo North",
+      "state": "ED"
+    },
+    {
+      "code": "SD/036/ED",
+      "name": "Edo South",
+      "state": "ED"
+    },
+    {
+      "code": "SD/094/RV",
+      "name": "Rivers East",
+      "state": "RI"
+    },
+    {
+      "code": "SD/095/RV",
+      "name": "Rivers South East",
+      "state": "RI"
+    },
+    {
+      "code": "SD/096/RV",
+      "name": "Rivers West",
+      "state": "RI"
+    },
+    {
+      "code": "SD/037/EK",
+      "name": "Ekiti North",
+      "state": "EK"
+    },
+    {
+      "code": "SD/038/EK",
+      "name": "Ekiti Central",
+      "state": "EK"
+    },
+    {
+      "code": "SD/039/EK",
+      "name": "Ekiti South",
+      "state": "EK"
+    },
+    {
+      "code": "SD/070/LA",
+      "name": "Lagos Central",
+      "state": "LA"
+    },
+    {
+      "code": "SD/071/LA",
+      "name": "Lagos East",
+      "state": "LA"
+    },
+    {
+      "code": "SD/072/LA",
+      "name": "Lagos West",
+      "state": "LA"
+    },
+    {
+      "code": "SD/079/OG",
+      "name": "Ogun Central",
+      "state": "OG"
+    },
+    {
+      "code": "SD/080/OG",
+      "name": "Ogun East",
+      "state": "OG"
+    },
+    {
+      "code": "SD/081/OG",
+      "name": "Ogun West",
+      "state": "OG"
+    },
+    {
+      "code": "SD/082/OD",
+      "name": "Ondo North",
+      "state": "ON"
+    },
+    {
+      "code": "SD/083/OD",
+      "name": "Ondo Central",
+      "state": "ON"
+    },
+    {
+      "code": "SD/084/OD",
+      "name": "Ondo South",
+      "state": "ON"
+    },
+    {
+      "code": "SD/085/OS",
+      "name": "Osun Central",
+      "state": "OS"
+    },
+    {
+      "code": "SD/086/OS",
+      "name": "Osun East",
+      "state": "OS"
+    },
+    {
+      "code": "SD/087/OS",
+      "name": "Osun West",
+      "state": "OS"
+    },
+    {
+      "code": "SD/088/OY",
+      "name": "Oyo Central",
+      "state": "OY"
+    },
+    {
+      "code": "SD/089/OY",
+      "name": "Oyo North",
+      "state": "OY"
+    },
+    {
+      "code": "SD/090/OY",
+      "name": "Oyo South",
+      "state": "OY"
+    }
+  ],
+  "lgas": [
+    {
+      "code": "BN-ADO",
+      "slug": "ado",
+      "name": "Ado",
+      "state": "BN",
+      "senatorial_district": "SD/021/BN"
+    },
+    {
+      "code": "BN-AGATU",
+      "slug": "agatu",
+      "name": "Agatu",
+      "state": "BN",
+      "senatorial_district": "SD/021/BN"
+    },
+    {
+      "code": "BN-APA",
+      "slug": "apa",
+      "name": "Apa",
+      "state": "BN",
+      "senatorial_district": "SD/021/BN"
+    },
+    {
+      "code": "BN-BURUKU",
+      "slug": "buruku",
+      "name": "Buruku",
+      "state": "BN",
+      "senatorial_district": "SD/020/BN"
+    },
+    {
+      "code": "BN-GBOKO",
+      "slug": "gboko",
+      "name": "Gboko",
+      "state": "BN",
+      "senatorial_district": "SD/020/BN"
+    },
+    {
+      "code": "BN-GUMA",
+      "slug": "guma",
+      "name": "Guma",
+      "state": "BN",
+      "senatorial_district": "SD/020/BN"
+    },
+    {
+      "code": "BN-GWER-EAST",
+      "slug": "gwer-east",
+      "name": "Gwer East",
+      "state": "BN",
+      "senatorial_district": "SD/020/BN"
+    },
+    {
+      "code": "BN-GWER-WEST",
+      "slug": "gwer-west",
+      "name": "Gwer West",
+      "state": "BN",
+      "senatorial_district": "SD/020/BN"
+    },
+    {
+      "code": "BN-KATSINA-ALA",
+      "slug": "katsina-ala",
+      "name": "Katsina Ala",
+      "state": "BN",
+      "senatorial_district": "SD/019/BN"
+    },
+    {
+      "code": "BN-KONSHISHA",
+      "slug": "konshisha",
+      "name": "Konshisha",
+      "state": "BN",
+      "senatorial_district": "SD/019/BN"
+    },
+    {
+      "code": "BN-KWANDE",
+      "slug": "kwande",
+      "name": "Kwande",
+      "state": "BN",
+      "senatorial_district": "SD/019/BN"
+    },
+    {
+      "code": "BN-LOGO",
+      "slug": "logo",
+      "name": "Logo",
+      "state": "BN",
+      "senatorial_district": "SD/019/BN"
+    },
+    {
+      "code": "BN-MAKURDI",
+      "slug": "makurdi",
+      "name": "Makurdi",
+      "state": "BN",
+      "senatorial_district": "SD/020/BN"
+    },
+    {
+      "code": "BN-OBI",
+      "slug": "obi",
+      "name": "Obi",
+      "state": "BN",
+      "senatorial_district": "SD/021/BN"
+    },
+    {
+      "code": "BN-OGBADIBO",
+      "slug": "ogbadibo",
+      "name": "Ogbadibo",
+      "state": "BN",
+      "senatorial_district": "SD/021/BN"
+    },
+    {
+      "code": "BN-OHIMINI",
+      "slug": "ohimini",
+      "name": "Ohimini",
+      "state": "BN",
+      "senatorial_district": "SD/021/BN"
+    },
+    {
+      "code": "BN-OJU",
+      "slug": "oju",
+      "name": "Oju",
+      "state": "BN",
+      "senatorial_district": "SD/021/BN"
+    },
+    {
+      "code": "BN-OKPOKWU",
+      "slug": "okpokwu",
+      "name": "Okpokwu",
+      "state": "BN",
+      "senatorial_district": "SD/021/BN"
+    },
+    {
+      "code": "BN-OTUKPO",
+      "slug": "otukpo",
+      "name": "Otukpo",
+      "state": "BN",
+      "senatorial_district": "SD/021/BN"
+    },
+    {
+      "code": "BN-TARKA",
+      "slug": "tarka",
+      "name": "Tarka",
+      "state": "BN",
+      "senatorial_district": "SD/020/BN"
+    },
+    {
+      "code": "BN-UKUM",
+      "slug": "ukum",
+      "name": "Ukum",
+      "state": "BN",
+      "senatorial_district": "SD/019/BN"
+    },
+    {
+      "code": "BN-USHONGO",
+      "slug": "ushongo",
+      "name": "Ushongo",
+      "state": "BN",
+      "senatorial_district": "SD/019/BN"
+    },
+    {
+      "code": "BN-VANDEIKYA",
+      "slug": "vandeikya",
+      "name": "Vandeikya",
+      "state": "BN",
+      "senatorial_district": "SD/019/BN"
+    },
+    {
+      "code": "FCT-ABAJI",
+      "slug": "abaji",
+      "name": "Abaji",
+      "state": "FCT",
+      "senatorial_district": "SD/109/FCT"
+    },
+    {
+      "code": "FCT-ABUJA-MUNICIPAL",
+      "slug": "abuja-municipal",
+      "name": "Abuja Municipal Area Council",
+      "state": "FCT",
+      "senatorial_district": "SD/109/FCT"
+    },
+    {
+      "code": "FCT-BWARI",
+      "slug": "bwari",
+      "name": "Bwari",
+      "state": "FCT",
+      "senatorial_district": "SD/109/FCT"
+    },
+    {
+      "code": "FCT-GWAGWALADA",
+      "slug": "gwagwalada",
+      "name": "Gwagwalada",
+      "state": "FCT",
+      "senatorial_district": "SD/109/FCT"
+    },
+    {
+      "code": "FCT-KUJE",
+      "slug": "kuje",
+      "name": "Kuje",
+      "state": "FCT",
+      "senatorial_district": "SD/109/FCT"
+    },
+    {
+      "code": "FCT-KWALI",
+      "slug": "kwali",
+      "name": "Kwali",
+      "state": "FCT",
+      "senatorial_district": "SD/109/FCT"
+    },
+    {
+      "code": "KO-ADAVI",
+      "slug": "adavi",
+      "name": "Adavi",
+      "state": "KO",
+      "senatorial_district": "SD/064/KG"
+    },
+    {
+      "code": "KO-AJAOKUTA",
+      "slug": "ajaokuta",
+      "name": "Ajaokuta",
+      "state": "KO",
+      "senatorial_district": "SD/064/KG"
+    },
+    {
+      "code": "KO-ANKPA",
+      "slug": "ankpa",
+      "name": "Ankpa",
+      "state": "KO",
+      "senatorial_district": "SD/065/KG"
+    },
+    {
+      "code": "KO-BASSA",
+      "slug": "bassa",
+      "name": "Bassa",
+      "state": "KO",
+      "senatorial_district": "SD/065/KG"
+    },
+    {
+      "code": "KO-DEKINA",
+      "slug": "dekina",
+      "name": "Dekina",
+      "state": "KO",
+      "senatorial_district": "SD/065/KG"
+    },
+    {
+      "code": "KO-IBAJI",
+      "slug": "ibaji",
+      "name": "Ibaji",
+      "state": "KO",
+      "senatorial_district": "SD/065/KG"
+    },
+    {
+      "code": "KO-IDAH",
+      "slug": "idah",
+      "name": "Idah",
+      "state": "KO",
+      "senatorial_district": "SD/065/KG"
+    },
+    {
+      "code": "KO-IGALAMELA-ODOLU",
+      "slug": "igalamela-odolu",
+      "name": "Igalamela Odolu",
+      "state": "KO",
+      "senatorial_district": "SD/065/KG"
+    },
+    {
+      "code": "KO-IJUMU",
+      "slug": "ijumu",
+      "name": "Ijumu",
+      "state": "KO",
+      "senatorial_district": "SD/066/KG"
+    },
+    {
+      "code": "KO-KABBA-BUNU",
+      "slug": "kabba-bunu",
+      "name": "Kabba Bunu",
+      "state": "KO",
+      "senatorial_district": "SD/066/KG"
+    },
+    {
+      "code": "KO-KOTON-KARFE",
+      "slug": "koton-karfe",
+      "name": "Kogi/Koton Karfe",
+      "state": "KO",
+      "senatorial_district": "SD/066/KG"
+    },
+    {
+      "code": "KO-LOKOJA",
+      "slug": "lokoja",
+      "name": "Lokoja",
+      "state": "KO",
+      "senatorial_district": "SD/066/KG"
+    },
+    {
+      "code": "KO-MOPA-MURO",
+      "slug": "mopa-muro",
+      "name": "Mopa Muro",
+      "state": "KO",
+      "senatorial_district": "SD/066/KG"
+    },
+    {
+      "code": "KO-OFU",
+      "slug": "ofu",
+      "name": "Ofu",
+      "state": "KO",
+      "senatorial_district": "SD/065/KG"
+    },
+    {
+      "code": "KO-OGORI-MAGONGO",
+      "slug": "ogori-magongo",
+      "name": "Ogori Magongo",
+      "state": "KO",
+      "senatorial_district": "SD/064/KG"
+    },
+    {
+      "code": "KO-OKEHI",
+      "slug": "okehi",
+      "name": "Okehi",
+      "state": "KO",
+      "senatorial_district": "SD/064/KG"
+    },
+    {
+      "code": "KO-OKENE",
+      "slug": "okene",
+      "name": "Okene",
+      "state": "KO",
+      "senatorial_district": "SD/064/KG"
+    },
+    {
+      "code": "KO-OLAMABORO",
+      "slug": "olamaboro",
+      "name": "Olamaboro",
+      "state": "KO",
+      "senatorial_district": "SD/065/KG"
+    },
+    {
+      "code": "KO-OMALA",
+      "slug": "omala",
+      "name": "Omala",
+      "state": "KO",
+      "senatorial_district": "SD/065/KG"
+    },
+    {
+      "code": "KO-YAGBA-EAST",
+      "slug": "yagba-east",
+      "name": "Yagba East",
+      "state": "KO",
+      "senatorial_district": "SD/066/KG"
+    },
+    {
+      "code": "KO-YAGBA-WEST",
+      "slug": "yagba-west",
+      "name": "Yagba West",
+      "state": "KO",
+      "senatorial_district": "SD/066/KG"
+    },
+    {
+      "code": "KW-ASA",
+      "slug": "asa",
+      "name": "Asa",
+      "state": "KW",
+      "senatorial_district": "SD/068/KW"
+    },
+    {
+      "code": "KW-BARUTEN",
+      "slug": "baruten",
+      "name": "Baruten",
+      "state": "KW",
+      "senatorial_district": "SD/067/KW"
+    },
+    {
+      "code": "KW-EDU",
+      "slug": "edu",
+      "name": "Edu",
+      "state": "KW",
+      "senatorial_district": "SD/067/KW"
+    },
+    {
+      "code": "KW-EKITI",
+      "slug": "ekiti",
+      "name": "Ekiti",
+      "state": "KW",
+      "senatorial_district": "SD/069/KW"
+    },
+    {
+      "code": "KW-IFELODUN",
+      "slug": "ifelodun",
+      "name": "Ifelodun",
+      "state": "KW",
+      "senatorial_district": "SD/069/KW"
+    },
+    {
+      "code": "KW-ILORIN-EAST",
+      "slug": "ilorin-east",
+      "name": "Ilorin East",
+      "state": "KW",
+      "senatorial_district": "SD/068/KW"
+    },
+    {
+      "code": "KW-ILORIN-SOUTH",
+      "slug": "ilorin-south",
+      "name": "Ilorin South",
+      "state": "KW",
+      "senatorial_district": "SD/068/KW"
+    },
+    {
+      "code": "KW-ILORIN-WEST",
+      "slug": "ilorin-west",
+      "name": "Ilorin West",
+      "state": "KW",
+      "senatorial_district": "SD/068/KW"
+    },
+    {
+      "code": "KW-IREPODUN",
+      "slug": "irepodun",
+      "name": "Irepodun",
+      "state": "KW",
+      "senatorial_district": "SD/069/KW"
+    },
+    {
+      "code": "KW-ISIN",
+      "slug": "isin",
+      "name": "Isin",
+      "state": "KW",
+      "senatorial_district": "SD/069/KW"
+    },
+    {
+      "code": "KW-KAIAMA",
+      "slug": "kaiama",
+      "name": "Kaiama",
+      "state": "KW",
+      "senatorial_district": "SD/067/KW"
+    },
+    {
+      "code": "KW-MORO",
+      "slug": "moro",
+      "name": "Moro",
+      "state": "KW",
+      "senatorial_district": "SD/067/KW"
+    },
+    {
+      "code": "KW-OFFA",
+      "slug": "offa",
+      "name": "Offa",
+      "state": "KW",
+      "senatorial_district": "SD/068/KW"
+    },
+    {
+      "code": "KW-OKE-ERO",
+      "slug": "oke-ero",
+      "name": "Oke Ero",
+      "state": "KW",
+      "senatorial_district": "SD/069/KW"
+    },
+    {
+      "code": "KW-OYUN",
+      "slug": "oyun",
+      "name": "Oyun",
+      "state": "KW",
+      "senatorial_district": "SD/069/KW"
+    },
+    {
+      "code": "KW-PATIGI",
+      "slug": "patigi",
+      "name": "Patigi",
+      "state": "KW",
+      "senatorial_district": "SD/067/KW"
+    },
+    {
+      "code": "NA-AKWANGA",
+      "slug": "akwanga",
+      "name": "Akwanga",
+      "state": "NA",
+      "senatorial_district": "SD/073/NW"
+    },
+    {
+      "code": "NA-AWE",
+      "slug": "awe",
+      "name": "Awe",
+      "state": "NA",
+      "senatorial_district": "SD/075/NW"
+    },
+    {
+      "code": "NA-DOMA",
+      "slug": "doma",
+      "name": "Doma",
+      "state": "NA",
+      "senatorial_district": "SD/075/NW"
+    },
+    {
+      "code": "NA-KARU",
+      "slug": "karu",
+      "name": "Karu",
+      "state": "NA",
+      "senatorial_district": "SD/074/NW"
+    },
+    {
+      "code": "NA-KEANA",
+      "slug": "keana",
+      "name": "Keana",
+      "state": "NA",
+      "senatorial_district": "SD/075/NW"
+    },
+    {
+      "code": "NA-KEFFI",
+      "slug": "keffi",
+      "name": "Keffi",
+      "state": "NA",
+      "senatorial_district": "SD/074/NW"
+    },
+    {
+      "code": "NA-KOKONA",
+      "slug": "kokona",
+      "name": "Kokona",
+      "state": "NA",
+      "senatorial_district": "SD/074/NW"
+    },
+    {
+      "code": "NA-LAFIA",
+      "slug": "lafia",
+      "name": "Lafia",
+      "state": "NA",
+      "senatorial_district": "SD/075/NW"
+    },
+    {
+      "code": "NA-NASARAWA",
+      "slug": "nasarawa",
+      "name": "Nasarawa",
+      "state": "NA",
+      "senatorial_district": "SD/074/NW"
+    },
+    {
+      "code": "NA-NASARAWA-EGGON",
+      "slug": "nasarawa-eggon",
+      "name": "Nasarawa Eggon",
+      "state": "NA",
+      "senatorial_district": "SD/073/NW"
+    },
+    {
+      "code": "NA-OBI",
+      "slug": "obi",
+      "name": "Obi",
+      "state": "NA",
+      "senatorial_district": "SD/075/NW"
+    },
+    {
+      "code": "NA-TOTO",
+      "slug": "toto",
+      "name": "Toto",
+      "state": "NA",
+      "senatorial_district": "SD/074/NW"
+    },
+    {
+      "code": "NA-WAMBA",
+      "slug": "wamba",
+      "name": "Wamba",
+      "state": "NA",
+      "senatorial_district": "SD/073/NW"
+    },
+    {
+      "code": "NI-AGAIE",
+      "slug": "agaie",
+      "name": "Agaie",
+      "state": "NI",
+      "senatorial_district": "SD/078/NG"
+    },
+    {
+      "code": "NI-AGWARA",
+      "slug": "agwara",
+      "name": "Agwara",
+      "state": "NI",
+      "senatorial_district": "SD/077/NG"
+    },
+    {
+      "code": "NI-BIDA",
+      "slug": "bida",
+      "name": "Bida",
+      "state": "NI",
+      "senatorial_district": "SD/078/NG"
+    },
+    {
+      "code": "NI-BORGU",
+      "slug": "borgu",
+      "name": "Borgu",
+      "state": "NI",
+      "senatorial_district": "SD/077/NG"
+    },
+    {
+      "code": "NI-BOSSO",
+      "slug": "bosso",
+      "name": "Bosso",
+      "state": "NI",
+      "senatorial_district": "SD/076/NG"
+    },
+    {
+      "code": "NI-CHANCHAGA",
+      "slug": "chanchaga",
+      "name": "Chanchaga",
+      "state": "NI",
+      "senatorial_district": "SD/076/NG"
+    },
+    {
+      "code": "NI-EDATTI",
+      "slug": "edatti",
+      "name": "Edatti",
+      "state": "NI",
+      "senatorial_district": "SD/078/NG"
+    },
+    {
+      "code": "NI-GBAKO",
+      "slug": "gbako",
+      "name": "Gbako",
+      "state": "NI",
+      "senatorial_district": "SD/078/NG"
+    },
+    {
+      "code": "NI-GURARA",
+      "slug": "gurara",
+      "name": "Gurara",
+      "state": "NI",
+      "senatorial_district": "SD/076/NG"
+    },
+    {
+      "code": "NI-KATCHA",
+      "slug": "katcha",
+      "name": "Katcha",
+      "state": "NI",
+      "senatorial_district": "SD/078/NG"
+    },
+    {
+      "code": "NI-KONTAGORA",
+      "slug": "kontagora",
+      "name": "Kontagora",
+      "state": "NI",
+      "senatorial_district": "SD/077/NG"
+    },
+    {
+      "code": "NI-LAPAI",
+      "slug": "lapai",
+      "name": "Lapai",
+      "state": "NI",
+      "senatorial_district": "SD/078/NG"
+    },
+    {
+      "code": "NI-LAVUN",
+      "slug": "lavun",
+      "name": "Lavun",
+      "state": "NI",
+      "senatorial_district": "SD/078/NG"
+    },
+    {
+      "code": "NI-MAGAMA",
+      "slug": "magama",
+      "name": "Magama",
+      "state": "NI",
+      "senatorial_district": "SD/077/NG"
+    },
+    {
+      "code": "NI-MARIGA",
+      "slug": "mariga",
+      "name": "Mariga",
+      "state": "NI",
+      "senatorial_district": "SD/077/NG"
+    },
+    {
+      "code": "NI-MASHEGU",
+      "slug": "mashegu",
+      "name": "Mashegu",
+      "state": "NI",
+      "senatorial_district": "SD/077/NG"
+    },
+    {
+      "code": "NI-MOKWA",
+      "slug": "mokwa",
+      "name": "Mokwa",
+      "state": "NI",
+      "senatorial_district": "SD/078/NG"
+    },
+    {
+      "code": "NI-MUNYA",
+      "slug": "munya",
+      "name": "Munya",
+      "state": "NI",
+      "senatorial_district": "SD/076/NG"
+    },
+    {
+      "code": "NI-PAIKORO",
+      "slug": "paikoro",
+      "name": "Paikoro",
+      "state": "NI",
+      "senatorial_district": "SD/076/NG"
+    },
+    {
+      "code": "NI-RAFI",
+      "slug": "rafi",
+      "name": "Rafi",
+      "state": "NI",
+      "senatorial_district": "SD/076/NG"
+    },
+    {
+      "code": "NI-RIJAU",
+      "slug": "rijau",
+      "name": "Rijau",
+      "state": "NI",
+      "senatorial_district": "SD/077/NG"
+    },
+    {
+      "code": "NI-SHIRORO",
+      "slug": "shiroro",
+      "name": "Shiroro",
+      "state": "NI",
+      "senatorial_district": "SD/076/NG"
+    },
+    {
+      "code": "NI-SULEJA",
+      "slug": "suleja",
+      "name": "Suleja",
+      "state": "NI",
+      "senatorial_district": "SD/076/NG"
+    },
+    {
+      "code": "NI-TAFA",
+      "slug": "tafa",
+      "name": "Tafa",
+      "state": "NI",
+      "senatorial_district": "SD/076/NG"
+    },
+    {
+      "code": "NI-WUSHISHI",
+      "slug": "wushishi",
+      "name": "Wushishi",
+      "state": "NI",
+      "senatorial_district": "SD/077/NG"
+    },
+    {
+      "code": "PL-BARIKIN-LADI",
+      "slug": "barikin-ladi",
+      "name": "Barkin Ladi",
+      "state": "PL",
+      "senatorial_district": "SD/093/PL"
+    },
+    {
+      "code": "PL-BASSA",
+      "slug": "bassa",
+      "name": "Bassa",
+      "state": "PL",
+      "senatorial_district": "SD/093/PL"
+    },
+    {
+      "code": "PL-BOKKOS",
+      "slug": "bokkos",
+      "name": "Bokkos",
+      "state": "PL",
+      "senatorial_district": "SD/092/PL"
+    },
+    {
+      "code": "PL-JOS-EAST",
+      "slug": "jos-east",
+      "name": "Jos East",
+      "state": "PL",
+      "senatorial_district": "SD/093/PL"
+    },
+    {
+      "code": "PL-JOS-NORTH",
+      "slug": "jos-north",
+      "name": "Jos North",
+      "state": "PL",
+      "senatorial_district": "SD/093/PL"
+    },
+    {
+      "code": "PL-JOS-SOUTH",
+      "slug": "jos-south",
+      "name": "Jos South",
+      "state": "PL",
+      "senatorial_district": "SD/093/PL"
+    },
+    {
+      "code": "PL-KANAM",
+      "slug": "kanam",
+      "name": "Kanam",
+      "state": "PL",
+      "senatorial_district": "SD/092/PL"
+    },
+    {
+      "code": "PL-KANKE",
+      "slug": "kanke",
+      "name": "Kanke",
+      "state": "PL",
+      "senatorial_district": "SD/092/PL"
+    },
+    {
+      "code": "PL-LANGTANG-NORTH",
+      "slug": "langtang-north",
+      "name": "Langtang North",
+      "state": "PL",
+      "senatorial_district": "SD/091/PL"
+    },
+    {
+      "code": "PL-LANGTANG-SOUTH",
+      "slug": "langtang-south",
+      "name": "Langtang South",
+      "state": "PL",
+      "senatorial_district": "SD/091/PL"
+    },
+    {
+      "code": "PL-MANGU",
+      "slug": "mangu",
+      "name": "Mangu",
+      "state": "PL",
+      "senatorial_district": "SD/092/PL"
+    },
+    {
+      "code": "PL-MIKANG",
+      "slug": "mikang",
+      "name": "Mikang",
+      "state": "PL",
+      "senatorial_district": "SD/091/PL"
+    },
+    {
+      "code": "PL-PANKSHIN",
+      "slug": "pankshin",
+      "name": "Pankshin",
+      "state": "PL",
+      "senatorial_district": "SD/092/PL"
+    },
+    {
+      "code": "PL-QUAAN-PAN",
+      "slug": "qua'an-pan",
+      "name": "Qua'an Pan",
+      "state": "PL",
+      "senatorial_district": "SD/091/PL"
+    },
+    {
+      "code": "PL-RIYOM",
+      "slug": "riyom",
+      "name": "Riyom",
+      "state": "PL",
+      "senatorial_district": "SD/093/PL"
+    },
+    {
+      "code": "PL-SHENDAM",
+      "slug": "shendam",
+      "name": "Shendam",
+      "state": "PL",
+      "senatorial_district": "SD/091/PL"
+    },
+    {
+      "code": "PL-WASE",
+      "slug": "wase",
+      "name": "Wase",
+      "state": "PL",
+      "senatorial_district": "SD/091/PL"
+    },
+    {
+      "code": "AD-DEMSA",
+      "slug": "demsa",
+      "name": "Demsa",
+      "state": "AD",
+      "senatorial_district": "SD/005/AD"
+    },
+    {
+      "code": "AD-FUFORE",
+      "slug": "fufore",
+      "name": "Fufore",
+      "state": "AD",
+      "senatorial_district": "SD/006/AD"
+    },
+    {
+      "code": "AD-GANYE",
+      "slug": "ganye",
+      "name": "Ganye",
+      "state": "AD",
+      "senatorial_district": "SD/005/AD"
+    },
+    {
+      "code": "AD-GIREI",
+      "slug": "girei",
+      "name": "Girei",
+      "state": "AD",
+      "senatorial_district": "SD/006/AD"
+    },
+    {
+      "code": "AD-GOMBI",
+      "slug": "gombi",
+      "name": "Gombi",
+      "state": "AD",
+      "senatorial_district": "SD/006/AD"
+    },
+    {
+      "code": "AD-GUYUK",
+      "slug": "guyuk",
+      "name": "Guyuk",
+      "state": "AD",
+      "senatorial_district": "SD/005/AD"
+    },
+    {
+      "code": "AD-HONG",
+      "slug": "hong",
+      "name": "Hong",
+      "state": "AD",
+      "senatorial_district": "SD/006/AD"
+    },
+    {
+      "code": "AD-JADA",
+      "slug": "jada",
+      "name": "Jada",
+      "state": "AD",
+      "senatorial_district": "SD/005/AD"
+    },
+    {
+      "code": "AD-LAMURDE",
+      "slug": "lamurde",
+      "name": "Lamurde",
+      "state": "AD",
+      "senatorial_district": "SD/005/AD"
+    },
+    {
+      "code": "AD-MADAGALI",
+      "slug": "madagali",
+      "name": "Madagali",
+      "state": "AD",
+      "senatorial_district": "SD/004/AD"
+    },
+    {
+      "code": "AD-MAIHA",
+      "slug": "maiha",
+      "name": "Maiha",
+      "state": "AD",
+      "senatorial_district": "SD/004/AD"
+    },
+    {
+      "code": "AD-MAYO-BELWA",
+      "slug": "mayo-belwa",
+      "name": "Mayo Belwa",
+      "state": "AD",
+      "senatorial_district": "SD/005/AD"
+    },
+    {
+      "code": "AD-MICHIKA",
+      "slug": "michika",
+      "name": "Michika",
+      "state": "AD",
+      "senatorial_district": "SD/004/AD"
+    },
+    {
+      "code": "AD-MUBI-NORTH",
+      "slug": "mubi-north",
+      "name": "Mubi North",
+      "state": "AD",
+      "senatorial_district": "SD/004/AD"
+    },
+    {
+      "code": "AD-MUBI-SOUTH",
+      "slug": "mubi-south",
+      "name": "Mubi South",
+      "state": "AD",
+      "senatorial_district": "SD/004/AD"
+    },
+    {
+      "code": "AD-NUMAN",
+      "slug": "numan",
+      "name": "Numan",
+      "state": "AD",
+      "senatorial_district": "SD/005/AD"
+    },
+    {
+      "code": "AD-SHELLENG",
+      "slug": "shelleng",
+      "name": "Shelleng",
+      "state": "AD",
+      "senatorial_district": "SD/005/AD"
+    },
+    {
+      "code": "AD-SONG",
+      "slug": "song",
+      "name": "Song",
+      "state": "AD",
+      "senatorial_district": "SD/006/AD"
+    },
+    {
+      "code": "AD-TOUNGO",
+      "slug": "toungo",
+      "name": "Toungo",
+      "state": "AD",
+      "senatorial_district": "SD/005/AD"
+    },
+    {
+      "code": "AD-YOLA-NORTH",
+      "slug": "yola-north",
+      "name": "Yola North",
+      "state": "AD",
+      "senatorial_district": "SD/006/AD"
+    },
+    {
+      "code": "AD-YOLA-SOUTH",
+      "slug": "yola-south",
+      "name": "Yola South",
+      "state": "AD",
+      "senatorial_district": "SD/006/AD"
+    },
+    {
+      "code": "BA-ALKALERI",
+      "slug": "alkaleri",
+      "name": "Alkaleri",
+      "state": "BA",
+      "senatorial_district": "SD/013/BA"
+    },
+    {
+      "code": "BA-BAUCHI",
+      "slug": "bauchi",
+      "name": "Bauchi",
+      "state": "BA",
+      "senatorial_district": "SD/013/BA"
+    },
+    {
+      "code": "BA-BOGORO",
+      "slug": "bogoro",
+      "name": "Bogoro",
+      "state": "BA",
+      "senatorial_district": "SD/013/BA"
+    },
+    {
+      "code": "BA-DAMBAM",
+      "slug": "dambam",
+      "name": "Dambam",
+      "state": "BA",
+      "senatorial_district": "SD/014/BA"
+    },
+    {
+      "code": "BA-DARAZO",
+      "slug": "darazo",
+      "name": "Darazo",
+      "state": "BA",
+      "senatorial_district": "SD/014/BA"
+    },
+    {
+      "code": "BA-DASS",
+      "slug": "dass",
+      "name": "Dass",
+      "state": "BA",
+      "senatorial_district": "SD/013/BA"
+    },
+    {
+      "code": "BA-GAMAWA",
+      "slug": "gamawa",
+      "name": "Gamawa",
+      "state": "BA",
+      "senatorial_district": "SD/015/BA"
+    },
+    {
+      "code": "BA-GANJUWA",
+      "slug": "ganjuwa",
+      "name": "Ganjuwa",
+      "state": "BA",
+      "senatorial_district": "SD/014/BA"
+    },
+    {
+      "code": "BA-GIADE",
+      "slug": "giade",
+      "name": "Giade",
+      "state": "BA",
+      "senatorial_district": "SD/015/BA"
+    },
+    {
+      "code": "BA-ITAS-GADAU",
+      "slug": "itas-gadau",
+      "name": "Itas Gadau",
+      "state": "BA",
+      "senatorial_district": "SD/015/BA"
+    },
+    {
+      "code": "BA-JAMAARE",
+      "slug": "jama'are",
+      "name": "Jama'are",
+      "state": "BA",
+      "senatorial_district": "SD/015/BA"
+    },
+    {
+      "code": "BA-KATAGUM",
+      "slug": "katagum",
+      "name": "Katagum",
+      "state": "BA",
+      "senatorial_district": "SD/015/BA"
+    },
+    {
+      "code": "BA-KIRFI",
+      "slug": "kirfi",
+      "name": "Kirfi",
+      "state": "BA",
+      "senatorial_district": "SD/013/BA"
+    },
+    {
+      "code": "BA-MISAU",
+      "slug": "misau",
+      "name": "Misau",
+      "state": "BA",
+      "senatorial_district": "SD/014/BA"
+    },
+    {
+      "code": "BA-NINGI",
+      "slug": "ningi",
+      "name": "Ningi",
+      "state": "BA",
+      "senatorial_district": "SD/014/BA"
+    },
+    {
+      "code": "BA-SHIRA",
+      "slug": "shira",
+      "name": "Shira",
+      "state": "BA",
+      "senatorial_district": "SD/015/BA"
+    },
+    {
+      "code": "BA-TAFAWA-BALEWA",
+      "slug": "tafawa-balewa",
+      "name": "Tafawa Balewa",
+      "state": "BA",
+      "senatorial_district": "SD/013/BA"
+    },
+    {
+      "code": "BA-TORO",
+      "slug": "toro",
+      "name": "Toro",
+      "state": "BA",
+      "senatorial_district": "SD/013/BA"
+    },
+    {
+      "code": "BA-WARJI",
+      "slug": "warji",
+      "name": "Warji",
+      "state": "BA",
+      "senatorial_district": "SD/014/BA"
+    },
+    {
+      "code": "BA-ZAKI",
+      "slug": "zaki",
+      "name": "Zaki",
+      "state": "BA",
+      "senatorial_district": "SD/015/BA"
+    },
+    {
+      "code": "BO-ABADAM",
+      "slug": "abadam",
+      "name": "Abadam",
+      "state": "BO",
+      "senatorial_district": "SD/022/BO"
+    },
+    {
+      "code": "BO-ASKIRA-UBA",
+      "slug": "askira-uba",
+      "name": "Askira Uba",
+      "state": "BO",
+      "senatorial_district": "SD/024/BO"
+    },
+    {
+      "code": "BO-BAMA",
+      "slug": "bama",
+      "name": "Bama",
+      "state": "BO",
+      "senatorial_district": "SD/023/BO"
+    },
+    {
+      "code": "BO-BAYO",
+      "slug": "bayo",
+      "name": "Bayo",
+      "state": "BO",
+      "senatorial_district": "SD/024/BO"
+    },
+    {
+      "code": "BO-BIU",
+      "slug": "biu",
+      "name": "Biu",
+      "state": "BO",
+      "senatorial_district": "SD/024/BO"
+    },
+    {
+      "code": "BO-CHIBOK",
+      "slug": "chibok",
+      "name": "Chibok",
+      "state": "BO",
+      "senatorial_district": "SD/024/BO"
+    },
+    {
+      "code": "BO-DAMBOA",
+      "slug": "damboa",
+      "name": "Damboa",
+      "state": "BO",
+      "senatorial_district": "SD/024/BO"
+    },
+    {
+      "code": "BO-DIKWA",
+      "slug": "dikwa",
+      "name": "Dikwa",
+      "state": "BO",
+      "senatorial_district": "SD/023/BO"
+    },
+    {
+      "code": "BO-GUBIO",
+      "slug": "gubio",
+      "name": "Gubio",
+      "state": "BO",
+      "senatorial_district": "SD/022/BO"
+    },
+    {
+      "code": "BO-GUZAMALA",
+      "slug": "guzamala",
+      "name": "Guzamala",
+      "state": "BO",
+      "senatorial_district": "SD/022/BO"
+    },
+    {
+      "code": "BO-GWOZA",
+      "slug": "gwoza",
+      "name": "Gwoza",
+      "state": "BO",
+      "senatorial_district": "SD/024/BO"
+    },
+    {
+      "code": "BO-HAWUL",
+      "slug": "hawul",
+      "name": "Hawul",
+      "state": "BO",
+      "senatorial_district": "SD/024/BO"
+    },
+    {
+      "code": "BO-JERE",
+      "slug": "jere",
+      "name": "Jere",
+      "state": "BO",
+      "senatorial_district": "SD/023/BO"
+    },
+    {
+      "code": "BO-KAGA",
+      "slug": "kaga",
+      "name": "Kaga",
+      "state": "BO",
+      "senatorial_district": "SD/023/BO"
+    },
+    {
+      "code": "BO-KALA-BALGE",
+      "slug": "kala-balge",
+      "name": "Kala Balge",
+      "state": "BO",
+      "senatorial_district": "SD/023/BO"
+    },
+    {
+      "code": "BO-KONDUGA",
+      "slug": "konduga",
+      "name": "Konduga",
+      "state": "BO",
+      "senatorial_district": "SD/023/BO"
+    },
+    {
+      "code": "BO-KUKAWA",
+      "slug": "kukawa",
+      "name": "Kukawa",
+      "state": "BO",
+      "senatorial_district": "SD/022/BO"
+    },
+    {
+      "code": "BO-KWAYA-KUSAR",
+      "slug": "kwaya-kusar",
+      "name": "Kwaya Kusar",
+      "state": "BO",
+      "senatorial_district": "SD/024/BO"
+    },
+    {
+      "code": "BO-MAFA",
+      "slug": "mafa",
+      "name": "Mafa",
+      "state": "BO",
+      "senatorial_district": "SD/023/BO"
+    },
+    {
+      "code": "BO-MAGUMERI",
+      "slug": "magumeri",
+      "name": "Magumeri",
+      "state": "BO",
+      "senatorial_district": "SD/022/BO"
+    },
+    {
+      "code": "BO-MAIDUGURI",
+      "slug": "maiduguri",
+      "name": "Maiduguri",
+      "state": "BO",
+      "senatorial_district": "SD/023/BO"
+    },
+    {
+      "code": "BO-MARTE",
+      "slug": "marte",
+      "name": "Marte",
+      "state": "BO",
+      "senatorial_district": "SD/022/BO"
+    },
+    {
+      "code": "BO-MOBBAR",
+      "slug": "mobbar",
+      "name": "Mobbar",
+      "state": "BO",
+      "senatorial_district": "SD/022/BO"
+    },
+    {
+      "code": "BO-MONGUNO",
+      "slug": "monguno",
+      "name": "Monguno",
+      "state": "BO",
+      "senatorial_district": "SD/022/BO"
+    },
+    {
+      "code": "BO-NGALA",
+      "slug": "ngala",
+      "name": "Ngala",
+      "state": "BO",
+      "senatorial_district": "SD/023/BO"
+    },
+    {
+      "code": "BO-NGANZAI",
+      "slug": "nganzai",
+      "name": "Nganzai",
+      "state": "BO",
+      "senatorial_district": "SD/022/BO"
+    },
+    {
+      "code": "BO-SHANI",
+      "slug": "shani",
+      "name": "Shani",
+      "state": "BO",
+      "senatorial_district": "SD/024/BO"
+    },
+    {
+      "code": "GO-AKKO",
+      "slug": "akko",
+      "name": "Akko",
+      "state": "GO",
+      "senatorial_district": "SD/043/GM"
+    },
+    {
+      "code": "GO-BALANGA",
+      "slug": "balanga",
+      "name": "Balanga",
+      "state": "GO",
+      "senatorial_district": "SD/044/GM"
+    },
+    {
+      "code": "GO-BILLIRI",
+      "slug": "billiri",
+      "name": "Billiri",
+      "state": "GO",
+      "senatorial_district": "SD/044/GM"
+    },
+    {
+      "code": "GO-DUKKU",
+      "slug": "dukku",
+      "name": "Dukku",
+      "state": "GO",
+      "senatorial_district": "SD/045/GM"
+    },
+    {
+      "code": "GO-FUNAKAYE",
+      "slug": "funakaye",
+      "name": "Funakaye",
+      "state": "GO",
+      "senatorial_district": "SD/045/GM"
+    },
+    {
+      "code": "GO-GOMBE",
+      "slug": "gombe",
+      "name": "Gombe",
+      "state": "GO",
+      "senatorial_district": "SD/045/GM"
+    },
+    {
+      "code": "GO-KALTUNGO",
+      "slug": "kaltungo",
+      "name": "Kaltungo",
+      "state": "GO",
+      "senatorial_district": "SD/044/GM"
+    },
+    {
+      "code": "GO-KWAMI",
+      "slug": "kwami",
+      "name": "Kwami",
+      "state": "GO",
+      "senatorial_district": "SD/045/GM"
+    },
+    {
+      "code": "GO-NAFADA",
+      "slug": "nafada",
+      "name": "Nafada",
+      "state": "GO",
+      "senatorial_district": "SD/045/GM"
+    },
+    {
+      "code": "GO-SHONGOM",
+      "slug": "shongom",
+      "name": "Shongom",
+      "state": "GO",
+      "senatorial_district": "SD/044/GM"
+    },
+    {
+      "code": "GO-YALMALTU-DEBA",
+      "slug": "yalmaltu-deba",
+      "name": "Yamaltu/Deba",
+      "state": "GO",
+      "senatorial_district": "SD/043/GM"
+    },
+    {
+      "code": "TA-ARDO-KOLA",
+      "slug": "ardo-kola",
+      "name": "Ardo Kola",
+      "state": "TA",
+      "senatorial_district": "SD/102/TR"
+    },
+    {
+      "code": "TA-BALI",
+      "slug": "bali",
+      "name": "Bali",
+      "state": "TA",
+      "senatorial_district": "SD/101/TR"
+    },
+    {
+      "code": "TA-DONGA",
+      "slug": "donga",
+      "name": "Donga",
+      "state": "TA",
+      "senatorial_district": "SD/100/TR"
+    },
+    {
+      "code": "TA-GASHAKA",
+      "slug": "gashaka",
+      "name": "Gashaka",
+      "state": "TA",
+      "senatorial_district": "SD/101/TR"
+    },
+    {
+      "code": "TA-GASSOL",
+      "slug": "gassol",
+      "name": "Gassol",
+      "state": "TA",
+      "senatorial_district": "SD/101/TR"
+    },
+    {
+      "code": "TA-IBI",
+      "slug": "ibi",
+      "name": "Ibi",
+      "state": "TA",
+      "senatorial_district": "SD/100/TR"
+    },
+    {
+      "code": "TA-JALINGO",
+      "slug": "jalingo",
+      "name": "Jalingo",
+      "state": "TA",
+      "senatorial_district": "SD/102/TR"
+    },
+    {
+      "code": "TA-KARIM-LAMIDO",
+      "slug": "karim-lamido",
+      "name": "Karim Lamido",
+      "state": "TA",
+      "senatorial_district": "SD/102/TR"
+    },
+    {
+      "code": "TA-KURMI",
+      "slug": "kurmi",
+      "name": "Kurmi",
+      "state": "TA",
+      "senatorial_district": "SD/101/TR"
+    },
+    {
+      "code": "TA-LAU",
+      "slug": "lau",
+      "name": "Lau",
+      "state": "TA",
+      "senatorial_district": "SD/102/TR"
+    },
+    {
+      "code": "TA-SARDAUNA",
+      "slug": "sardauna",
+      "name": "Sardauna",
+      "state": "TA",
+      "senatorial_district": "SD/101/TR"
+    },
+    {
+      "code": "TA-TAKUM",
+      "slug": "takum",
+      "name": "Takum",
+      "state": "TA",
+      "senatorial_district": "SD/100/TR"
+    },
+    {
+      "code": "TA-USSA",
+      "slug": "ussa",
+      "name": "Ussa",
+      "state": "TA",
+      "senatorial_district": "SD/100/TR"
+    },
+    {
+      "code": "TA-WUKARI",
+      "slug": "wukari",
+      "name": "Wukari",
+      "state": "TA",
+      "senatorial_district": "SD/100/TR"
+    },
+    {
+      "code": "TA-YORRO",
+      "slug": "yorro",
+      "name": "Yorro",
+      "state": "TA",
+      "senatorial_district": "SD/102/TR"
+    },
+    {
+      "code": "TA-ZING",
+      "slug": "zing",
+      "name": "Zing",
+      "state": "TA",
+      "senatorial_district": "SD/102/TR"
+    },
+    {
+      "code": "YO-BADE",
+      "slug": "bade",
+      "name": "Bade",
+      "state": "YO",
+      "senatorial_district": "SD/104/YB"
+    },
+    {
+      "code": "YO-BURSARI",
+      "slug": "bursari",
+      "name": "Bursari",
+      "state": "YO",
+      "senatorial_district": "SD/103/YB"
+    },
+    {
+      "code": "YO-DAMATURU",
+      "slug": "damaturu",
+      "name": "Damaturu",
+      "state": "YO",
+      "senatorial_district": "SD/105/YB"
+    },
+    {
+      "code": "YO-FIKA",
+      "slug": "fika",
+      "name": "Fika",
+      "state": "YO",
+      "senatorial_district": "SD/105/YB"
+    },
+    {
+      "code": "YO-FUNE",
+      "slug": "fune",
+      "name": "Fune",
+      "state": "YO",
+      "senatorial_district": "SD/105/YB"
+    },
+    {
+      "code": "YO-GEIDAM",
+      "slug": "geidam",
+      "name": "Geidam",
+      "state": "YO",
+      "senatorial_district": "SD/103/YB"
+    },
+    {
+      "code": "YO-GUJBA",
+      "slug": "gujba",
+      "name": "Gujba",
+      "state": "YO",
+      "senatorial_district": "SD/103/YB"
+    },
+    {
+      "code": "YO-GULANI",
+      "slug": "gulani",
+      "name": "Gulani",
+      "state": "YO",
+      "senatorial_district": "SD/103/YB"
+    },
+    {
+      "code": "YO-JAKUSKO",
+      "slug": "jakusko",
+      "name": "Jakusko",
+      "state": "YO",
+      "senatorial_district": "SD/104/YB"
+    },
+    {
+      "code": "YO-KARASUWA",
+      "slug": "karasuwa",
+      "name": "Karasuwa",
+      "state": "YO",
+      "senatorial_district": "SD/104/YB"
+    },
+    {
+      "code": "YO-MACHINA",
+      "slug": "machina",
+      "name": "Machina",
+      "state": "YO",
+      "senatorial_district": "SD/104/YB"
+    },
+    {
+      "code": "YO-NANGERE",
+      "slug": "nangere",
+      "name": "Nangere",
+      "state": "YO",
+      "senatorial_district": "SD/105/YB"
+    },
+    {
+      "code": "YO-NGURU",
+      "slug": "nguru",
+      "name": "Nguru",
+      "state": "YO",
+      "senatorial_district": "SD/104/YB"
+    },
+    {
+      "code": "YO-POTISKUM",
+      "slug": "potiskum",
+      "name": "Potiskum",
+      "state": "YO",
+      "senatorial_district": "SD/105/YB"
+    },
+    {
+      "code": "YO-TARMUWA",
+      "slug": "tarmuwa",
+      "name": "Tarmuwa",
+      "state": "YO",
+      "senatorial_district": "SD/103/YB"
+    },
+    {
+      "code": "YO-YUNUSARI",
+      "slug": "yunusari",
+      "name": "Yunusari",
+      "state": "YO",
+      "senatorial_district": "SD/103/YB"
+    },
+    {
+      "code": "YO-YUSUFARI",
+      "slug": "yusufari",
+      "name": "Yusufari",
+      "state": "YO",
+      "senatorial_district": "SD/104/YB"
+    },
+    {
+      "code": "JI-AUYO",
+      "slug": "auyo",
+      "name": "Auyo",
+      "state": "JI",
+      "senatorial_district": "SD/050/JG"
+    },
+    {
+      "code": "JI-BABURA",
+      "slug": "babura",
+      "name": "Babura",
+      "state": "JI",
+      "senatorial_district": "SD/051/JG"
+    },
+    {
+      "code": "JI-BIRNIN-KUDU",
+      "slug": "birnin-kudu",
+      "name": "Birnin Kudu",
+      "state": "JI",
+      "senatorial_district": "SD/049/JG"
+    },
+    {
+      "code": "JI-BIRNIWA",
+      "slug": "birniwa",
+      "name": "Birniwa",
+      "state": "JI",
+      "senatorial_district": "SD/050/JG"
+    },
+    {
+      "code": "JI-BUJI",
+      "slug": "buji",
+      "name": "Buji",
+      "state": "JI",
+      "senatorial_district": "SD/049/JG"
+    },
+    {
+      "code": "JI-DUTSE",
+      "slug": "dutse",
+      "name": "Dutse",
+      "state": "JI",
+      "senatorial_district": "SD/049/JG"
+    },
+    {
+      "code": "JI-GAGARAWA",
+      "slug": "gagarawa",
+      "name": "Gagarawa",
+      "state": "JI",
+      "senatorial_district": "SD/051/JG"
+    },
+    {
+      "code": "JI-GARKI",
+      "slug": "garki",
+      "name": "Garki",
+      "state": "JI",
+      "senatorial_district": "SD/051/JG"
+    },
+    {
+      "code": "JI-GUMEL",
+      "slug": "gumel",
+      "name": "Gumel",
+      "state": "JI",
+      "senatorial_district": "SD/051/JG"
+    },
+    {
+      "code": "JI-GURI",
+      "slug": "guri",
+      "name": "Guri",
+      "state": "JI",
+      "senatorial_district": "SD/050/JG"
+    },
+    {
+      "code": "JI-GWARAM",
+      "slug": "gwaram",
+      "name": "Gwaram",
+      "state": "JI",
+      "senatorial_district": "SD/049/JG"
+    },
+    {
+      "code": "JI-GWIWA",
+      "slug": "gwiwa",
+      "name": "Gwiwa",
+      "state": "JI",
+      "senatorial_district": "SD/051/JG"
+    },
+    {
+      "code": "JI-HADEJIA",
+      "slug": "hadejia",
+      "name": "Hadejia",
+      "state": "JI",
+      "senatorial_district": "SD/050/JG"
+    },
+    {
+      "code": "JI-JAHUN",
+      "slug": "jahun",
+      "name": "Jahun",
+      "state": "JI",
+      "senatorial_district": "SD/049/JG"
+    },
+    {
+      "code": "JI-KAFIN-HAUSA",
+      "slug": "kafin-hausa",
+      "name": "Kafin Hausa",
+      "state": "JI",
+      "senatorial_district": "SD/050/JG"
+    },
+    {
+      "code": "JI-KAUGAMA",
+      "slug": "kaugama",
+      "name": "Kaugama",
+      "state": "JI",
+      "senatorial_district": "SD/050/JG"
+    },
+    {
+      "code": "JI-KAZAURE",
+      "slug": "kazaure",
+      "name": "Kazaure",
+      "state": "JI",
+      "senatorial_district": "SD/051/JG"
+    },
+    {
+      "code": "JI-KIRIKA-SAMMA",
+      "slug": "kirika-samma",
+      "name": "Kirika Samma",
+      "state": "JI",
+      "senatorial_district": "SD/050/JG"
+    },
+    {
+      "code": "JI-KIYAWA",
+      "slug": "kiyawa",
+      "name": "Kiyawa",
+      "state": "JI",
+      "senatorial_district": "SD/049/JG"
+    },
+    {
+      "code": "JI-MAIGATARI",
+      "slug": "maigatari",
+      "name": "Maigatari",
+      "state": "JI",
+      "senatorial_district": "SD/051/JG"
+    },
+    {
+      "code": "JI-MALAM-MADORI",
+      "slug": "malam-madori",
+      "name": "Malam Madori",
+      "state": "JI",
+      "senatorial_district": "SD/050/JG"
+    },
+    {
+      "code": "JI-MIGA",
+      "slug": "miga",
+      "name": "Miga",
+      "state": "JI",
+      "senatorial_district": "SD/049/JG"
+    },
+    {
+      "code": "JI-RINGIM",
+      "slug": "ringim",
+      "name": "Ringim",
+      "state": "JI",
+      "senatorial_district": "SD/051/JG"
+    },
+    {
+      "code": "JI-RONI",
+      "slug": "roni",
+      "name": "Roni",
+      "state": "JI",
+      "senatorial_district": "SD/051/JG"
+    },
+    {
+      "code": "JI-SULE-TANKARKAR",
+      "slug": "sule-tankarkar",
+      "name": "Sule Tankarkar",
+      "state": "JI",
+      "senatorial_district": "SD/051/JG"
+    },
+    {
+      "code": "JI-TAURA",
+      "slug": "taura",
+      "name": "Taura",
+      "state": "JI",
+      "senatorial_district": "SD/051/JG"
+    },
+    {
+      "code": "JI-YANKWASHI",
+      "slug": "yankwashi",
+      "name": "Yankwashi",
+      "state": "JI",
+      "senatorial_district": "SD/051/JG"
+    },
+    {
+      "code": "KD-BIRNIN-GWARI",
+      "slug": "birnin-gwari",
+      "name": "Birnin Gwari",
+      "state": "KD",
+      "senatorial_district": "SD/053/KD"
+    },
+    {
+      "code": "KD-CHIKUN",
+      "slug": "chikun",
+      "name": "Chikun",
+      "state": "KD",
+      "senatorial_district": "SD/053/KD"
+    },
+    {
+      "code": "KD-GIWA",
+      "slug": "giwa",
+      "name": "Giwa",
+      "state": "KD",
+      "senatorial_district": "SD/053/KD"
+    },
+    {
+      "code": "KD-IGABI",
+      "slug": "igabi",
+      "name": "Igabi",
+      "state": "KD",
+      "senatorial_district": "SD/053/KD"
+    },
+    {
+      "code": "KD-IKARA",
+      "slug": "ikara",
+      "name": "Ikara",
+      "state": "KD",
+      "senatorial_district": "SD/052/KD"
+    },
+    {
+      "code": "KD-JABA",
+      "slug": "jaba",
+      "name": "Jaba",
+      "state": "KD",
+      "senatorial_district": "SD/054/KD"
+    },
+    {
+      "code": "KD-JEMAA",
+      "slug": "jema'a",
+      "name": "Jema'a",
+      "state": "KD",
+      "senatorial_district": "SD/054/KD"
+    },
+    {
+      "code": "KD-KACHIA",
+      "slug": "kachia",
+      "name": "Kachia",
+      "state": "KD",
+      "senatorial_district": "SD/054/KD"
+    },
+    {
+      "code": "KD-KADUNA-NORTH",
+      "slug": "kaduna-north",
+      "name": "Kaduna North",
+      "state": "KD",
+      "senatorial_district": "SD/053/KD"
+    },
+    {
+      "code": "KD-KADUNA-SOUTH",
+      "slug": "kaduna-south",
+      "name": "Kaduna South",
+      "state": "KD",
+      "senatorial_district": "SD/053/KD"
+    },
+    {
+      "code": "KD-KAGARKO",
+      "slug": "kagarko",
+      "name": "Kagarko",
+      "state": "KD",
+      "senatorial_district": "SD/054/KD"
+    },
+    {
+      "code": "KD-KAJURU",
+      "slug": "kajuru",
+      "name": "Kajuru",
+      "state": "KD",
+      "senatorial_district": "SD/053/KD"
+    },
+    {
+      "code": "KD-KAURA",
+      "slug": "kaura",
+      "name": "Kaura",
+      "state": "KD",
+      "senatorial_district": "SD/054/KD"
+    },
+    {
+      "code": "KD-KAURU",
+      "slug": "kauru",
+      "name": "Kauru",
+      "state": "KD",
+      "senatorial_district": "SD/054/KD"
+    },
+    {
+      "code": "KD-KUBAU",
+      "slug": "kubau",
+      "name": "Kubau",
+      "state": "KD",
+      "senatorial_district": "SD/052/KD"
+    },
+    {
+      "code": "KD-KUDAN",
+      "slug": "kudan",
+      "name": "Kudan",
+      "state": "KD",
+      "senatorial_district": "SD/052/KD"
+    },
+    {
+      "code": "KD-LERE",
+      "slug": "lere",
+      "name": "Lere",
+      "state": "KD",
+      "senatorial_district": "SD/052/KD"
+    },
+    {
+      "code": "KD-MAKARFI",
+      "slug": "makarfi",
+      "name": "Makarfi",
+      "state": "KD",
+      "senatorial_district": "SD/052/KD"
+    },
+    {
+      "code": "KD-SABON-GARI",
+      "slug": "sabon-gari",
+      "name": "Sabon Gari",
+      "state": "KD",
+      "senatorial_district": "SD/052/KD"
+    },
+    {
+      "code": "KD-SANGA",
+      "slug": "sanga",
+      "name": "Sanga",
+      "state": "KD",
+      "senatorial_district": "SD/054/KD"
+    },
+    {
+      "code": "KD-SOBA",
+      "slug": "soba",
+      "name": "Soba",
+      "state": "KD",
+      "senatorial_district": "SD/052/KD"
+    },
+    {
+      "code": "KD-ZANGON-KATAF",
+      "slug": "zangon-kataf",
+      "name": "Zangon Kataf",
+      "state": "KD",
+      "senatorial_district": "SD/054/KD"
+    },
+    {
+      "code": "KD-ZARIA",
+      "slug": "zaria",
+      "name": "Zaria",
+      "state": "KD",
+      "senatorial_district": "SD/052/KD"
+    },
+    {
+      "code": "KN-AJINGI",
+      "slug": "ajingi",
+      "name": "Ajingi",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-ALBASU",
+      "slug": "albasu",
+      "name": "Albasu",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-BAGWAI",
+      "slug": "bagwai",
+      "name": "Bagwai",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-BEBEJI",
+      "slug": "bebeji",
+      "name": "Bebeji",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-BICHI",
+      "slug": "bichi",
+      "name": "Bichi",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-BUNKURE",
+      "slug": "bunkure",
+      "name": "Bunkure",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-DALA",
+      "slug": "dala",
+      "name": "Dala",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-DANBATA",
+      "slug": "danbata",
+      "name": "Danbata",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-DAWAKI-KUDU",
+      "slug": "dawaki-kudu",
+      "name": "Dawaki Kudu",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-DAWAKI-TOFA",
+      "slug": "dawaki-tofa",
+      "name": "Dawaki Tofa",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-DOGUWA",
+      "slug": "doguwa",
+      "name": "Doguwa",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-FAGGE",
+      "slug": "fagge",
+      "name": "Fagge",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-GABASAWA",
+      "slug": "gabasawa",
+      "name": "Gabasawa",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-GARKO",
+      "slug": "garko",
+      "name": "Garko",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-GARUN-MALAM",
+      "slug": "garun-malam",
+      "name": "Garun Malam",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-GAYA",
+      "slug": "gaya",
+      "name": "Gaya",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-GEZAWA",
+      "slug": "gezawa",
+      "name": "Gezawa",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-GWALE",
+      "slug": "gwale",
+      "name": "Gwale",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-GWARZO",
+      "slug": "gwarzo",
+      "name": "Gwarzo",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-KABO",
+      "slug": "kabo",
+      "name": "Kabo",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-KANO-MUNICIPAL",
+      "slug": "kano-municipal",
+      "name": "Kano Municipal",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-KARAYE",
+      "slug": "karaye",
+      "name": "Karaye",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-KIBIYA",
+      "slug": "kibiya",
+      "name": "Kibiya",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-KIRU",
+      "slug": "kiru",
+      "name": "Kiru",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-KUMBOTSO",
+      "slug": "kumbotso",
+      "name": "Kumbotso",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-KUNCHI",
+      "slug": "kunchi",
+      "name": "Kunchi",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-KURA",
+      "slug": "kura",
+      "name": "Kura",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-MADOBI",
+      "slug": "madobi",
+      "name": "Madobi",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-MAKODA",
+      "slug": "makoda",
+      "name": "Makoda",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-MINJIBIR",
+      "slug": "minjibir",
+      "name": "Minjibir",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-NASARAWA",
+      "slug": "nasarawa",
+      "name": "Nasarawa",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-RANO",
+      "slug": "rano",
+      "name": "Rano",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-RIMIN-GADO",
+      "slug": "rimin-gado",
+      "name": "Rimin Gado",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-ROGO",
+      "slug": "rogo",
+      "name": "Rogo",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-SHANONO",
+      "slug": "shanono",
+      "name": "Shanono",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-SUMAILA",
+      "slug": "sumaila",
+      "name": "Sumaila",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-TAKAI",
+      "slug": "takai",
+      "name": "Takai",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-TARAUNI",
+      "slug": "tarauni",
+      "name": "Tarauni",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-TOFA",
+      "slug": "tofa",
+      "name": "Tofa",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-TSANYAWA",
+      "slug": "tsanyawa",
+      "name": "Tsanyawa",
+      "state": "KN",
+      "senatorial_district": "SD/056/KN"
+    },
+    {
+      "code": "KN-TUDUN-WADA",
+      "slug": "tudun-wada",
+      "name": "Tudun Wada",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KN-UNGOGO",
+      "slug": "ungogo",
+      "name": "Ungogo",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-WARAWA",
+      "slug": "warawa",
+      "name": "Warawa",
+      "state": "KN",
+      "senatorial_district": "SD/055/KN"
+    },
+    {
+      "code": "KN-WUDIL",
+      "slug": "wudil",
+      "name": "Wudil",
+      "state": "KN",
+      "senatorial_district": "SD/057/KN"
+    },
+    {
+      "code": "KT-BAKORI",
+      "slug": "bakori",
+      "name": "Bakori",
+      "state": "KT",
+      "senatorial_district": "SD/059/KT"
+    },
+    {
+      "code": "KT-BATAGARAWA",
+      "slug": "batagarawa",
+      "name": "Batagarawa",
+      "state": "KT",
+      "senatorial_district": "SD/060/KT"
+    },
+    {
+      "code": "KT-BATSARI",
+      "slug": "batsari",
+      "name": "Batsari",
+      "state": "KT",
+      "senatorial_district": "SD/060/KT"
+    },
+    {
+      "code": "KT-BAURE",
+      "slug": "baure",
+      "name": "Baure",
+      "state": "KT",
+      "senatorial_district": "SD/058/KT"
+    },
+    {
+      "code": "KT-BINDAWA",
+      "slug": "bindawa",
+      "name": "Bindawa",
+      "state": "KT",
+      "senatorial_district": "SD/058/KT"
+    },
+    {
+      "code": "KT-CHARANCHI",
+      "slug": "charanchi",
+      "name": "Charanchi",
+      "state": "KT",
+      "senatorial_district": "SD/060/KT"
+    },
+    {
+      "code": "KT-DAN-MUSA",
+      "slug": "dan-musa",
+      "name": "Dan Musa",
+      "state": "KT",
+      "senatorial_district": "SD/060/KT"
+    },
+    {
+      "code": "KT-DANDUME",
+      "slug": "dandume",
+      "name": "Dandume",
+      "state": "KT",
+      "senatorial_district": "SD/059/KT"
+    },
+    {
+      "code": "KT-DANJA",
+      "slug": "danja",
+      "name": "Danja",
+      "state": "KT",
+      "senatorial_district": "SD/059/KT"
+    },
+    {
+      "code": "KT-DAURA",
+      "slug": "daura",
+      "name": "Daura",
+      "state": "KT",
+      "senatorial_district": "SD/058/KT"
+    },
+    {
+      "code": "KT-DUTSI",
+      "slug": "dutsi",
+      "name": "Dutsi",
+      "state": "KT",
+      "senatorial_district": "SD/058/KT"
+    },
+    {
+      "code": "KT-DUTSIN-MA",
+      "slug": "dutsin-ma",
+      "name": "Dutsin Ma",
+      "state": "KT",
+      "senatorial_district": "SD/060/KT"
+    },
+    {
+      "code": "KT-FASKARI",
+      "slug": "faskari",
+      "name": "Faskari",
+      "state": "KT",
+      "senatorial_district": "SD/059/KT"
+    },
+    {
+      "code": "KT-FUNTUA",
+      "slug": "funtua",
+      "name": "Funtua",
+      "state": "KT",
+      "senatorial_district": "SD/059/KT"
+    },
+    {
+      "code": "KT-INGAWA",
+      "slug": "ingawa",
+      "name": "Ingawa",
+      "state": "KT",
+      "senatorial_district": "SD/058/KT"
+    },
+    {
+      "code": "KT-JIBIA",
+      "slug": "jibia",
+      "name": "Jibia",
+      "state": "KT",
+      "senatorial_district": "SD/060/KT"
+    },
+    {
+      "code": "KT-KAFUR",
+      "slug": "kafur",
+      "name": "Kafur",
+      "state": "KT",
+      "senatorial_district": "SD/059/KT"
+    },
+    {
+      "code": "KT-KAITA",
+      "slug": "kaita",
+      "name": "Kaita",
+      "state": "KT",
+      "senatorial_district": "SD/060/KT"
+    },
+    {
+      "code": "KT-KANKARA",
+      "slug": "kankara",
+      "name": "Kankara",
+      "state": "KT",
+      "senatorial_district": "SD/059/KT"
+    },
+    {
+      "code": "KT-KANKIA",
+      "slug": "kankia",
+      "name": "Kankia",
+      "state": "KT",
+      "senatorial_district": "SD/058/KT"
+    },
+    {
+      "code": "KT-KATSINA",
+      "slug": "katsina",
+      "name": "Katsina",
+      "state": "KT",
+      "senatorial_district": "SD/060/KT"
+    },
+    {
+      "code": "KT-KURFI",
+      "slug": "kurfi",
+      "name": "Kurfi",
+      "state": "KT",
+      "senatorial_district": "SD/060/KT"
+    },
+    {
+      "code": "KT-KUSADA",
+      "slug": "kusada",
+      "name": "Kusada",
+      "state": "KT",
+      "senatorial_district": "SD/058/KT"
+    },
+    {
+      "code": "KT-MAIADUA",
+      "slug": "mai'adua",
+      "name": "Mai'Adua",
+      "state": "KT",
+      "senatorial_district": "SD/058/KT"
+    },
+    {
+      "code": "KT-MALUMFASHI",
+      "slug": "malumfashi",
+      "name": "Malumfashi",
+      "state": "KT",
+      "senatorial_district": "SD/059/KT"
+    },
+    {
+      "code": "KT-MANI",
+      "slug": "mani",
+      "name": "Mani",
+      "state": "KT",
+      "senatorial_district": "SD/058/KT"
+    },
+    {
+      "code": "KT-MASHI",
+      "slug": "mashi",
+      "name": "Mashi",
+      "state": "KT",
+      "senatorial_district": "SD/058/KT"
+    },
+    {
+      "code": "KT-MATAZU",
+      "slug": "matazu",
+      "name": "Matazu",
+      "state": "KT",
+      "senatorial_district": "SD/059/KT"
+    },
+    {
+      "code": "KT-MUSAWA",
+      "slug": "musawa",
+      "name": "Musawa",
+      "state": "KT",
+      "senatorial_district": "SD/059/KT"
+    },
+    {
+      "code": "KT-RIMI",
+      "slug": "rimi",
+      "name": "Rimi",
+      "state": "KT",
+      "senatorial_district": "SD/060/KT"
+    },
+    {
+      "code": "KT-SABUWA",
+      "slug": "sabuwa",
+      "name": "Sabuwa",
+      "state": "KT",
+      "senatorial_district": "SD/059/KT"
+    },
+    {
+      "code": "KT-SAFANA",
+      "slug": "safana",
+      "name": "Safana",
+      "state": "KT",
+      "senatorial_district": "SD/060/KT"
+    },
+    {
+      "code": "KT-SANDAMU",
+      "slug": "sandamu",
+      "name": "Sandamu",
+      "state": "KT",
+      "senatorial_district": "SD/058/KT"
+    },
+    {
+      "code": "KT-ZANGO",
+      "slug": "zango",
+      "name": "Zango",
+      "state": "KT",
+      "senatorial_district": "SD/058/KT"
+    },
+    {
+      "code": "KE-ALIERO",
+      "slug": "aliero",
+      "name": "Aliero",
+      "state": "KE",
+      "senatorial_district": "SD/062/KB"
+    },
+    {
+      "code": "KE-AREWA",
+      "slug": "arewa",
+      "name": "Arewa",
+      "state": "KE",
+      "senatorial_district": "SD/061/KB"
+    },
+    {
+      "code": "KE-ARGUNGU",
+      "slug": "argungu",
+      "name": "Argungu",
+      "state": "KE",
+      "senatorial_district": "SD/061/KB"
+    },
+    {
+      "code": "KE-AUGIE",
+      "slug": "augie",
+      "name": "Augie",
+      "state": "KE",
+      "senatorial_district": "SD/061/KB"
+    },
+    {
+      "code": "KE-BAGUDO",
+      "slug": "bagudo",
+      "name": "Bagudo",
+      "state": "KE",
+      "senatorial_district": "SD/061/KB"
+    },
+    {
+      "code": "KE-BIRNIN-KEBBI",
+      "slug": "birnin-kebbi",
+      "name": "Birnin Kebbi",
+      "state": "KE",
+      "senatorial_district": "SD/062/KB"
+    },
+    {
+      "code": "KE-BUNZA",
+      "slug": "bunza",
+      "name": "Bunza",
+      "state": "KE",
+      "senatorial_district": "SD/062/KB"
+    },
+    {
+      "code": "KE-DANDI",
+      "slug": "dandi",
+      "name": "Dandi",
+      "state": "KE",
+      "senatorial_district": "SD/061/KB"
+    },
+    {
+      "code": "KE-FAKAI",
+      "slug": "fakai",
+      "name": "Fakai",
+      "state": "KE",
+      "senatorial_district": "SD/063/KB"
+    },
+    {
+      "code": "KE-GWANDU",
+      "slug": "gwandu",
+      "name": "Gwandu",
+      "state": "KE",
+      "senatorial_district": "SD/062/KB"
+    },
+    {
+      "code": "KE-JEGA",
+      "slug": "jega",
+      "name": "Jega",
+      "state": "KE",
+      "senatorial_district": "SD/061/KB"
+    },
+    {
+      "code": "KE-KALGO",
+      "slug": "kalgo",
+      "name": "Kalgo",
+      "state": "KE",
+      "senatorial_district": "SD/062/KB"
+    },
+    {
+      "code": "KE-KOKO-BESSE",
+      "slug": "koko-besse",
+      "name": "Koko Besse",
+      "state": "KE",
+      "senatorial_district": "SD/062/KB"
+    },
+    {
+      "code": "KE-MAIYAMA",
+      "slug": "maiyama",
+      "name": "Maiyama",
+      "state": "KE",
+      "senatorial_district": "SD/062/KB"
+    },
+    {
+      "code": "KE-NGASKI",
+      "slug": "ngaski",
+      "name": "Ngaski",
+      "state": "KE",
+      "senatorial_district": "SD/063/KB"
+    },
+    {
+      "code": "KE-SAKABA",
+      "slug": "sakaba",
+      "name": "Sakaba",
+      "state": "KE",
+      "senatorial_district": "SD/063/KB"
+    },
+    {
+      "code": "KE-SHANGA",
+      "slug": "shanga",
+      "name": "Shanga",
+      "state": "KE",
+      "senatorial_district": "SD/063/KB"
+    },
+    {
+      "code": "KE-SURU",
+      "slug": "suru",
+      "name": "Suru",
+      "state": "KE",
+      "senatorial_district": "SD/061/KB"
+    },
+    {
+      "code": "KE-WASAGU-DANKO",
+      "slug": "wasagu-danko",
+      "name": "Wasagu Danko",
+      "state": "KE",
+      "senatorial_district": "SD/063/KB"
+    },
+    {
+      "code": "KE-YAURI",
+      "slug": "yauri",
+      "name": "Yauri",
+      "state": "KE",
+      "senatorial_district": "SD/063/KB"
+    },
+    {
+      "code": "KE-ZURU",
+      "slug": "zuru",
+      "name": "Zuru",
+      "state": "KE",
+      "senatorial_district": "SD/063/KB"
+    },
+    {
+      "code": "SO-BINJI",
+      "slug": "binji",
+      "name": "Binji",
+      "state": "SO",
+      "senatorial_district": "SD/098/SO"
+    },
+    {
+      "code": "SO-BODINGA",
+      "slug": "bodinga",
+      "name": "Bodinga",
+      "state": "SO",
+      "senatorial_district": "SD/099/SO"
+    },
+    {
+      "code": "SO-DANGE-SHUNI",
+      "slug": "dange-shuni",
+      "name": "Dange Shuni",
+      "state": "SO",
+      "senatorial_district": "SD/099/SO"
+    },
+    {
+      "code": "SO-GADA",
+      "slug": "gada",
+      "name": "Gada",
+      "state": "SO",
+      "senatorial_district": "SD/097/SO"
+    },
+    {
+      "code": "SO-GORONYO",
+      "slug": "goronyo",
+      "name": "Goronyo",
+      "state": "SO",
+      "senatorial_district": "SD/097/SO"
+    },
+    {
+      "code": "SO-GUDU",
+      "slug": "gudu",
+      "name": "Gudu",
+      "state": "SO",
+      "senatorial_district": "SD/098/SO"
+    },
+    {
+      "code": "SO-GWADABAWA",
+      "slug": "gwadabawa",
+      "name": "Gwadabawa",
+      "state": "SO",
+      "senatorial_district": "SD/097/SO"
+    },
+    {
+      "code": "SO-ILLELA",
+      "slug": "illela",
+      "name": "Illela",
+      "state": "SO",
+      "senatorial_district": "SD/097/SO"
+    },
+    {
+      "code": "SO-ISA",
+      "slug": "isa",
+      "name": "Isa",
+      "state": "SO",
+      "senatorial_district": "SD/097/SO"
+    },
+    {
+      "code": "SO-KEBBE",
+      "slug": "kebbe",
+      "name": "Kebbe",
+      "state": "SO",
+      "senatorial_district": "SD/099/SO"
+    },
+    {
+      "code": "SO-KWARE",
+      "slug": "kware",
+      "name": "Kware",
+      "state": "SO",
+      "senatorial_district": "SD/098/SO"
+    },
+    {
+      "code": "SO-RABAH",
+      "slug": "rabah",
+      "name": "Rabah",
+      "state": "SO",
+      "senatorial_district": "SD/097/SO"
+    },
+    {
+      "code": "SO-SABON-BIRNI",
+      "slug": "sabon-birni",
+      "name": "Sabon Birni",
+      "state": "SO",
+      "senatorial_district": "SD/097/SO"
+    },
+    {
+      "code": "SO-SHAGARI",
+      "slug": "shagari",
+      "name": "Shagari",
+      "state": "SO",
+      "senatorial_district": "SD/099/SO"
+    },
+    {
+      "code": "SO-SILAME",
+      "slug": "silame",
+      "name": "Silame",
+      "state": "SO",
+      "senatorial_district": "SD/098/SO"
+    },
+    {
+      "code": "SO-SOKOTO-NORTH",
+      "slug": "sokoto-north",
+      "name": "Sokoto North",
+      "state": "SO",
+      "senatorial_district": "SD/098/SO"
+    },
+    {
+      "code": "SO-SOKOTO-SOUTH",
+      "slug": "sokoto-south",
+      "name": "Sokoto South",
+      "state": "SO",
+      "senatorial_district": "SD/098/SO"
+    },
+    {
+      "code": "SO-TAMBUWAL",
+      "slug": "tambuwal",
+      "name": "Tambuwal",
+      "state": "SO",
+      "senatorial_district": "SD/099/SO"
+    },
+    {
+      "code": "SO-TANGAZA",
+      "slug": "tangaza",
+      "name": "Tangaza",
+      "state": "SO",
+      "senatorial_district": "SD/098/SO"
+    },
+    {
+      "code": "SO-TURETA",
+      "slug": "tureta",
+      "name": "Tureta",
+      "state": "SO",
+      "senatorial_district": "SD/099/SO"
+    },
+    {
+      "code": "SO-WAMAKKO",
+      "slug": "wamakko",
+      "name": "Wamakko",
+      "state": "SO",
+      "senatorial_district": "SD/098/SO"
+    },
+    {
+      "code": "SO-WURNO",
+      "slug": "wurno",
+      "name": "Wurno",
+      "state": "SO",
+      "senatorial_district": "SD/097/SO"
+    },
+    {
+      "code": "SO-YABO",
+      "slug": "yabo",
+      "name": "Yabo",
+      "state": "SO",
+      "senatorial_district": "SD/099/SO"
+    },
+    {
+      "code": "ZA-ANKA",
+      "slug": "anka",
+      "name": "Anka",
+      "state": "ZA",
+      "senatorial_district": "SD/108/ZF"
+    },
+    {
+      "code": "ZA-BAKURA",
+      "slug": "bakura",
+      "name": "Bakura",
+      "state": "ZA",
+      "senatorial_district": "SD/108/ZF"
+    },
+    {
+      "code": "ZA-BIRNIN-MAGAJI",
+      "slug": "birnin-magaji",
+      "name": "Birnin Magaji",
+      "state": "ZA",
+      "senatorial_district": "SD/106/ZF"
+    },
+    {
+      "code": "ZA-BUKKUYUM",
+      "slug": "bukkuyum",
+      "name": "Bukkuyum",
+      "state": "ZA",
+      "senatorial_district": "SD/108/ZF"
+    },
+    {
+      "code": "ZA-BUNGUDU",
+      "slug": "bungudu",
+      "name": "Bungudu",
+      "state": "ZA",
+      "senatorial_district": "SD/107/ZF"
+    },
+    {
+      "code": "ZA-GUMMI",
+      "slug": "gummi",
+      "name": "Gummi",
+      "state": "ZA",
+      "senatorial_district": "SD/108/ZF"
+    },
+    {
+      "code": "ZA-GUSAU",
+      "slug": "gusau",
+      "name": "Gusau",
+      "state": "ZA",
+      "senatorial_district": "SD/107/ZF"
+    },
+    {
+      "code": "ZA-KAURA-NAMODA",
+      "slug": "kaura-namoda",
+      "name": "Kaura Namoda",
+      "state": "ZA",
+      "senatorial_district": "SD/106/ZF"
+    },
+    {
+      "code": "ZA-MARADUN",
+      "slug": "maradun",
+      "name": "Maradun",
+      "state": "ZA",
+      "senatorial_district": "SD/108/ZF"
+    },
+    {
+      "code": "ZA-MARU",
+      "slug": "maru",
+      "name": "Maru",
+      "state": "ZA",
+      "senatorial_district": "SD/107/ZF"
+    },
+    {
+      "code": "ZA-SHINKAFI",
+      "slug": "shinkafi",
+      "name": "Shinkafi",
+      "state": "ZA",
+      "senatorial_district": "SD/106/ZF"
+    },
+    {
+      "code": "ZA-TALATA-MAFARA",
+      "slug": "talata-mafara",
+      "name": "Talata Mafara",
+      "state": "ZA",
+      "senatorial_district": "SD/108/ZF"
+    },
+    {
+      "code": "ZA-TSAFE",
+      "slug": "tsafe",
+      "name": "Tsafe",
+      "state": "ZA",
+      "senatorial_district": "SD/107/ZF"
+    },
+    {
+      "code": "ZA-ZURMI",
+      "slug": "zurmi",
+      "name": "Zurmi",
+      "state": "ZA",
+      "senatorial_district": "SD/106/ZF"
+    },
+    {
+      "code": "AB-ABA-NORTH",
+      "slug": "aba-north",
+      "name": "Aba North",
+      "state": "AB",
+      "senatorial_district": "SD/003/AB"
+    },
+    {
+      "code": "AB-ABA-SOUTH",
+      "slug": "aba-south",
+      "name": "Aba South",
+      "state": "AB",
+      "senatorial_district": "SD/003/AB"
+    },
+    {
+      "code": "AB-AROCHUKWU",
+      "slug": "arochukwu",
+      "name": "Arochukwu",
+      "state": "AB",
+      "senatorial_district": "SD/001/AB"
+    },
+    {
+      "code": "AB-BENDE",
+      "slug": "bende",
+      "name": "Bende",
+      "state": "AB",
+      "senatorial_district": "SD/001/AB"
+    },
+    {
+      "code": "AB-IKWUANO",
+      "slug": "ikwuano",
+      "name": "Ikwuano",
+      "state": "AB",
+      "senatorial_district": "SD/002/AB"
+    },
+    {
+      "code": "AB-ISIALA-NGWA-NORTH",
+      "slug": "isiala-ngwa-north",
+      "name": "Isiala Ngwa North",
+      "state": "AB",
+      "senatorial_district": "SD/002/AB"
+    },
+    {
+      "code": "AB-ISIALA-NGWA-SOUTH",
+      "slug": "isiala-ngwa-south",
+      "name": "Isiala Ngwa South",
+      "state": "AB",
+      "senatorial_district": "SD/002/AB"
+    },
+    {
+      "code": "AB-ISUIKWUATO",
+      "slug": "isuikwuato",
+      "name": "Isuikwuato",
+      "state": "AB",
+      "senatorial_district": "SD/001/AB"
+    },
+    {
+      "code": "AB-OBINGWA",
+      "slug": "obingwa",
+      "name": "Obingwa",
+      "state": "AB",
+      "senatorial_district": "SD/003/AB"
+    },
+    {
+      "code": "AB-OHAFIA",
+      "slug": "ohafia",
+      "name": "Ohafia",
+      "state": "AB",
+      "senatorial_district": "SD/001/AB"
+    },
+    {
+      "code": "AB-OSISIOMA",
+      "slug": "osisioma",
+      "name": "Osisioma",
+      "state": "AB",
+      "senatorial_district": "SD/003/AB"
+    },
+    {
+      "code": "AB-UGWUNAGBO",
+      "slug": "ugwunagbo",
+      "name": "Ugwunagbo",
+      "state": "AB",
+      "senatorial_district": "SD/003/AB"
+    },
+    {
+      "code": "AB-UKWA-WEST",
+      "slug": "ukwa-west",
+      "name": "Ukwa West",
+      "state": "AB",
+      "senatorial_district": "SD/003/AB"
+    },
+    {
+      "code": "AB-UKWA-EAST",
+      "slug": "ukwa-east",
+      "name": "Ukwa East",
+      "state": "AB",
+      "senatorial_district": "SD/003/AB"
+    },
+    {
+      "code": "AB-UMU-NNEOCHI",
+      "slug": "umu-nneochi",
+      "name": "Umu Nneochi",
+      "state": "AB",
+      "senatorial_district": "SD/001/AB"
+    },
+    {
+      "code": "AB-UMUAHIA-SOUTH",
+      "slug": "umuahia-south",
+      "name": "Umuahia South",
+      "state": "AB",
+      "senatorial_district": "SD/002/AB"
+    },
+    {
+      "code": "AB-UMUAHIA-NORTH",
+      "slug": "umuahia-north",
+      "name": "Umuahia North",
+      "state": "AB",
+      "senatorial_district": "SD/002/AB"
+    },
+    {
+      "code": "AN-AGUATA",
+      "slug": "aguata",
+      "name": "Aguata",
+      "state": "AN",
+      "senatorial_district": "SD/012/AN"
+    },
+    {
+      "code": "AN-ANAMBRA-EAST",
+      "slug": "anambra-east",
+      "name": "Anambra East",
+      "state": "AN",
+      "senatorial_district": "SD/010/AN"
+    },
+    {
+      "code": "AN-ANAMBRA-WEST",
+      "slug": "anambra-west",
+      "name": "Anambra West",
+      "state": "AN",
+      "senatorial_district": "SD/010/AN"
+    },
+    {
+      "code": "AN-ANAOCHA",
+      "slug": "anaocha",
+      "name": "Anaocha",
+      "state": "AN",
+      "senatorial_district": "SD/011/AN"
+    },
+    {
+      "code": "AN-AWKA-NORTH",
+      "slug": "awka-north",
+      "name": "Awka North",
+      "state": "AN",
+      "senatorial_district": "SD/011/AN"
+    },
+    {
+      "code": "AN-AWKA-SOUTH",
+      "slug": "awka-south",
+      "name": "Awka South",
+      "state": "AN",
+      "senatorial_district": "SD/011/AN"
+    },
+    {
+      "code": "AN-AYAMELUM",
+      "slug": "ayamelum",
+      "name": "Ayamelum",
+      "state": "AN",
+      "senatorial_district": "SD/010/AN"
+    },
+    {
+      "code": "AN-DUNUKOFIA",
+      "slug": "dunukofia",
+      "name": "Dunukofia",
+      "state": "AN",
+      "senatorial_district": "SD/011/AN"
+    },
+    {
+      "code": "AN-EKWUSIGO",
+      "slug": "ekwusigo",
+      "name": "Ekwusigo",
+      "state": "AN",
+      "senatorial_district": "SD/012/AN"
+    },
+    {
+      "code": "AN-IDEMILI-NORTH",
+      "slug": "idemili-north",
+      "name": "Idemili North",
+      "state": "AN",
+      "senatorial_district": "SD/011/AN"
+    },
+    {
+      "code": "AN-IDEMILI-SOUTH",
+      "slug": "idemili-south",
+      "name": "Idemili South",
+      "state": "AN",
+      "senatorial_district": "SD/011/AN"
+    },
+    {
+      "code": "AN-IHIALA",
+      "slug": "ihiala",
+      "name": "Ihiala",
+      "state": "AN",
+      "senatorial_district": "SD/012/AN"
+    },
+    {
+      "code": "AN-NJIKOKA",
+      "slug": "njikoka",
+      "name": "Njikoka",
+      "state": "AN",
+      "senatorial_district": "SD/011/AN"
+    },
+    {
+      "code": "AN-NNEWI-NORTH",
+      "slug": "nnewi-north",
+      "name": "Nnewi North",
+      "state": "AN",
+      "senatorial_district": "SD/012/AN"
+    },
+    {
+      "code": "AN-NNEWI-SOUTH",
+      "slug": "nnewi-south",
+      "name": "Nnewi South",
+      "state": "AN",
+      "senatorial_district": "SD/012/AN"
+    },
+    {
+      "code": "AN-OGBARU",
+      "slug": "ogbaru",
+      "name": "Ogbaru",
+      "state": "AN",
+      "senatorial_district": "SD/010/AN"
+    },
+    {
+      "code": "AN-ONITSHA-NORTH",
+      "slug": "onitsha-north",
+      "name": "Onitsha North",
+      "state": "AN",
+      "senatorial_district": "SD/010/AN"
+    },
+    {
+      "code": "AN-ONITSHA-SOUTH",
+      "slug": "onitsha-south",
+      "name": "Onitsha South",
+      "state": "AN",
+      "senatorial_district": "SD/010/AN"
+    },
+    {
+      "code": "AN-ORUMBA-SOUTH",
+      "slug": "orumba-south",
+      "name": "Orumba South",
+      "state": "AN",
+      "senatorial_district": "SD/012/AN"
+    },
+    {
+      "code": "AN-ORUMBA-NORTH",
+      "slug": "orumba-north",
+      "name": "Orumba North",
+      "state": "AN",
+      "senatorial_district": "SD/012/AN"
+    },
+    {
+      "code": "AN-OYI",
+      "slug": "oyi",
+      "name": "Oyi",
+      "state": "AN",
+      "senatorial_district": "SD/010/AN"
+    },
+    {
+      "code": "EB-ABAKALIKI",
+      "slug": "abakaliki",
+      "name": "Abakaliki",
+      "state": "EB",
+      "senatorial_district": "SD/031/EB"
+    },
+    {
+      "code": "EB-AFIKPO-SOUTH",
+      "slug": "afikpo-south",
+      "name": "Afikpo South",
+      "state": "EB",
+      "senatorial_district": "SD/033/EB"
+    },
+    {
+      "code": "EB-AFIKPO-NORTH",
+      "slug": "afikpo-north",
+      "name": "Afikpo North",
+      "state": "EB",
+      "senatorial_district": "SD/033/EB"
+    },
+    {
+      "code": "EB-EBONYI",
+      "slug": "ebonyi",
+      "name": "Ebonyi",
+      "state": "EB",
+      "senatorial_district": "SD/031/EB"
+    },
+    {
+      "code": "EB-EZZA-NORTH",
+      "slug": "ezza-north",
+      "name": "Ezza North",
+      "state": "EB",
+      "senatorial_district": "SD/032/EB"
+    },
+    {
+      "code": "EB-EZZA-SOUTH",
+      "slug": "ezza-south",
+      "name": "Ezza South",
+      "state": "EB",
+      "senatorial_district": "SD/032/EB"
+    },
+    {
+      "code": "EB-IKWO",
+      "slug": "ikwo",
+      "name": "Ikwo",
+      "state": "EB",
+      "senatorial_district": "SD/032/EB"
+    },
+    {
+      "code": "EB-ISHIELU",
+      "slug": "ishielu",
+      "name": "Ishielu",
+      "state": "EB",
+      "senatorial_district": "SD/032/EB"
+    },
+    {
+      "code": "EB-IVO",
+      "slug": "ivo",
+      "name": "Ivo",
+      "state": "EB",
+      "senatorial_district": "SD/033/EB"
+    },
+    {
+      "code": "EB-IZZI",
+      "slug": "izzi",
+      "name": "Izzi",
+      "state": "EB",
+      "senatorial_district": "SD/031/EB"
+    },
+    {
+      "code": "EB-OHAOZARA",
+      "slug": "ohaozara",
+      "name": "Ohaozara",
+      "state": "EB",
+      "senatorial_district": "SD/033/EB"
+    },
+    {
+      "code": "EB-OHAUKWU",
+      "slug": "ohaukwu",
+      "name": "Ohaukwu",
+      "state": "EB",
+      "senatorial_district": "SD/031/EB"
+    },
+    {
+      "code": "EB-ONICHA",
+      "slug": "onicha",
+      "name": "Onicha",
+      "state": "EB",
+      "senatorial_district": "SD/033/EB"
+    },
+    {
+      "code": "EN-ANINRI",
+      "slug": "aninri",
+      "name": "Aninri",
+      "state": "EN",
+      "senatorial_district": "SD/041/EN"
+    },
+    {
+      "code": "EN-AWGU",
+      "slug": "awgu",
+      "name": "Awgu",
+      "state": "EN",
+      "senatorial_district": "SD/041/EN"
+    },
+    {
+      "code": "EN-ENUGU-EAST",
+      "slug": "enugu-east",
+      "name": "Enugu East",
+      "state": "EN",
+      "senatorial_district": "SD/040/EN"
+    },
+    {
+      "code": "EN-ENUGU-NORTH",
+      "slug": "enugu-north",
+      "name": "Enugu North",
+      "state": "EN",
+      "senatorial_district": "SD/040/EN"
+    },
+    {
+      "code": "EN-ENUGU-SOUTH",
+      "slug": "enugu-south",
+      "name": "Enugu South",
+      "state": "EN",
+      "senatorial_district": "SD/040/EN"
+    },
+    {
+      "code": "EN-EZEAGU",
+      "slug": "ezeagu",
+      "name": "Ezeagu",
+      "state": "EN",
+      "senatorial_district": "SD/041/EN"
+    },
+    {
+      "code": "EN-IGBO-ETITI",
+      "slug": "igbo-etiti",
+      "name": "Igbo Etiti",
+      "state": "EN",
+      "senatorial_district": "SD/042/EN"
+    },
+    {
+      "code": "EN-IGBO-EZE-NORTH",
+      "slug": "igbo-eze-north",
+      "name": "Igbo Eze North",
+      "state": "EN",
+      "senatorial_district": "SD/042/EN"
+    },
+    {
+      "code": "EN-IGBO-EZE-SOUTH",
+      "slug": "igbo-eze-south",
+      "name": "Igbo Eze South",
+      "state": "EN",
+      "senatorial_district": "SD/042/EN"
+    },
+    {
+      "code": "EN-ISI-UZO",
+      "slug": "isi-uzo",
+      "name": "Isi Uzo",
+      "state": "EN",
+      "senatorial_district": "SD/040/EN"
+    },
+    {
+      "code": "EN-NKANU-EAST",
+      "slug": "nkanu-east",
+      "name": "Nkanu East",
+      "state": "EN",
+      "senatorial_district": "SD/040/EN"
+    },
+    {
+      "code": "EN-NKANU-WEST",
+      "slug": "nkanu-west",
+      "name": "Nkanu West",
+      "state": "EN",
+      "senatorial_district": "SD/040/EN"
+    },
+    {
+      "code": "EN-NSUKKA",
+      "slug": "nsukka",
+      "name": "Nsukka",
+      "state": "EN",
+      "senatorial_district": "SD/042/EN"
+    },
+    {
+      "code": "EN-OJI-RIVER",
+      "slug": "oji-river",
+      "name": "Oji River",
+      "state": "EN",
+      "senatorial_district": "SD/041/EN"
+    },
+    {
+      "code": "EN-UDENU",
+      "slug": "udenu",
+      "name": "Udenu",
+      "state": "EN",
+      "senatorial_district": "SD/042/EN"
+    },
+    {
+      "code": "EN-UDI",
+      "slug": "udi",
+      "name": "Udi",
+      "state": "EN",
+      "senatorial_district": "SD/041/EN"
+    },
+    {
+      "code": "EN-UZO-UWANI",
+      "slug": "uzo-uwani",
+      "name": "Uzo Uwani",
+      "state": "EN",
+      "senatorial_district": "SD/042/EN"
+    },
+    {
+      "code": "IM-ABOH-MBAISE",
+      "slug": "aboh-mbaise",
+      "name": "Aboh Mbaise",
+      "state": "IM",
+      "senatorial_district": "SD/046/IM"
+    },
+    {
+      "code": "IM-AHIAZU-MBAISE",
+      "slug": "ahiazu-mbaise",
+      "name": "Ahiazu Mbaise",
+      "state": "IM",
+      "senatorial_district": "SD/046/IM"
+    },
+    {
+      "code": "IM-EHIME-MBANO",
+      "slug": "ehime-mbano",
+      "name": "Ehime Mbano",
+      "state": "IM",
+      "senatorial_district": "SD/048/IM"
+    },
+    {
+      "code": "IM-EZINIHITTE-MBAISE",
+      "slug": "ezinihitte-mbaise",
+      "name": "Ezinihitte Mbaise",
+      "state": "IM",
+      "senatorial_district": "SD/046/IM"
+    },
+    {
+      "code": "IM-IDEATO-NORTH",
+      "slug": "ideato-north",
+      "name": "Ideato North",
+      "state": "IM",
+      "senatorial_district": "SD/047/IM"
+    },
+    {
+      "code": "IM-IDEATO-SOUTH",
+      "slug": "ideato-south",
+      "name": "Ideato South",
+      "state": "IM",
+      "senatorial_district": "SD/047/IM"
+    },
+    {
+      "code": "IM-IHITTE-UBOMA",
+      "slug": "ihitte-uboma",
+      "name": "Ihitte Uboma",
+      "state": "IM",
+      "senatorial_district": "SD/048/IM"
+    },
+    {
+      "code": "IM-IKEDURU",
+      "slug": "ikeduru",
+      "name": "Ikeduru",
+      "state": "IM",
+      "senatorial_district": "SD/046/IM"
+    },
+    {
+      "code": "IM-ISIALA-MBANO",
+      "slug": "isiala-mbano",
+      "name": "Isiala Mbano",
+      "state": "IM",
+      "senatorial_district": "SD/048/IM"
+    },
+    {
+      "code": "IM-ISU",
+      "slug": "isu",
+      "name": "Isu",
+      "state": "IM",
+      "senatorial_district": "SD/047/IM"
+    },
+    {
+      "code": "IM-MBAITOLI",
+      "slug": "mbaitoli",
+      "name": "Mbaitoli",
+      "state": "IM",
+      "senatorial_district": "SD/046/IM"
+    },
+    {
+      "code": "IM-NGOR-OKPALA",
+      "slug": "ngor-okpala",
+      "name": "Ngor Okpala",
+      "state": "IM",
+      "senatorial_district": "SD/046/IM"
+    },
+    {
+      "code": "IM-NJABA",
+      "slug": "njaba",
+      "name": "Njaba",
+      "state": "IM",
+      "senatorial_district": "SD/047/IM"
+    },
+    {
+      "code": "IM-NKWERRE",
+      "slug": "nkwerre",
+      "name": "Nkwerre",
+      "state": "IM",
+      "senatorial_district": "SD/047/IM"
+    },
+    {
+      "code": "IM-NWANGELE",
+      "slug": "nwangele",
+      "name": "Nwangele",
+      "state": "IM",
+      "senatorial_district": "SD/047/IM"
+    },
+    {
+      "code": "IM-OBOWO",
+      "slug": "obowo",
+      "name": "Obowo",
+      "state": "IM",
+      "senatorial_district": "SD/048/IM"
+    },
+    {
+      "code": "IM-OGUTA",
+      "slug": "oguta",
+      "name": "Oguta",
+      "state": "IM",
+      "senatorial_district": "SD/047/IM"
+    },
+    {
+      "code": "IM-OHAJI-EGBEMA",
+      "slug": "ohaji-egbema",
+      "name": "Ohaji Egbema",
+      "state": "IM",
+      "senatorial_district": "SD/047/IM"
+    },
+    {
+      "code": "IM-OKIGWE",
+      "slug": "okigwe",
+      "name": "Okigwe",
+      "state": "IM",
+      "senatorial_district": "SD/048/IM"
+    },
+    {
+      "code": "IM-ONUIMO",
+      "slug": "onuimo",
+      "name": "Onuimo",
+      "state": "IM",
+      "senatorial_district": "SD/048/IM"
+    },
+    {
+      "code": "IM-ORLU",
+      "slug": "orlu",
+      "name": "Orlu",
+      "state": "IM",
+      "senatorial_district": "SD/047/IM"
+    },
+    {
+      "code": "IM-ORSU",
+      "slug": "orsu",
+      "name": "Orsu",
+      "state": "IM",
+      "senatorial_district": "SD/047/IM"
+    },
+    {
+      "code": "IM-ORU-EAST",
+      "slug": "oru-east",
+      "name": "Oru East",
+      "state": "IM",
+      "senatorial_district": "SD/047/IM"
+    },
+    {
+      "code": "IM-ORU-WEST",
+      "slug": "oru-west",
+      "name": "Oru West",
+      "state": "IM",
+      "senatorial_district": "SD/047/IM"
+    },
+    {
+      "code": "IM-OWERRI-NORTH",
+      "slug": "owerri-north",
+      "name": "Owerri North",
+      "state": "IM",
+      "senatorial_district": "SD/046/IM"
+    },
+    {
+      "code": "IM-OWERRI-URBAN",
+      "slug": "owerri-urban",
+      "name": "Owerri Municipal",
+      "state": "IM",
+      "senatorial_district": "SD/046/IM"
+    },
+    {
+      "code": "IM-OWERRI-WEST",
+      "slug": "owerri-west",
+      "name": "Owerri West",
+      "state": "IM",
+      "senatorial_district": "SD/046/IM"
+    },
+    {
+      "code": "AK-ABAK",
+      "slug": "abak",
+      "name": "Abak",
+      "state": "AK",
+      "senatorial_district": "SD/008/AK"
+    },
+    {
+      "code": "AK-EASTERN-OBOLO",
+      "slug": "eastern-obolo",
+      "name": "Eastern Obolo",
+      "state": "AK",
+      "senatorial_district": "SD/009/AK"
+    },
+    {
+      "code": "AK-EKET",
+      "slug": "eket",
+      "name": "Eket",
+      "state": "AK",
+      "senatorial_district": "SD/009/AK"
+    },
+    {
+      "code": "AK-ESIT-EKET",
+      "slug": "esit-eket",
+      "name": "Esit Eket",
+      "state": "AK",
+      "senatorial_district": "SD/009/AK"
+    },
+    {
+      "code": "AK-ESSIEN-UDIM",
+      "slug": "essien-udim",
+      "name": "Essien Udim",
+      "state": "AK",
+      "senatorial_district": "SD/008/AK"
+    },
+    {
+      "code": "AK-ETIM-EKPO",
+      "slug": "etim-ekpo",
+      "name": "Etim Ekpo",
+      "state": "AK",
+      "senatorial_district": "SD/008/AK"
+    },
+    {
+      "code": "AK-ETINAN",
+      "slug": "etinan",
+      "name": "Etinan",
+      "state": "AK",
+      "senatorial_district": "SD/007/AK"
+    },
+    {
+      "code": "AK-IBENO",
+      "slug": "ibeno",
+      "name": "Ibeno",
+      "state": "AK",
+      "senatorial_district": "SD/009/AK"
+    },
+    {
+      "code": "AK-IBESIKPO-ASUTAN",
+      "slug": "ibesikpo-asutan",
+      "name": "Ibesikpo Asutan",
+      "state": "AK",
+      "senatorial_district": "SD/007/AK"
+    },
+    {
+      "code": "AK-IBIONO-IBOM",
+      "slug": "ibiono-ibom",
+      "name": "Ibiono Ibom",
+      "state": "AK",
+      "senatorial_district": "SD/007/AK"
+    },
+    {
+      "code": "AK-IKA",
+      "slug": "ika",
+      "name": "Ika",
+      "state": "AK",
+      "senatorial_district": "SD/008/AK"
+    },
+    {
+      "code": "AK-IKONO",
+      "slug": "ikono",
+      "name": "Ikono",
+      "state": "AK",
+      "senatorial_district": "SD/008/AK"
+    },
+    {
+      "code": "AK-IKOT-ABASI",
+      "slug": "ikot-abasi",
+      "name": "Ikot Abasi",
+      "state": "AK",
+      "senatorial_district": "SD/009/AK"
+    },
+    {
+      "code": "AK-IKOT-EKPENE",
+      "slug": "ikot-ekpene",
+      "name": "Ikot Ekpene",
+      "state": "AK",
+      "senatorial_district": "SD/008/AK"
+    },
+    {
+      "code": "AK-INI",
+      "slug": "ini",
+      "name": "Ini",
+      "state": "AK",
+      "senatorial_district": "SD/008/AK"
+    },
+    {
+      "code": "AK-ITU",
+      "slug": "itu",
+      "name": "Itu",
+      "state": "AK",
+      "senatorial_district": "SD/007/AK"
+    },
+    {
+      "code": "AK-MBO",
+      "slug": "mbo",
+      "name": "Mbo",
+      "state": "AK",
+      "senatorial_district": "SD/009/AK"
+    },
+    {
+      "code": "AK-MKPAT-ENIN",
+      "slug": "mkpat-enin",
+      "name": "Mkpat Enin",
+      "state": "AK",
+      "senatorial_district": "SD/009/AK"
+    },
+    {
+      "code": "AK-NSIT-ATAI",
+      "slug": "nsit-atai",
+      "name": "Nsit Atai",
+      "state": "AK",
+      "senatorial_district": "SD/007/AK"
+    },
+    {
+      "code": "AK-NSIT-IBOM",
+      "slug": "nsit-ibom",
+      "name": "Nsit Ibom",
+      "state": "AK",
+      "senatorial_district": "SD/007/AK"
+    },
+    {
+      "code": "AK-NSIT-UBIUM",
+      "slug": "nsit-ubium",
+      "name": "Nsit Ubium",
+      "state": "AK",
+      "senatorial_district": "SD/007/AK"
+    },
+    {
+      "code": "AK-OBOT-AKARA",
+      "slug": "obot-akara",
+      "name": "Obot Akara",
+      "state": "AK",
+      "senatorial_district": "SD/008/AK"
+    },
+    {
+      "code": "AK-OKOBO",
+      "slug": "okobo",
+      "name": "Okobo",
+      "state": "AK",
+      "senatorial_district": "SD/009/AK"
+    },
+    {
+      "code": "AK-ONNA",
+      "slug": "onna",
+      "name": "Onna",
+      "state": "AK",
+      "senatorial_district": "SD/009/AK"
+    },
+    {
+      "code": "AK-ORON",
+      "slug": "oron",
+      "name": "Oron",
+      "state": "AK",
+      "senatorial_district": "SD/009/AK"
+    },
+    {
+      "code": "AK-ORUK-ANAM",
+      "slug": "oruk-anam",
+      "name": "Oruk Anam",
+      "state": "AK",
+      "senatorial_district": "SD/008/AK"
+    },
+    {
+      "code": "AK-UDUNG-UKO",
+      "slug": "udung-uko",
+      "name": "Udung Uko",
+      "state": "AK",
+      "senatorial_district": "SD/009/AK"
+    },
+    {
+      "code": "AK-UKANAFUN",
+      "slug": "ukanafun",
+      "name": "Ukanafun",
+      "state": "AK",
+      "senatorial_district": "SD/008/AK"
+    },
+    {
+      "code": "AK-URUAN",
+      "slug": "uruan",
+      "name": "Uruan",
+      "state": "AK",
+      "senatorial_district": "SD/007/AK"
+    },
+    {
+      "code": "AK-URUE-OFFONG-ORUKO",
+      "slug": "urue-offong-oruko",
+      "name": "Urue-Offong/Oruko",
+      "state": "AK",
+      "senatorial_district": "SD/009/AK"
+    },
+    {
+      "code": "AK-UYO",
+      "slug": "uyo",
+      "name": "Uyo",
+      "state": "AK",
+      "senatorial_district": "SD/007/AK"
+    },
+    {
+      "code": "BY-BRASS",
+      "slug": "brass",
+      "name": "Brass",
+      "state": "BY",
+      "senatorial_district": "SD/016/BY"
+    },
+    {
+      "code": "BY-EKEREMOR",
+      "slug": "ekeremor",
+      "name": "Ekeremor",
+      "state": "BY",
+      "senatorial_district": "SD/018/BY"
+    },
+    {
+      "code": "BY-KOLOKUMA-OPOKUMA",
+      "slug": "kolokuma-opokuma",
+      "name": "Kolokuma Opokuma",
+      "state": "BY",
+      "senatorial_district": "SD/017/BY"
+    },
+    {
+      "code": "BY-NEMBE",
+      "slug": "nembe",
+      "name": "Nembe",
+      "state": "BY",
+      "senatorial_district": "SD/016/BY"
+    },
+    {
+      "code": "BY-OGBIA",
+      "slug": "ogbia",
+      "name": "Ogbia",
+      "state": "BY",
+      "senatorial_district": "SD/016/BY"
+    },
+    {
+      "code": "BY-SAGBAMA",
+      "slug": "sagbama",
+      "name": "Sagbama",
+      "state": "BY",
+      "senatorial_district": "SD/018/BY"
+    },
+    {
+      "code": "BY-SOUTHERN-IJAW",
+      "slug": "southern-ijaw",
+      "name": "Southern Ijaw",
+      "state": "BY",
+      "senatorial_district": "SD/017/BY"
+    },
+    {
+      "code": "BY-YENAGOA",
+      "slug": "yenagoa",
+      "name": "Yenagoa",
+      "state": "BY",
+      "senatorial_district": "SD/017/BY"
+    },
+    {
+      "code": "CR-ABI",
+      "slug": "abi",
+      "name": "Abi",
+      "state": "CR",
+      "senatorial_district": "SD/026/CR"
+    },
+    {
+      "code": "CR-AKAMKPA",
+      "slug": "akamkpa",
+      "name": "Akamkpa",
+      "state": "CR",
+      "senatorial_district": "SD/027/CR"
+    },
+    {
+      "code": "CR-AKPABUYO",
+      "slug": "akpabuyo",
+      "name": "Akpabuyo",
+      "state": "CR",
+      "senatorial_district": "SD/027/CR"
+    },
+    {
+      "code": "CR-BAKASSI",
+      "slug": "bakassi",
+      "name": "Bakassi",
+      "state": "CR",
+      "senatorial_district": "SD/027/CR"
+    },
+    {
+      "code": "CR-BEKWARRA",
+      "slug": "bekwarra",
+      "name": "Bekwarra",
+      "state": "CR",
+      "senatorial_district": "SD/025/CR"
+    },
+    {
+      "code": "CR-BIASE",
+      "slug": "biase",
+      "name": "Biase",
+      "state": "CR",
+      "senatorial_district": "SD/027/CR"
+    },
+    {
+      "code": "CR-BOKI",
+      "slug": "boki",
+      "name": "Boki",
+      "state": "CR",
+      "senatorial_district": "SD/026/CR"
+    },
+    {
+      "code": "CR-CALABAR-MUNICIPALITY",
+      "slug": "calabar-municipality",
+      "name": "Calabar Municipality",
+      "state": "CR",
+      "senatorial_district": "SD/027/CR"
+    },
+    {
+      "code": "CR-CALABAR-SOUTH",
+      "slug": "calabar-south",
+      "name": "Calabar South",
+      "state": "CR",
+      "senatorial_district": "SD/027/CR"
+    },
+    {
+      "code": "CR-ETUNG",
+      "slug": "etung",
+      "name": "Etung",
+      "state": "CR",
+      "senatorial_district": "SD/026/CR"
+    },
+    {
+      "code": "CR-IKOM",
+      "slug": "ikom",
+      "name": "Ikom",
+      "state": "CR",
+      "senatorial_district": "SD/026/CR"
+    },
+    {
+      "code": "CR-OBANLIKU",
+      "slug": "obanliku",
+      "name": "Obanliku",
+      "state": "CR",
+      "senatorial_district": "SD/025/CR"
+    },
+    {
+      "code": "CR-OBUBRA",
+      "slug": "obubra",
+      "name": "Obubra",
+      "state": "CR",
+      "senatorial_district": "SD/026/CR"
+    },
+    {
+      "code": "CR-OBUDU",
+      "slug": "obudu",
+      "name": "Obudu",
+      "state": "CR",
+      "senatorial_district": "SD/025/CR"
+    },
+    {
+      "code": "CR-ODUKPANI",
+      "slug": "odukpani",
+      "name": "Odukpani",
+      "state": "CR",
+      "senatorial_district": "SD/027/CR"
+    },
+    {
+      "code": "CR-OGOJA",
+      "slug": "ogoja",
+      "name": "Ogoja",
+      "state": "CR",
+      "senatorial_district": "SD/025/CR"
+    },
+    {
+      "code": "CR-YAKURR",
+      "slug": "yakurr",
+      "name": "Yakurr",
+      "state": "CR",
+      "senatorial_district": "SD/026/CR"
+    },
+    {
+      "code": "CR-YALA",
+      "slug": "yala",
+      "name": "Yala",
+      "state": "CR",
+      "senatorial_district": "SD/025/CR"
+    },
+    {
+      "code": "DE-ANIOCHA-NORTH",
+      "slug": "aniocha-north",
+      "name": "Aniocha North",
+      "state": "DE",
+      "senatorial_district": "SD/029/DT"
+    },
+    {
+      "code": "DE-ANIOCHA-SOUTH",
+      "slug": "aniocha-south",
+      "name": "Aniocha South",
+      "state": "DE",
+      "senatorial_district": "SD/029/DT"
+    },
+    {
+      "code": "DE-BOMADI",
+      "slug": "bomadi",
+      "name": "Bomadi",
+      "state": "DE",
+      "senatorial_district": "SD/030/DT"
+    },
+    {
+      "code": "DE-BURUTU",
+      "slug": "burutu",
+      "name": "Burutu",
+      "state": "DE",
+      "senatorial_district": "SD/030/DT"
+    },
+    {
+      "code": "DE-ETHIOPE-WEST",
+      "slug": "ethiope-west",
+      "name": "Ethiope West",
+      "state": "DE",
+      "senatorial_district": "SD/028/DT"
+    },
+    {
+      "code": "DE-ETHIOPE-EAST",
+      "slug": "ethiope-east",
+      "name": "Ethiope East",
+      "state": "DE",
+      "senatorial_district": "SD/028/DT"
+    },
+    {
+      "code": "DE-IKA-NORTH-EAST",
+      "slug": "ika-north-east",
+      "name": "Ika North East",
+      "state": "DE",
+      "senatorial_district": "SD/029/DT"
+    },
+    {
+      "code": "DE-IKA-SOUTH",
+      "slug": "ika-south",
+      "name": "Ika South",
+      "state": "DE",
+      "senatorial_district": "SD/029/DT"
+    },
+    {
+      "code": "DE-ISOKO-NORTH",
+      "slug": "isoko-north",
+      "name": "Isoko North",
+      "state": "DE",
+      "senatorial_district": "SD/030/DT"
+    },
+    {
+      "code": "DE-ISOKO-SOUTH",
+      "slug": "isoko-south",
+      "name": "Isoko South",
+      "state": "DE",
+      "senatorial_district": "SD/030/DT"
+    },
+    {
+      "code": "DE-NDOKWA-EAST",
+      "slug": "ndokwa-east",
+      "name": "Ndokwa East",
+      "state": "DE",
+      "senatorial_district": "SD/029/DT"
+    },
+    {
+      "code": "DE-NDOKWA-WEST",
+      "slug": "ndokwa-west",
+      "name": "Ndokwa West",
+      "state": "DE",
+      "senatorial_district": "SD/029/DT"
+    },
+    {
+      "code": "DE-OKPE",
+      "slug": "okpe",
+      "name": "Okpe",
+      "state": "DE",
+      "senatorial_district": "SD/028/DT"
+    },
+    {
+      "code": "DE-OSHIMILI-NORTH",
+      "slug": "oshimili-north",
+      "name": "Oshimili North",
+      "state": "DE",
+      "senatorial_district": "SD/029/DT"
+    },
+    {
+      "code": "DE-OSHIMILI-SOUTH",
+      "slug": "oshimili-south",
+      "name": "Oshimili South",
+      "state": "DE",
+      "senatorial_district": "SD/029/DT"
+    },
+    {
+      "code": "DE-PATANI",
+      "slug": "patani",
+      "name": "Patani",
+      "state": "DE",
+      "senatorial_district": "SD/030/DT"
+    },
+    {
+      "code": "DE-SAPELE",
+      "slug": "sapele",
+      "name": "Sapele",
+      "state": "DE",
+      "senatorial_district": "SD/028/DT"
+    },
+    {
+      "code": "DE-UDU",
+      "slug": "udu",
+      "name": "Udu",
+      "state": "DE",
+      "senatorial_district": "SD/028/DT"
+    },
+    {
+      "code": "DE-UGHELLI-NORTH",
+      "slug": "ughelli-north",
+      "name": "Ughelli North",
+      "state": "DE",
+      "senatorial_district": "SD/028/DT"
+    },
+    {
+      "code": "DE-UGHELLI-SOUTH",
+      "slug": "ughelli-south",
+      "name": "Ughelli South",
+      "state": "DE",
+      "senatorial_district": "SD/028/DT"
+    },
+    {
+      "code": "DE-UKWUANI",
+      "slug": "ukwuani",
+      "name": "Ukwuani",
+      "state": "DE",
+      "senatorial_district": "SD/029/DT"
+    },
+    {
+      "code": "DE-UVWIE",
+      "slug": "uvwie",
+      "name": "Uvwie",
+      "state": "DE",
+      "senatorial_district": "SD/028/DT"
+    },
+    {
+      "code": "DE-WARRI-NORTH",
+      "slug": "warri-north",
+      "name": "Warri North",
+      "state": "DE",
+      "senatorial_district": "SD/030/DT"
+    },
+    {
+      "code": "DE-WARRI-SOUTH",
+      "slug": "warri-south",
+      "name": "Warri South",
+      "state": "DE",
+      "senatorial_district": "SD/030/DT"
+    },
+    {
+      "code": "DE-WARRI-SOUTH-WEST",
+      "slug": "warri-south-west",
+      "name": "Warri South West",
+      "state": "DE",
+      "senatorial_district": "SD/030/DT"
+    },
+    {
+      "code": "ED-AKOKO-EDO",
+      "slug": "akoko-edo",
+      "name": "Akoko Edo",
+      "state": "ED",
+      "senatorial_district": "SD/035/ED"
+    },
+    {
+      "code": "ED-EGOR",
+      "slug": "egor",
+      "name": "Egor",
+      "state": "ED",
+      "senatorial_district": "SD/036/ED"
+    },
+    {
+      "code": "ED-ESAN-CENTRAL",
+      "slug": "esan-central",
+      "name": "Esan Central",
+      "state": "ED",
+      "senatorial_district": "SD/034/ED"
+    },
+    {
+      "code": "ED-ESAN-NORTH-EAST",
+      "slug": "esan-north-east",
+      "name": "Esan North East",
+      "state": "ED",
+      "senatorial_district": "SD/034/ED"
+    },
+    {
+      "code": "ED-ESAN-SOUTH-EAST",
+      "slug": "esan-south-east",
+      "name": "Esan South East",
+      "state": "ED",
+      "senatorial_district": "SD/034/ED"
+    },
+    {
+      "code": "ED-ESAN-WEST",
+      "slug": "esan-west",
+      "name": "Esan West",
+      "state": "ED",
+      "senatorial_district": "SD/034/ED"
+    },
+    {
+      "code": "ED-ETSAKO-WEST",
+      "slug": "etsako-west",
+      "name": "Etsako West",
+      "state": "ED",
+      "senatorial_district": "SD/035/ED"
+    },
+    {
+      "code": "ED-ETSAKO-CENTRAL",
+      "slug": "etsako-central",
+      "name": "Etsako Central",
+      "state": "ED",
+      "senatorial_district": "SD/035/ED"
+    },
+    {
+      "code": "ED-ETSAKO-EAST",
+      "slug": "etsako-east",
+      "name": "Etsako East",
+      "state": "ED",
+      "senatorial_district": "SD/035/ED"
+    },
+    {
+      "code": "ED-IGUEBEN",
+      "slug": "igueben",
+      "name": "Igueben",
+      "state": "ED",
+      "senatorial_district": "SD/034/ED"
+    },
+    {
+      "code": "ED-IKPOBA-OKHA",
+      "slug": "ikpoba-okha",
+      "name": "Ikpoba Okha",
+      "state": "ED",
+      "senatorial_district": "SD/036/ED"
+    },
+    {
+      "code": "ED-OREDO",
+      "slug": "oredo",
+      "name": "Oredo",
+      "state": "ED",
+      "senatorial_district": "SD/036/ED"
+    },
+    {
+      "code": "ED-ORHIONMWON",
+      "slug": "orhionmwon",
+      "name": "Orhionmwon",
+      "state": "ED",
+      "senatorial_district": "SD/036/ED"
+    },
+    {
+      "code": "ED-OVIA-NORTH-EAST",
+      "slug": "ovia-north-east",
+      "name": "Ovia North East",
+      "state": "ED",
+      "senatorial_district": "SD/036/ED"
+    },
+    {
+      "code": "ED-OVIA-SOUTH-WEST",
+      "slug": "ovia-south-west",
+      "name": "Ovia South West",
+      "state": "ED",
+      "senatorial_district": "SD/036/ED"
+    },
+    {
+      "code": "ED-OWAN-EAST",
+      "slug": "owan-east",
+      "name": "Owan East",
+      "state": "ED",
+      "senatorial_district": "SD/035/ED"
+    },
+    {
+      "code": "ED-OWAN-WEST",
+      "slug": "owan-west",
+      "name": "Owan West",
+      "state": "ED",
+      "senatorial_district": "SD/035/ED"
+    },
+    {
+      "code": "ED-UHUNMWODE",
+      "slug": "uhunmwode",
+      "name": "Uhunmwode",
+      "state": "ED",
+      "senatorial_district": "SD/036/ED"
+    },
+    {
+      "code": "RI-ABUA-ODUAL",
+      "slug": "abua-odual",
+      "name": "Abua/Odual",
+      "state": "RI",
+      "senatorial_district": "SD/096/RV"
+    },
+    {
+      "code": "RI-AHOADA-EAST",
+      "slug": "ahoada-east",
+      "name": "Ahoada East",
+      "state": "RI",
+      "senatorial_district": "SD/096/RV"
+    },
+    {
+      "code": "RI-AHOADA-WEST",
+      "slug": "ahoada-west",
+      "name": "Ahoada West",
+      "state": "RI",
+      "senatorial_district": "SD/096/RV"
+    },
+    {
+      "code": "RI-AKUKU-TORU",
+      "slug": "akuku-toru",
+      "name": "Akuku Toru",
+      "state": "RI",
+      "senatorial_district": "SD/096/RV"
+    },
+    {
+      "code": "RI-ANDONI",
+      "slug": "andoni",
+      "name": "Andoni",
+      "state": "RI",
+      "senatorial_district": "SD/095/RV"
+    },
+    {
+      "code": "RI-ASARI-TORU",
+      "slug": "asari-toru",
+      "name": "Asari Toru",
+      "state": "RI",
+      "senatorial_district": "SD/096/RV"
+    },
+    {
+      "code": "RI-BONNY",
+      "slug": "bonny",
+      "name": "Bonny",
+      "state": "RI",
+      "senatorial_district": "SD/096/RV"
+    },
+    {
+      "code": "RI-DEGEMA",
+      "slug": "degema",
+      "name": "Degema",
+      "state": "RI",
+      "senatorial_district": "SD/096/RV"
+    },
+    {
+      "code": "RI-ELEME",
+      "slug": "eleme",
+      "name": "Eleme",
+      "state": "RI",
+      "senatorial_district": "SD/095/RV"
+    },
+    {
+      "code": "RI-EMOHUA",
+      "slug": "emohua",
+      "name": "Emohua",
+      "state": "RI",
+      "senatorial_district": "SD/094/RV"
+    },
+    {
+      "code": "RI-ETCHE",
+      "slug": "etche",
+      "name": "Etche",
+      "state": "RI",
+      "senatorial_district": "SD/094/RV"
+    },
+    {
+      "code": "RI-GOKANA",
+      "slug": "gokana",
+      "name": "Gokana",
+      "state": "RI",
+      "senatorial_district": "SD/095/RV"
+    },
+    {
+      "code": "RI-IKWERRE",
+      "slug": "ikwerre",
+      "name": "Ikwerre",
+      "state": "RI",
+      "senatorial_district": "SD/094/RV"
+    },
+    {
+      "code": "RI-KHANA",
+      "slug": "khana",
+      "name": "Khana",
+      "state": "RI",
+      "senatorial_district": "SD/095/RV"
+    },
+    {
+      "code": "RI-OBIO-AKPOR",
+      "slug": "obio-akpor",
+      "name": "Obio/Akpor",
+      "state": "RI",
+      "senatorial_district": "SD/094/RV"
+    },
+    {
+      "code": "RI-OGBA-EGBEMA-NDONI",
+      "slug": "ogba-egbema-ndoni",
+      "name": "Ogba/Egbema/Ndoni",
+      "state": "RI",
+      "senatorial_district": "SD/096/RV"
+    },
+    {
+      "code": "RI-OGU-BOLO",
+      "slug": "ogu-bolo",
+      "name": "Ogu/Bolo",
+      "state": "RI",
+      "senatorial_district": "SD/094/RV"
+    },
+    {
+      "code": "RI-OKRIKA",
+      "slug": "okrika",
+      "name": "Okrika",
+      "state": "RI",
+      "senatorial_district": "SD/094/RV"
+    },
+    {
+      "code": "RI-OMUMA",
+      "slug": "omuma",
+      "name": "Omuma",
+      "state": "RI",
+      "senatorial_district": "SD/094/RV"
+    },
+    {
+      "code": "RI-OPOBO-NKORO",
+      "slug": "opobo-nkoro",
+      "name": "Opobo/Nkoro",
+      "state": "RI",
+      "senatorial_district": "SD/095/RV"
+    },
+    {
+      "code": "RI-OYIGBO",
+      "slug": "oyigbo",
+      "name": "Oyigbo",
+      "state": "RI",
+      "senatorial_district": "SD/095/RV"
+    },
+    {
+      "code": "RI-PORT-HARCOURT",
+      "slug": "port-harcourt",
+      "name": "Port Harcourt",
+      "state": "RI",
+      "senatorial_district": "SD/094/RV"
+    },
+    {
+      "code": "RI-TAI",
+      "slug": "tai",
+      "name": "Tai",
+      "state": "RI",
+      "senatorial_district": "SD/095/RV"
+    },
+    {
+      "code": "EK-ADO-EKITI",
+      "slug": "ado-ekiti",
+      "name": "Ado Ekiti",
+      "state": "EK",
+      "senatorial_district": "SD/038/EK"
+    },
+    {
+      "code": "EK-EFON",
+      "slug": "efon",
+      "name": "Efon",
+      "state": "EK",
+      "senatorial_district": "SD/038/EK"
+    },
+    {
+      "code": "EK-EKITI-EAST",
+      "slug": "ekiti-east",
+      "name": "Ekiti East",
+      "state": "EK",
+      "senatorial_district": "SD/039/EK"
+    },
+    {
+      "code": "EK-EKITI-SOUTH-WEST",
+      "slug": "ekiti-south-west",
+      "name": "Ekiti South West",
+      "state": "EK",
+      "senatorial_district": "SD/039/EK"
+    },
+    {
+      "code": "EK-EKITI-WEST",
+      "slug": "ekiti-west",
+      "name": "Ekiti West",
+      "state": "EK",
+      "senatorial_district": "SD/038/EK"
+    },
+    {
+      "code": "EK-EMURE",
+      "slug": "emure",
+      "name": "Emure",
+      "state": "EK",
+      "senatorial_district": "SD/039/EK"
+    },
+    {
+      "code": "EK-GBONYIN",
+      "slug": "gbonyin",
+      "name": "Gbonyin",
+      "state": "EK",
+      "senatorial_district": "SD/039/EK"
+    },
+    {
+      "code": "EK-IDO-OSI",
+      "slug": "ido-osi",
+      "name": "Ido Osi",
+      "state": "EK",
+      "senatorial_district": "SD/037/EK"
+    },
+    {
+      "code": "EK-IJERO",
+      "slug": "ijero",
+      "name": "Ijero",
+      "state": "EK",
+      "senatorial_district": "SD/038/EK"
+    },
+    {
+      "code": "EK-IKERE",
+      "slug": "ikere",
+      "name": "Ikere",
+      "state": "EK",
+      "senatorial_district": "SD/039/EK"
+    },
+    {
+      "code": "EK-IKOLE",
+      "slug": "ikole",
+      "name": "Ikole",
+      "state": "EK",
+      "senatorial_district": "SD/037/EK"
+    },
+    {
+      "code": "EK-ILEJEMEJE",
+      "slug": "ilejemeje",
+      "name": "Ilejemeje",
+      "state": "EK",
+      "senatorial_district": "SD/037/EK"
+    },
+    {
+      "code": "EK-IREPODUN-IFELODUN",
+      "slug": "irepodun-ifelodun",
+      "name": "Irepodun Ifelodun",
+      "state": "EK",
+      "senatorial_district": "SD/038/EK"
+    },
+    {
+      "code": "EK-ISE-ORUN",
+      "slug": "ise-orun",
+      "name": "Ise Orun",
+      "state": "EK",
+      "senatorial_district": "SD/039/EK"
+    },
+    {
+      "code": "EK-MOBA",
+      "slug": "moba",
+      "name": "Moba",
+      "state": "EK",
+      "senatorial_district": "SD/037/EK"
+    },
+    {
+      "code": "EK-OYE",
+      "slug": "oye",
+      "name": "Oye",
+      "state": "EK",
+      "senatorial_district": "SD/037/EK"
+    },
+    {
+      "code": "LA-AGEGE",
+      "slug": "agege",
+      "name": "Agege",
+      "state": "LA",
+      "senatorial_district": "SD/072/LA"
+    },
+    {
+      "code": "LA-AJEROMI-IFELODUN",
+      "slug": "ajeromi-ifelodun",
+      "name": "Ajeromi Ifelodun",
+      "state": "LA",
+      "senatorial_district": "SD/072/LA"
+    },
+    {
+      "code": "LA-ALIMOSHO",
+      "slug": "alimosho",
+      "name": "Alimosho",
+      "state": "LA",
+      "senatorial_district": "SD/072/LA"
+    },
+    {
+      "code": "LA-AMUWO-ODOFIN",
+      "slug": "amuwo-odofin",
+      "name": "Amuwo Odofin",
+      "state": "LA",
+      "senatorial_district": "SD/072/LA"
+    },
+    {
+      "code": "LA-APAPA",
+      "slug": "apapa",
+      "name": "Apapa",
+      "state": "LA",
+      "senatorial_district": "SD/070/LA"
+    },
+    {
+      "code": "LA-BADAGRY",
+      "slug": "badagry",
+      "name": "Badagry",
+      "state": "LA",
+      "senatorial_district": "SD/072/LA"
+    },
+    {
+      "code": "LA-EPE",
+      "slug": "epe",
+      "name": "Epe",
+      "state": "LA",
+      "senatorial_district": "SD/071/LA"
+    },
+    {
+      "code": "LA-ETI-OSA",
+      "slug": "eti-osa",
+      "name": "Eti Osa",
+      "state": "LA",
+      "senatorial_district": "SD/070/LA"
+    },
+    {
+      "code": "LA-IBEJU-LEKKI",
+      "slug": "ibeju-lekki",
+      "name": "Ibeju Lekki",
+      "state": "LA",
+      "senatorial_district": "SD/071/LA"
+    },
+    {
+      "code": "LA-IFAKO-IJAYE",
+      "slug": "ifako-ijaye",
+      "name": "Ifako Ijaye",
+      "state": "LA",
+      "senatorial_district": "SD/072/LA"
+    },
+    {
+      "code": "LA-IKEJA",
+      "slug": "ikeja",
+      "name": "Ikeja",
+      "state": "LA",
+      "senatorial_district": "SD/072/LA"
+    },
+    {
+      "code": "LA-IKORODU",
+      "slug": "ikorodu",
+      "name": "Ikorodu",
+      "state": "LA",
+      "senatorial_district": "SD/071/LA"
+    },
+    {
+      "code": "LA-KOSOFE",
+      "slug": "kosofe",
+      "name": "Kosofe",
+      "state": "LA",
+      "senatorial_district": "SD/071/LA"
+    },
+    {
+      "code": "LA-LAGOS-ISLAND",
+      "slug": "lagos-island",
+      "name": "Lagos Island",
+      "state": "LA",
+      "senatorial_district": "SD/070/LA"
+    },
+    {
+      "code": "LA-LAGOS-MAINLAND",
+      "slug": "lagos-mainland",
+      "name": "Lagos Mainland",
+      "state": "LA",
+      "senatorial_district": "SD/070/LA"
+    },
+    {
+      "code": "LA-MUSHIN",
+      "slug": "mushin",
+      "name": "Mushin",
+      "state": "LA",
+      "senatorial_district": "SD/072/LA"
+    },
+    {
+      "code": "LA-OJO",
+      "slug": "ojo",
+      "name": "Ojo",
+      "state": "LA",
+      "senatorial_district": "SD/072/LA"
+    },
+    {
+      "code": "LA-OSHODI-ISOLO",
+      "slug": "oshodi-isolo",
+      "name": "Oshodi Isolo",
+      "state": "LA",
+      "senatorial_district": "SD/072/LA"
+    },
+    {
+      "code": "LA-SOMOLU",
+      "slug": "somolu",
+      "name": "Somolu",
+      "state": "LA",
+      "senatorial_district": "SD/071/LA"
+    },
+    {
+      "code": "LA-SURULERE",
+      "slug": "surulere",
+      "name": "Surulere",
+      "state": "LA",
+      "senatorial_district": "SD/070/LA"
+    },
+    {
+      "code": "OG-ABEOKUTA-NORTH",
+      "slug": "abeokuta-north",
+      "name": "Abeokuta North",
+      "state": "OG",
+      "senatorial_district": "SD/079/OG"
+    },
+    {
+      "code": "OG-ABEOKUTA-SOUTH",
+      "slug": "abeokuta-south",
+      "name": "Abeokuta South",
+      "state": "OG",
+      "senatorial_district": "SD/079/OG"
+    },
+    {
+      "code": "OG-ADO-ODO-OTA",
+      "slug": "ado-odo-ota",
+      "name": "Ado-Odo/Ota",
+      "state": "OG",
+      "senatorial_district": "SD/081/OG"
+    },
+    {
+      "code": "OG-EWEKORO",
+      "slug": "ewekoro",
+      "name": "Ewekoro",
+      "state": "OG",
+      "senatorial_district": "SD/079/OG"
+    },
+    {
+      "code": "OG-IFO",
+      "slug": "ifo",
+      "name": "Ifo",
+      "state": "OG",
+      "senatorial_district": "SD/079/OG"
+    },
+    {
+      "code": "OG-IJEBU-EAST",
+      "slug": "ijebu-east",
+      "name": "Ijebu East",
+      "state": "OG",
+      "senatorial_district": "SD/080/OG"
+    },
+    {
+      "code": "OG-IJEBU-NORTH",
+      "slug": "ijebu-north",
+      "name": "Ijebu North",
+      "state": "OG",
+      "senatorial_district": "SD/080/OG"
+    },
+    {
+      "code": "OG-IJEBU-NORTH-EAST",
+      "slug": "ijebu-north-east",
+      "name": "Ijebu North East",
+      "state": "OG",
+      "senatorial_district": "SD/080/OG"
+    },
+    {
+      "code": "OG-IJEBU-ODE",
+      "slug": "ijebu-ode",
+      "name": "Ijebu Ode",
+      "state": "OG",
+      "senatorial_district": "SD/080/OG"
+    },
+    {
+      "code": "OG-IKENNE",
+      "slug": "ikenne",
+      "name": "Ikenne",
+      "state": "OG",
+      "senatorial_district": "SD/080/OG"
+    },
+    {
+      "code": "OG-IMEKO-AFON",
+      "slug": "imeko-afon",
+      "name": "Imeko Afon",
+      "state": "OG",
+      "senatorial_district": "SD/081/OG"
+    },
+    {
+      "code": "OG-IPOKIA",
+      "slug": "ipokia",
+      "name": "Ipokia",
+      "state": "OG",
+      "senatorial_district": "SD/081/OG"
+    },
+    {
+      "code": "OG-OBAFEMI-OWODE",
+      "slug": "obafemi-owode",
+      "name": "Obafemi Owode",
+      "state": "OG",
+      "senatorial_district": "SD/079/OG"
+    },
+    {
+      "code": "OG-ODEDA",
+      "slug": "odeda",
+      "name": "Odeda",
+      "state": "OG",
+      "senatorial_district": "SD/079/OG"
+    },
+    {
+      "code": "OG-ODOGBOLU",
+      "slug": "odogbolu",
+      "name": "Odogbolu",
+      "state": "OG",
+      "senatorial_district": "SD/080/OG"
+    },
+    {
+      "code": "OG-OGUN-WATER-SIDE",
+      "slug": "ogun-water-side",
+      "name": "Ogun Waterside",
+      "state": "OG",
+      "senatorial_district": "SD/080/OG"
+    },
+    {
+      "code": "OG-REMO-NORTH",
+      "slug": "remo-north",
+      "name": "Remo North",
+      "state": "OG",
+      "senatorial_district": "SD/080/OG"
+    },
+    {
+      "code": "OG-SAGAMU",
+      "slug": "sagamu",
+      "name": "Sagamu",
+      "state": "OG",
+      "senatorial_district": "SD/080/OG"
+    },
+    {
+      "code": "OG-YEWA-EGBADO-NORTH",
+      "slug": "yewa-egbado-north",
+      "name": "Yewa North",
+      "state": "OG",
+      "senatorial_district": "SD/081/OG"
+    },
+    {
+      "code": "OG-YEWA-EGBADO-SOUTH",
+      "slug": "yewa-egbado-south",
+      "name": "Yewa South",
+      "state": "OG",
+      "senatorial_district": "SD/081/OG"
+    },
+    {
+      "code": "ON-AKOKO-NORTH-EAST",
+      "slug": "akoko-north-east",
+      "name": "Akoko North East",
+      "state": "ON",
+      "senatorial_district": "SD/082/OD"
+    },
+    {
+      "code": "ON-AKOKO-NORTH-WEST",
+      "slug": "akoko-north-west",
+      "name": "Akoko North West",
+      "state": "ON",
+      "senatorial_district": "SD/082/OD"
+    },
+    {
+      "code": "ON-AKOKO-SOUTH-EAST",
+      "slug": "akoko-south-east",
+      "name": "Akoko South East",
+      "state": "ON",
+      "senatorial_district": "SD/082/OD"
+    },
+    {
+      "code": "ON-AKOKO-SOUTH-WEST",
+      "slug": "akoko-south-west",
+      "name": "Akoko South West",
+      "state": "ON",
+      "senatorial_district": "SD/082/OD"
+    },
+    {
+      "code": "ON-AKURE-NORTH",
+      "slug": "akure-north",
+      "name": "Akure North",
+      "state": "ON",
+      "senatorial_district": "SD/083/OD"
+    },
+    {
+      "code": "ON-AKURE-SOUTH",
+      "slug": "akure-south",
+      "name": "Akure South",
+      "state": "ON",
+      "senatorial_district": "SD/083/OD"
+    },
+    {
+      "code": "ON-ESE-ODO",
+      "slug": "ese-odo",
+      "name": "Ese Odo",
+      "state": "ON",
+      "senatorial_district": "SD/084/OD"
+    },
+    {
+      "code": "ON-IDANRE",
+      "slug": "idanre",
+      "name": "Idanre",
+      "state": "ON",
+      "senatorial_district": "SD/083/OD"
+    },
+    {
+      "code": "ON-IFEDORE",
+      "slug": "ifedore",
+      "name": "Ifedore",
+      "state": "ON",
+      "senatorial_district": "SD/083/OD"
+    },
+    {
+      "code": "ON-ILAJE",
+      "slug": "ilaje",
+      "name": "Ilaje",
+      "state": "ON",
+      "senatorial_district": "SD/084/OD"
+    },
+    {
+      "code": "ON-ILEOLUJI-OKEIGBO",
+      "slug": "ileoluji-okeigbo",
+      "name": "Ileoluji Okeigbo",
+      "state": "ON",
+      "senatorial_district": "SD/084/OD"
+    },
+    {
+      "code": "ON-IRELE",
+      "slug": "irele",
+      "name": "Irele",
+      "state": "ON",
+      "senatorial_district": "SD/084/OD"
+    },
+    {
+      "code": "ON-ODIGBO",
+      "slug": "odigbo",
+      "name": "Odigbo",
+      "state": "ON",
+      "senatorial_district": "SD/084/OD"
+    },
+    {
+      "code": "ON-OKITIPUPA",
+      "slug": "okitipupa",
+      "name": "Okitipupa",
+      "state": "ON",
+      "senatorial_district": "SD/084/OD"
+    },
+    {
+      "code": "ON-ONDO-EAST",
+      "slug": "ondo-east",
+      "name": "Ondo East",
+      "state": "ON",
+      "senatorial_district": "SD/083/OD"
+    },
+    {
+      "code": "ON-ONDO-WEST",
+      "slug": "ondo-west",
+      "name": "Ondo West",
+      "state": "ON",
+      "senatorial_district": "SD/083/OD"
+    },
+    {
+      "code": "ON-OSE",
+      "slug": "ose",
+      "name": "Ose",
+      "state": "ON",
+      "senatorial_district": "SD/082/OD"
+    },
+    {
+      "code": "ON-OWO",
+      "slug": "owo",
+      "name": "Owo",
+      "state": "ON",
+      "senatorial_district": "SD/082/OD"
+    },
+    {
+      "code": "OS-ATAKUMOSA-EAST",
+      "slug": "atakumosa-east",
+      "name": "Atakumosa East",
+      "state": "OS",
+      "senatorial_district": "SD/086/OS"
+    },
+    {
+      "code": "OS-ATAKUMOSA-WEST",
+      "slug": "atakumosa-west",
+      "name": "Atakumosa West",
+      "state": "OS",
+      "senatorial_district": "SD/086/OS"
+    },
+    {
+      "code": "OS-AYEDAADE",
+      "slug": "ayedaade",
+      "name": "Ayedaade",
+      "state": "OS",
+      "senatorial_district": "SD/087/OS"
+    },
+    {
+      "code": "OS-AYEDIRE",
+      "slug": "ayedire",
+      "name": "Ayedire",
+      "state": "OS",
+      "senatorial_district": "SD/087/OS"
+    },
+    {
+      "code": "OS-BOLUWADURO",
+      "slug": "boluwaduro",
+      "name": "Boluwaduro",
+      "state": "OS",
+      "senatorial_district": "SD/085/OS"
+    },
+    {
+      "code": "OS-BORIPE",
+      "slug": "boripe",
+      "name": "Boripe",
+      "state": "OS",
+      "senatorial_district": "SD/085/OS"
+    },
+    {
+      "code": "OS-EDE-NORTH",
+      "slug": "ede-north",
+      "name": "Ede North",
+      "state": "OS",
+      "senatorial_district": "SD/087/OS"
+    },
+    {
+      "code": "OS-EDE-SOUTH",
+      "slug": "ede-south",
+      "name": "Ede South",
+      "state": "OS",
+      "senatorial_district": "SD/087/OS"
+    },
+    {
+      "code": "OS-EGBEDORE",
+      "slug": "egbedore",
+      "name": "Egbedore",
+      "state": "OS",
+      "senatorial_district": "SD/087/OS"
+    },
+    {
+      "code": "OS-EJIGBO",
+      "slug": "ejigbo",
+      "name": "Ejigbo",
+      "state": "OS",
+      "senatorial_district": "SD/087/OS"
+    },
+    {
+      "code": "OS-IFE-CENTRAL",
+      "slug": "ife-central",
+      "name": "Ife Central",
+      "state": "OS",
+      "senatorial_district": "SD/086/OS"
+    },
+    {
+      "code": "OS-IFE-EAST",
+      "slug": "ife-east",
+      "name": "Ife East",
+      "state": "OS",
+      "senatorial_district": "SD/086/OS"
+    },
+    {
+      "code": "OS-IFE-NORTH",
+      "slug": "ife-north",
+      "name": "Ife North",
+      "state": "OS",
+      "senatorial_district": "SD/086/OS"
+    },
+    {
+      "code": "OS-IFE-SOUTH",
+      "slug": "ife-south",
+      "name": "Ife South",
+      "state": "OS",
+      "senatorial_district": "SD/086/OS"
+    },
+    {
+      "code": "OS-IFEDAYO",
+      "slug": "ifedayo",
+      "name": "Ifedayo",
+      "state": "OS",
+      "senatorial_district": "SD/085/OS"
+    },
+    {
+      "code": "OS-IFELODUN",
+      "slug": "ifelodun",
+      "name": "Ifelodun",
+      "state": "OS",
+      "senatorial_district": "SD/085/OS"
+    },
+    {
+      "code": "OS-ILA",
+      "slug": "ila",
+      "name": "Ila",
+      "state": "OS",
+      "senatorial_district": "SD/085/OS"
+    },
+    {
+      "code": "OS-ILESA-EAST",
+      "slug": "ilesa-east",
+      "name": "Ilesa East",
+      "state": "OS",
+      "senatorial_district": "SD/086/OS"
+    },
+    {
+      "code": "OS-ILESA-WEST",
+      "slug": "ilesa-west",
+      "name": "Ilesa West",
+      "state": "OS",
+      "senatorial_district": "SD/086/OS"
+    },
+    {
+      "code": "OS-IREPODUN",
+      "slug": "irepodun",
+      "name": "Irepodun",
+      "state": "OS",
+      "senatorial_district": "SD/085/OS"
+    },
+    {
+      "code": "OS-IREWOLE",
+      "slug": "irewole",
+      "name": "Irewole",
+      "state": "OS",
+      "senatorial_district": "SD/087/OS"
+    },
+    {
+      "code": "OS-ISOKAN",
+      "slug": "isokan",
+      "name": "Isokan",
+      "state": "OS",
+      "senatorial_district": "SD/087/OS"
+    },
+    {
+      "code": "OS-IWO",
+      "slug": "iwo",
+      "name": "Iwo",
+      "state": "OS",
+      "senatorial_district": "SD/087/OS"
+    },
+    {
+      "code": "OS-OBOKUN",
+      "slug": "obokun",
+      "name": "Obokun",
+      "state": "OS",
+      "senatorial_district": "SD/086/OS"
+    },
+    {
+      "code": "OS-ODO-OTIN",
+      "slug": "odo-otin",
+      "name": "Odo Otin",
+      "state": "OS",
+      "senatorial_district": "SD/085/OS"
+    },
+    {
+      "code": "OS-OLA-OLUWA",
+      "slug": "ola-oluwa",
+      "name": "Ola Oluwa",
+      "state": "OS",
+      "senatorial_district": "SD/087/OS"
+    },
+    {
+      "code": "OS-OLORUNDA",
+      "slug": "olorunda",
+      "name": "Olorunda",
+      "state": "OS",
+      "senatorial_district": "SD/085/OS"
+    },
+    {
+      "code": "OS-ORIADE",
+      "slug": "oriade",
+      "name": "Oriade",
+      "state": "OS",
+      "senatorial_district": "SD/086/OS"
+    },
+    {
+      "code": "OS-OROLU",
+      "slug": "orolu",
+      "name": "Orolu",
+      "state": "OS",
+      "senatorial_district": "SD/085/OS"
+    },
+    {
+      "code": "OS-OSOGBO",
+      "slug": "osogbo",
+      "name": "Osogbo",
+      "state": "OS",
+      "senatorial_district": "SD/085/OS"
+    },
+    {
+      "code": "OY-AFIJIO",
+      "slug": "afijio",
+      "name": "Afijio",
+      "state": "OY",
+      "senatorial_district": "SD/088/OY"
+    },
+    {
+      "code": "OY-AKINYELE",
+      "slug": "akinyele",
+      "name": "Akinyele",
+      "state": "OY",
+      "senatorial_district": "SD/088/OY"
+    },
+    {
+      "code": "OY-ATIBA",
+      "slug": "atiba",
+      "name": "Atiba",
+      "state": "OY",
+      "senatorial_district": "SD/088/OY"
+    },
+    {
+      "code": "OY-ATISBO",
+      "slug": "atisbo",
+      "name": "Atisbo",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-EGBEDA",
+      "slug": "egbeda",
+      "name": "Egbeda",
+      "state": "OY",
+      "senatorial_district": "SD/088/OY"
+    },
+    {
+      "code": "OY-IBADAN-NORTH",
+      "slug": "ibadan-north",
+      "name": "Ibadan North",
+      "state": "OY",
+      "senatorial_district": "SD/090/OY"
+    },
+    {
+      "code": "OY-IBADAN-NORTH-EAST",
+      "slug": "ibadan-north-east",
+      "name": "Ibadan North East",
+      "state": "OY",
+      "senatorial_district": "SD/090/OY"
+    },
+    {
+      "code": "OY-IBADAN-NORTH-WEST",
+      "slug": "ibadan-north-west",
+      "name": "Ibadan North West",
+      "state": "OY",
+      "senatorial_district": "SD/090/OY"
+    },
+    {
+      "code": "OY-IBADAN-SOUTH-WEST",
+      "slug": "ibadan-south-west",
+      "name": "Ibadan South West",
+      "state": "OY",
+      "senatorial_district": "SD/090/OY"
+    },
+    {
+      "code": "OY-IBADAN-SOUTH-EAST",
+      "slug": "ibadan-south-east",
+      "name": "Ibadan South East",
+      "state": "OY",
+      "senatorial_district": "SD/090/OY"
+    },
+    {
+      "code": "OY-IBARAPA-CENTRAL",
+      "slug": "ibarapa-central",
+      "name": "Ibarapa Central",
+      "state": "OY",
+      "senatorial_district": "SD/090/OY"
+    },
+    {
+      "code": "OY-IBARAPA-EAST",
+      "slug": "ibarapa-east",
+      "name": "Ibarapa East",
+      "state": "OY",
+      "senatorial_district": "SD/090/OY"
+    },
+    {
+      "code": "OY-IBARAPA-NORTH",
+      "slug": "ibarapa-north",
+      "name": "Ibarapa North",
+      "state": "OY",
+      "senatorial_district": "SD/090/OY"
+    },
+    {
+      "code": "OY-IDO",
+      "slug": "ido",
+      "name": "Ido",
+      "state": "OY",
+      "senatorial_district": "SD/090/OY"
+    },
+    {
+      "code": "OY-IREPO",
+      "slug": "irepo",
+      "name": "Irepo",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-ISEYIN",
+      "slug": "iseyin",
+      "name": "Iseyin",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-ITESIWAJU",
+      "slug": "itesiwaju",
+      "name": "Itesiwaju",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-IWAJOWA",
+      "slug": "iwajowa",
+      "name": "Iwajowa",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-KAJOLA",
+      "slug": "kajola",
+      "name": "Kajola",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-LAGELU",
+      "slug": "lagelu",
+      "name": "Lagelu",
+      "state": "OY",
+      "senatorial_district": "SD/088/OY"
+    },
+    {
+      "code": "OY-OGBOMOSO-NORTH",
+      "slug": "ogbomoso-north",
+      "name": "Ogbomoso North",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-OGBOMOSO-SOUTH",
+      "slug": "ogbomoso-south",
+      "name": "Ogbomoso South",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-OGO-OLUWA",
+      "slug": "ogo-oluwa",
+      "name": "Ogo Oluwa",
+      "state": "OY",
+      "senatorial_district": "SD/088/OY"
+    },
+    {
+      "code": "OY-OLORUNSOGO",
+      "slug": "olorunsogo",
+      "name": "Olorunsogo",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-OLUYOLE",
+      "slug": "oluyole",
+      "name": "Oluyole",
+      "state": "OY",
+      "senatorial_district": "SD/088/OY"
+    },
+    {
+      "code": "OY-ONA-ARA",
+      "slug": "ona-ara",
+      "name": "Ona Ara",
+      "state": "OY",
+      "senatorial_district": "SD/088/OY"
+    },
+    {
+      "code": "OY-ORELOPE",
+      "slug": "orelope",
+      "name": "Orelope",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-ORI-IRE",
+      "slug": "ori-ire",
+      "name": "Ori Ire",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-OYO-EAST",
+      "slug": "oyo-east",
+      "name": "Oyo East",
+      "state": "OY",
+      "senatorial_district": "SD/088/OY"
+    },
+    {
+      "code": "OY-OYO-WEST",
+      "slug": "oyo-west",
+      "name": "Oyo West",
+      "state": "OY",
+      "senatorial_district": "SD/088/OY"
+    },
+    {
+      "code": "OY-SAKI-EAST",
+      "slug": "saki-east",
+      "name": "Saki East",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-SAKI-WEST",
+      "slug": "saki-west",
+      "name": "Saki West",
+      "state": "OY",
+      "senatorial_district": "SD/089/OY"
+    },
+    {
+      "code": "OY-SURULERE",
+      "slug": "surulere",
+      "name": "Surulere",
+      "state": "OY",
+      "senatorial_district": "SD/088/OY"
+    }
+  ]
+}
