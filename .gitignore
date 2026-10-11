@@ -12,3 +12,5 @@ __pycache__/
 htmlcov/
 .vscode/
 .idea/
+# Working files of scripts/inec_locator.py (raw collection and list cache)
+/inec_locator.csv*
