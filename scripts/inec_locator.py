@@ -53,10 +53,16 @@ FINISHED = {"ok", "no_location", "outside_nigeria"}
 LATITUDES = (3.5, 14.5)
 LONGITUDES = (2.5, 15.0)
 RETRY_CODES = {429, 500, 502, 503, 504}
-# Waits between attempts when the locator fails: about 15 minutes in all.
+# Waits between attempts when the locator answers with an error: about 15
+# minutes in all, then the run stops.
 RETRY_WAITS = (30, 60, 120, 240, 480)
-# After a failure the collector slows down, up to one request every 4 s.
+# After such an error the collector slows down, up to one request every 4 s,
+# and speeds back up after this many good answers in a row.
 MAX_DELAY = 4.0
+RECOVER_AFTER = 300
+# Without a connection (this PC offline, DNS down) it waits and tries again
+# every minute for as long as it takes, without slowing down.
+OFFLINE_WAIT = 60
 
 _OPTION = re.compile(r'<option value="(\d+)">\s*(\d+)\s*-\s*([^<]+)</option>')
 _LABEL = re.compile(r"\s*(\d+)\s*-\s*(.+?)\s*$")
@@ -155,13 +161,22 @@ class Locator:
     """Talks to the locator one request at a time."""
 
     def __init__(self, delay, opener=None, sleep=time.sleep, clock=time.monotonic):
-        self.delay = delay
+        self.delay = self.base_delay = delay
         self.opener = opener or urllib.request.build_opener(
             urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), _NoRedirect()
         )
         self.sleep = sleep
         self.clock = clock
+        self.streak = 0
         self._last = None
+
+    def _answered(self):
+        """A good answer. After a long run of them, speed back up."""
+        self.streak += 1
+        if self.delay > self.base_delay and self.streak >= RECOVER_AFTER:
+            self.delay = max(self.delay / 2, self.base_delay)
+            self.streak = 0
+            print(f"The locator is answering well: one request every {self.delay:g} s.", flush=True)
 
     def _pace(self):
         if self._last is not None:
@@ -179,16 +194,18 @@ class Locator:
             headers.update({"X-Requested-With": "XMLHttpRequest", "Accept": "application/json"})
         if form is not None:
             headers["Origin"] = BASE
-        reason = ""
-        for attempt in range(len(RETRY_WAITS) + 1):
+        errors = 0
+        while True:
             self._pace()
             try:
                 # The URL always starts with the fixed https BASE.
                 request = urllib.request.Request(url, data, headers)  # noqa: S310
                 with self.opener.open(request, timeout=40) as r:
+                    self._answered()
                     return r.status, r.headers, r.read().decode("utf-8", "replace")
             except urllib.error.HTTPError as error:
                 if 300 <= error.code < 400:
+                    self._answered()
                     return error.code, error.headers, error.read().decode("utf-8", "replace")
                 if error.code not in RETRY_CODES:
                     raise SystemExit(
@@ -196,18 +213,29 @@ class Locator:
                     ) from None
                 reason = f"HTTP {error.code}"
             except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+                # No connection: wait it out at the same pace, however long it takes.
                 reason = str(getattr(error, "reason", "") or error) or type(error).__name__
-            if attempt == len(RETRY_WAITS):
-                break
-            # The locator is struggling: wait, then carry on more slowly.
-            wait = RETRY_WAITS[attempt]
+                self.streak = 0
+                print(
+                    f"{path}: no connection ({reason}). Trying again in {OFFLINE_WAIT} s.",
+                    flush=True,
+                )
+                self.sleep(OFFLINE_WAIT)
+                continue
+            # The locator answered with an error: wait, then carry on more slowly.
+            self.streak = 0
+            if errors == len(RETRY_WAITS):
+                raise SystemExit(
+                    f"{path} kept failing for about 15 minutes ({reason}). Re-run to resume."
+                )
+            wait = RETRY_WAITS[errors]
+            errors += 1
             self.delay = min(self.delay * 2, MAX_DELAY)
             print(
                 f"{path}: {reason}. Waiting {wait} s, then one request every {self.delay:g} s.",
                 flush=True,
             )
             self.sleep(wait)
-        raise SystemExit(f"{path} kept failing for about 15 minutes ({reason}). Re-run to resume.")
 
     def choices(self, kind, parent_field, parent_id):
         _, _, body = self.request(

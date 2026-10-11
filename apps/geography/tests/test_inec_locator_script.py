@@ -89,16 +89,33 @@ def test_redirect_is_returned_not_followed():
     assert "polling_unit_id%5D=56450" in form
 
 
-def test_failures_wait_then_slow_down(capsys):
-    client, sleeps = make(
-        http_error(503), urllib.error.URLError("timed out"), http_error(302, Location=REDIRECT)
-    )
+def test_server_errors_wait_then_slow_down(capsys):
+    client, sleeps = make(http_error(503), http_error(502), http_error(302, Location=REDIRECT))
     status, _, _ = client.directions(19, 369, 4244, 56450)
     assert status == 302
     assert [s for s in sleeps if s >= 30] == [30, 60]
     assert client.delay == 4.0  # halved speed twice, capped at one request every 4 s
     log = capsys.readouterr().out
-    assert "HTTP 503" in log and "timed out" in log
+    assert "HTTP 503" in log and "HTTP 502" in log
+
+
+def test_lost_connection_is_waited_out_without_slowing_down(capsys):
+    offline = urllib.error.URLError("[Errno 11001] getaddrinfo failed")
+    client, sleeps = make(*[offline] * 20, http_error(302, Location=REDIRECT))
+    status, _, _ = client.directions(19, 369, 4244, 56450)
+    assert status == 302  # 20 minutes offline did not stop the run
+    assert [s for s in sleeps if s >= 30] == [locator.OFFLINE_WAIT] * 20
+    assert client.delay == 1.0
+    assert "no connection" in capsys.readouterr().out
+
+
+def test_speeds_back_up_after_good_answers():
+    client, _ = make(http_error(503), *[Response()] * locator.RECOVER_AFTER)
+    client.request("/pu")
+    assert client.delay == 2.0
+    for _ in range(locator.RECOVER_AFTER - 1):
+        client.request("/pu")
+    assert client.delay == 1.0
 
 
 def test_gives_up_after_about_fifteen_minutes():
