@@ -209,3 +209,7 @@ PU_PROXIMITY_METERS = env.int("PU_PROXIMITY_METERS", default=300)
 GPS_MAX_ACCURACY_M = env.int("GPS_MAX_ACCURACY_M", default=150)
 LIVE_STALE_MINUTES = env.int("LIVE_STALE_MINUTES", default=15)
 LOCATION_PING_RETENTION_DAYS = env.int("LOCATION_PING_RETENTION_DAYS", default=30)
+
+# --- Polling unit mapping --------------------------------------------------------
+PIN_MAX_ACCURACY_M = env.int("PIN_MAX_ACCURACY_M", default=30)
+PIN_CONFIRM_RADIUS_M = env.int("PIN_CONFIRM_RADIUS_M", default=50)

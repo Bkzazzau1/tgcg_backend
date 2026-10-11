@@ -103,6 +103,18 @@ class PollingUnit(models.Model):
         blank=True,
     )
     location_accuracy_m = models.FloatField(null=True, blank=True)
+    mapping_status = models.CharField(
+        max_length=12,
+        choices=[
+            ("unmapped", "Not yet mapped"),
+            ("pinned", "Pinned once"),
+            ("confirmed", "Confirmed by a second pin"),
+            ("conflict", "Pins disagree"),
+            ("problem", "Reported problem"),
+        ],
+        default="unmapped",
+        db_index=True,
+    )
     location_confirmed_by = models.ForeignKey(
         "accounts.User", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )

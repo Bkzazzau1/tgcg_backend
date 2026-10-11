@@ -13,6 +13,7 @@ from apps.geography import views as geography
 from apps.membership import registration_views as reg
 from apps.membership.views import AgentViewSet, MemberViewSet, VolunteerViewSet
 from apps.results.views import CollationView, ElectionViewSet, PartyViewSet, ResultViewSet
+from apps.tracking import mapping_views as mapping
 from apps.tracking.views import (
     CheckInViewSet,
     CoverageView,
@@ -56,6 +57,22 @@ api_v1 = [
     path("tracking/pings/", PingsView.as_view(), name="tracking-pings"),
     path("tracking/live/", LiveAgentsView.as_view(), name="tracking-live"),
     path("tracking/coverage/", CoverageView.as_view(), name="tracking-coverage"),
+    # Polling unit mapping exercise
+    path("mapping/units/", mapping.MappingUnitsView.as_view(), name="mapping-units"),
+    path("mapping/units/<str:code>/pin/", mapping.PinUnitView.as_view(), name="mapping-pin"),
+    path(
+        "mapping/units/<str:code>/problem/", mapping.ProblemView.as_view(), name="mapping-problem"
+    ),
+    path(
+        "mapping/units/<str:code>/pins/", mapping.UnitPinsView.as_view(), name="mapping-unit-pins"
+    ),
+    path(
+        "mapping/pins/<uuid:uuid>/accept/", mapping.AcceptPinView.as_view(), name="mapping-accept"
+    ),
+    path(
+        "mapping/pins/<uuid:uuid>/photo/", mapping.PinPhotoView.as_view(), name="mapping-pin-photo"
+    ),
+    path("mapping/progress/", mapping.MappingProgressView.as_view(), name="mapping-progress"),
     # Registration. Views that check SMS codes must not run in the request
     # transaction, so failed code attempts are recorded.
     path("register/code/", reg.RegistrationCodeView.as_view(), name="register-code"),

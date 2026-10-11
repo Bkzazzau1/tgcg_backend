@@ -95,6 +95,12 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | POST | `/api/v1/tracking/pings/` | Upload up to 500 queued on-duty GPS readings |
 | GET | `/api/v1/tracking/live/` | On-duty agents and their latest position in an area (`viewSituationRoom`) |
 | GET | `/api/v1/tracking/coverage/?level=&code=&date=` | Check-in coverage per area: on site, away, suspect, not checked in |
+| GET | `/api/v1/mapping/units/` | Polling units in your area with `mapping_status`; filter `mapping_status`, `ward__code`; search |
+| POST | `/api/v1/mapping/units/{code}/pin/` | Multipart: `gps` (JSON), `photo`, `at_entrance`, `name_matches`, `note` |
+| POST | `/api/v1/mapping/units/{code}/problem/` | `{"problem": "notFound" \| "moved" \| "nameMismatch" \| "other", "note": ...}` |
+| GET | `/api/v1/mapping/units/{code}/pins/` | Pin history for a unit |
+| POST | `/api/v1/mapping/pins/{id}/accept/` | Resolve a conflict with this pin |
+| GET | `/api/v1/mapping/progress/?level=&code=` | Mapped, confirmed, conflict and problem counts, with a child breakdown |
 | GET | `/api/v1/collation/?election=...&level=...&code=...` | Unofficial totals from verified results, with a child breakdown |
 
 Enum values (roles, levels, statuses) use the Flutter client's camelCase names,
@@ -333,6 +339,27 @@ and gives it one of these statuses:
   app (agents and observers), and readings outside a duty session are
   dropped. Pings are deleted after `LOCATION_PING_RETENTION_DAYS` (30). Run
   `uv run python manage.py purge_location_pings` daily.
+
+## Polling unit mapping
+
+INEC publishes no polling-unit coordinates, so coordinators (`confirmAgentLocation`)
+pin each unit on site before election day:
+
+- **Pinning requires all of these:**
+  - standing at the entrance (`at_entrance`);
+  - a signboard that matches the unit (`name_matches`);
+  - GPS accuracy of `PIN_MAX_ACCURACY_M` (30 m) or better;
+  - no mock-location app;
+  - a photo of the unit.
+- **If the signboard doesn't match,** or the unit can't be found or has
+  moved, report a problem instead of pinning.
+- **The first pin sets the location** (`pinned`). A pin by a different
+  coordinator within `PIN_CONFIRM_RADIUS_M` (50 m) confirms it (`confirmed`).
+- **A pin further away is a conflict.** The location does not change until a
+  coordinator who did not make the pin accepts one.
+- **Agent check-ins:** a confirmed check-in also counts as a first pin.
+- **Progress:** `/mapping/progress/` reports what share of each area is
+  mapped.
 
 ## Quality checks
 

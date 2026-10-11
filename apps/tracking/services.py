@@ -69,6 +69,7 @@ def confirm_check_in(*, actor, check_in: AgentCheckIn) -> AgentCheckIn:
         unit.location_accuracy_m = check.gps_accuracy_m
         unit.location_confirmed_by = actor
         unit.location_confirmed_at = now
+        unit.mapping_status = "pinned"
         unit.save(
             update_fields=[
                 "latitude",
@@ -77,6 +78,7 @@ def confirm_check_in(*, actor, check_in: AgentCheckIn) -> AgentCheckIn:
                 "location_accuracy_m",
                 "location_confirmed_by",
                 "location_confirmed_at",
+                "mapping_status",
             ]
         )
     check.location_status, check.distance_to_pu_m = assess(

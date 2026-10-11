@@ -83,3 +83,59 @@ class LocationPing(GpsCheckFields):
     class Meta:
         ordering = ["-gps_captured_at"]
         indexes = [models.Index(fields=["session", "gps_captured_at"])]
+
+
+def pin_photo_path(instance, filename):
+    import uuid
+    from pathlib import Path
+
+    suffix = Path(filename).suffix.lower()[:10] or ".jpg"
+    return f"mapping/{timezone.now():%Y/%m}/{uuid.uuid4().hex}{suffix}"
+
+
+class PollingUnitPin(TimeStampedModel, GpsCheckFields):
+    """A coordinator's on-site record of where a polling unit is (or a problem)."""
+
+    class Status(models.TextChoices):
+        PINNED = "pinned", "Set the unit's location"
+        CONFIRMED = "confirmed", "Agrees with the unit's location"
+        CONFLICT = "conflict", "Disagrees with the unit's location"
+        ACCEPTED = "accepted", "Accepted to resolve a conflict"
+        SUPERSEDED = "superseded", "Replaced by an accepted pin"
+        PROBLEM = "problem", "Unit could not be pinned"
+
+    class Problem(models.TextChoices):
+        NOT_FOUND = "notFound", "Could not find the unit"
+        MOVED = "moved", "Unit has moved"
+        NAME_MISMATCH = "nameMismatch", "Signboard shows a different name"
+        OTHER = "other", "Other"
+
+    polling_unit = models.ForeignKey(
+        "geography.PollingUnit", on_delete=models.PROTECT, related_name="pins"
+    )
+    pinned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    status = models.CharField(max_length=12, choices=Status.choices)
+    problem = models.CharField(max_length=16, choices=Problem.choices, blank=True)
+    note = models.TextField(blank=True, max_length=1000)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    photo = models.ImageField(upload_to=pin_photo_path, blank=True)
+    at_entrance = models.BooleanField(default=False)
+    name_matches = models.BooleanField(default=False)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["polling_unit", "status"])]
+
+    def __str__(self):
+        return f"{self.polling_unit_id} {self.status}"
