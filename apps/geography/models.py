@@ -98,6 +98,7 @@ class PollingUnit(models.Model):
         choices=[
             ("checkIn", "Confirmed agent check-in"),
             ("coordinator", "Set by a coordinator"),
+            ("inec", "INEC polling unit locator"),
             ("imported", "Imported"),
         ],
         blank=True,

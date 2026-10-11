@@ -367,7 +367,11 @@ def test_member_home(outbox):
 
     units = PollingUnit.objects.filter(code="18-23-01-001")
     units.update(
-        latitude="11.085500", longitude="7.719900", mapping_status="pinned", location_accuracy_m=12
+        latitude="11.085500",
+        longitude="7.719900",
+        mapping_status="pinned",
+        location_accuracy_m=12,
+        location_source="coordinator",
     )
     navigation = me.get("/api/v1/me/polling-unit/").json()["polling_unit"]["navigation"]
     assert navigation == {
@@ -375,6 +379,7 @@ def test_member_home(outbox):
         "longitude": 7.7199,
         "confirmed": False,
         "accuracy_m": 12.0,
+        "source": "coordinator",
     }
     units.update(mapping_status="confirmed")
     assert me.get("/api/v1/me/polling-unit/").json()["polling_unit"]["navigation"]["confirmed"]

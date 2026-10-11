@@ -8,6 +8,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.core.choices import GeographyLevel, Role
+from apps.geography.inec_locations import load_inec_locations
 from apps.geography.models import Lga, PollingUnit, State, Ward
 from apps.geography.polling_units import load_polling_units
 from conftest import PASSWORD
@@ -226,3 +227,45 @@ def test_pin_photo_is_private(first, lga):
         state=State.objects.get(code="LA"),
     )
     assert lagos.get(f"/api/v1/mapping/pins/{created['id']}/photo/").status_code == 404
+
+
+def inec_location(unit, latitude, longitude, tmp_path):
+    path = tmp_path / "inec.csv"
+    with open(path, "w", encoding="utf-8", newline="") as handle:
+        handle.write("code,latitude,longitude,qa,fetched_at\n")
+        handle.write(f"{unit},{latitude},{longitude},ok,2026-10-11T07:00:00+00:00\n")
+    load_inec_locations(path)
+
+
+def test_inec_location_is_a_first_pin(first, lga, tmp_path):
+    inec_location(UNIT, f"{SPOT[0]:.6f}", f"{SPOT[1]:.6f}", tmp_path)
+    unit = PollingUnit.objects.get(code=UNIT)
+    assert unit.mapping_status == "pinned" and unit.location_source == "inec"
+
+    # One coordinator on site is enough to confirm INEC's point.
+    response = pin(first, gps=fix(lat=SPOT[0] + 0.0002)).json()  # about 22 m away
+    assert response["status"] == "confirmed"
+    assert PollingUnit.objects.get(code=UNIT).mapping_status == "confirmed"
+
+    progress = lga.get("/api/v1/mapping/progress/").json()
+    assert progress["confirmed"] == 1 and progress["from_inec"] == 0
+
+
+def test_rounded_inec_location_allows_for_its_rounding(first, lga, tmp_path):
+    # INEC rounds latitudes to four places (written 11.086 for 11.0860): up to ~6 m.
+    inec_location(UNIT, "11.086", f"{SPOT[1]:.6f}", tmp_path)
+    assert lga.get("/api/v1/mapping/progress/").json()["from_inec"] == 1
+    navigation = lga.get(f"/api/v1/geography/polling-units/{UNIT}/").json()["navigation"]
+    assert navigation["source"] == "inec" and navigation["confirmed"] is False
+    assert navigation["accuracy_m"] == pytest.approx(5.6, abs=0.1)
+
+    # 52 m from INEC's point: past the 50 m radius, inside it plus the rounding.
+    on_site = pin(first, gps=fix(lat=11.08553)).json()
+    assert on_site["status"] == "confirmed"
+
+
+def test_far_pin_disputes_an_inec_location(first, tmp_path):
+    inec_location(UNIT, f"{SPOT[0]:.6f}", f"{SPOT[1]:.6f}", tmp_path)
+    response = pin(first, gps=fix(lat=SPOT[0] + 0.002)).json()  # about 220 m away
+    assert response["status"] == "conflict"
+    assert PollingUnit.objects.get(code=UNIT).mapping_status == "conflict"

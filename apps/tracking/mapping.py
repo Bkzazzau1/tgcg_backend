@@ -1,10 +1,10 @@
 """Polling-unit mapping: coordinators pin each unit's location on site.
 
-INEC publishes no coordinates, so TGCG captures them before election day.
 The first good pin sets the unit's location; a second coordinator's pin
 within PIN_CONFIRM_RADIUS_M confirms it; a pin further away is a conflict
-that another coordinator resolves. Imported or check-in locations are
-treated like a first pin.
+that another coordinator resolves. Locations from INEC's Polling Unit Locator,
+imports and confirmed check-ins are treated like a first pin, so one
+coordinator on site is enough to confirm them.
 """
 
 from django.conf import settings
@@ -98,7 +98,12 @@ def pin_unit(*, actor, unit, gps, photo, at_entrance, name_matches, note="") -> 
 
     distance = distance_m(pin.latitude, pin.longitude, unit.latitude, unit.longitude)
     pin.distance_to_pu_m = round(distance)
-    if distance <= settings.PIN_CONFIRM_RADIUS_M:
+    radius = settings.PIN_CONFIRM_RADIUS_M
+    if unit.location_source == "inec":
+        # INEC rounds some coordinates (location_accuracy_m holds by how much),
+        # so a pin at the right spot can look further away than it is.
+        radius += unit.location_accuracy_m or 0
+    if distance <= radius:
         pin.status = Pin.Status.CONFIRMED
         pin.save()
         # A confirmation must come from a different person than who set it.

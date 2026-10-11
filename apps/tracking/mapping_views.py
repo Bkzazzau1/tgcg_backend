@@ -200,6 +200,8 @@ class PinPhotoView(APIView):
 
 def _status_counts(queryset, group_by=None):
     counts = {f"{name}": Count("pk", filter=Q(mapping_status=name)) for name in STATUSES}
+    # Located from INEC's locator and not yet checked by a coordinator (part of "pinned").
+    counts["from_inec"] = Count("pk", filter=Q(mapping_status="pinned", location_source="inec"))
     if group_by is None:
         return queryset.aggregate(total=Count("pk"), **counts)
     return {
@@ -212,7 +214,7 @@ def _with_percent(counts):
     total = counts.get("total") or 0
     mapped = (counts.get("pinned") or 0) + (counts.get("confirmed") or 0)
     return {
-        **{key: counts.get(key) or 0 for key in ("total", *STATUSES)},
+        **{key: counts.get(key) or 0 for key in ("total", *STATUSES, "from_inec")},
         "mapped": mapped,
         "mapped_percent": round(mapped * 100 / total, 1) if total else 0.0,
     }

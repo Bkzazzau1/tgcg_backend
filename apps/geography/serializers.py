@@ -19,6 +19,7 @@ def navigation_for(unit: PollingUnit):
         "longitude": float(unit.longitude),
         "confirmed": unit.mapping_status == "confirmed",
         "accuracy_m": unit.location_accuracy_m,
+        "source": unit.location_source,
     }
 
 
@@ -27,6 +28,9 @@ class NavigationSerializer(serializers.Serializer):
     longitude = serializers.FloatField()
     confirmed = serializers.BooleanField(help_text="False until a second pin agrees.")
     accuracy_m = serializers.FloatField(allow_null=True)
+    source = serializers.CharField(
+        help_text="inec, coordinator, checkIn or imported: where the location came from."
+    )
 
 
 class ZoneSerializer(serializers.ModelSerializer):
