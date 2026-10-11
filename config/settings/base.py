@@ -136,6 +136,7 @@ REST_FRAMEWORK = {
         "user": env("API_THROTTLE_USER", default="600/min"),
         "login": env("API_THROTTLE_LOGIN", default="10/min"),
         "registration": env("API_THROTTLE_REGISTRATION", default="30/hour"),
+        "delim_lookup": env("API_THROTTLE_DELIM_LOOKUP", default="120/hour"),
     },
 }
 

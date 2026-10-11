@@ -1,6 +1,32 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from .models import Lga, PollingUnit, SenatorialDistrict, State, Ward, Zone
+
+# Coordinates are only offered for directions once the mapping exercise has
+# placed the unit; a conflict or reported problem means they cannot be trusted.
+NAVIGABLE_STATUSES = ("pinned", "confirmed")
+
+
+def navigation_for(unit: PollingUnit):
+    """Where to send someone travelling to [unit], or None if it is not mapped."""
+    if unit.latitude is None or unit.longitude is None:
+        return None
+    if unit.mapping_status not in NAVIGABLE_STATUSES:
+        return None
+    return {
+        "latitude": float(unit.latitude),
+        "longitude": float(unit.longitude),
+        "confirmed": unit.mapping_status == "confirmed",
+        "accuracy_m": unit.location_accuracy_m,
+    }
+
+
+class NavigationSerializer(serializers.Serializer):
+    latitude = serializers.FloatField()
+    longitude = serializers.FloatField()
+    confirmed = serializers.BooleanField(help_text="False until a second pin agrees.")
+    accuracy_m = serializers.FloatField(allow_null=True)
 
 
 class ZoneSerializer(serializers.ModelSerializer):
@@ -45,6 +71,7 @@ class WardSerializer(serializers.ModelSerializer):
 
 class PollingUnitSerializer(serializers.ModelSerializer):
     ward = serializers.SlugRelatedField(slug_field="code", read_only=True)
+    navigation = serializers.SerializerMethodField()
 
     class Meta:
         model = PollingUnit
@@ -56,4 +83,10 @@ class PollingUnitSerializer(serializers.ModelSerializer):
             "registered_voters",
             "latitude",
             "longitude",
+            "mapping_status",
+            "navigation",
         ]
+
+    @extend_schema_field(NavigationSerializer(allow_null=True))
+    def get_navigation(self, unit):
+        return navigation_for(unit)

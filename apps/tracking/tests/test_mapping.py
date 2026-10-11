@@ -154,9 +154,14 @@ def test_far_pin_is_a_conflict_resolved_by_someone_else(first, second, lga):
 
 
 def test_report_problem(first):
-    assert first.post(
-        f"/api/v1/mapping/units/{UNIT}/problem/", {"problem": "moved", "note": ""}, format="json"
-    ).status_code == 400
+    assert (
+        first.post(
+            f"/api/v1/mapping/units/{UNIT}/problem/",
+            {"problem": "moved", "note": ""},
+            format="json",
+        ).status_code
+        == 400
+    )
     response = first.post(
         f"/api/v1/mapping/units/{UNIT}/problem/",
         {"problem": "moved", "note": "Relocated to the new primary school by the market."},

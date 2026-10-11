@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.accounts.verification import PhoneVerification
 from apps.core.choices import GeographyLevel, Role
-from apps.geography.models import Lga, State
+from apps.geography.models import Lga, PollingUnit, State
 from apps.geography.polling_units import load_polling_units
 from apps.membership.models import Member
 from conftest import PASSWORD
@@ -133,6 +133,26 @@ def test_unknown_delim_rejected(outbox):
     response = register(APIClient(), outbox, delim="18/23/99/999")
     assert response.status_code == 400
     assert "delim" in response.json()
+
+
+def test_delim_lookup_shows_the_unit_without_its_location():
+    PollingUnit.objects.filter(code="18-23-01-001").update(
+        latitude="11.085500", longitude="7.719900", mapping_status="confirmed"
+    )
+    found = APIClient().get("/api/v1/register/polling-unit/", {"delim": "18/23/1/1"})
+    assert found.status_code == 200
+    body = found.json()
+    assert body["code"] == "18-23-01-001"
+    assert body["lga"] and body["state"]
+    assert body["navigation"] is None
+
+    assert (
+        APIClient().get("/api/v1/register/polling-unit/", {"delim": "18/23/99/999"}).status_code
+        == 400
+    )
+    assert (
+        APIClient().get("/api/v1/register/polling-unit/", {"delim": "nonsense"}).status_code == 400
+    )
 
 
 def test_validation_does_not_burn_the_code(outbox):
@@ -343,8 +363,31 @@ def test_member_home(outbox):
     unit = me.get("/api/v1/me/polling-unit/").json()
     assert unit["polling_unit"]["code"] == "18-23-01-001"
     assert unit["members_in_unit"] == 2
+    assert unit["polling_unit"]["navigation"] is None  # not mapped yet
 
-    assert kd_coordinator().get("/api/v1/me/member/").status_code == 403
+    units = PollingUnit.objects.filter(code="18-23-01-001")
+    units.update(
+        latitude="11.085500", longitude="7.719900", mapping_status="pinned", location_accuracy_m=12
+    )
+    navigation = me.get("/api/v1/me/polling-unit/").json()["polling_unit"]["navigation"]
+    assert navigation == {
+        "latitude": 11.0855,
+        "longitude": 7.7199,
+        "confirmed": False,
+        "accuracy_m": 12.0,
+    }
+    units.update(mapping_status="confirmed")
+    assert me.get("/api/v1/me/polling-unit/").json()["polling_unit"]["navigation"]["confirmed"]
+    # Pins that disagree are not good enough for directions.
+    units.update(mapping_status="conflict")
+    assert me.get("/api/v1/me/polling-unit/").json()["polling_unit"]["navigation"] is None
+
+    coordinator = kd_coordinator()
+    staff_unit = coordinator.get("/api/v1/geography/polling-units/18-23-01-001/").json()
+    assert staff_unit["mapping_status"] == "conflict"
+    assert staff_unit["navigation"] is None
+
+    assert coordinator.get("/api/v1/me/member/").status_code == 403
 
 
 def test_card_verification(outbox):

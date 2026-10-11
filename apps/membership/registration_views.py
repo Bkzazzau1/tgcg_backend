@@ -101,6 +101,20 @@ class SelfRegistrationView(PublicRegistrationView):
         return Response(_session(member, user, request), status=status.HTTP_201_CREATED)
 
 
+class DelimLookupView(PublicRegistrationView):
+    """Show which polling unit a PVC DELIM code belongs to, before registering."""
+
+    throttle_scope = "delim_lookup"
+
+    @extend_schema(
+        parameters=[OpenApiParameter("delim", str, required=True, description="e.g. 18/23/01/001")],
+        responses={200: PollingUnitSummarySerializer},
+    )
+    def get(self, request):
+        unit = registration.polling_unit_from_delim(request.query_params.get("delim", ""))
+        return Response(PollingUnitSummarySerializer(unit, context={"hide_location": True}).data)
+
+
 class PinCodeView(PublicRegistrationView):
     """Send a code to set or reset a member's PIN (same reply for unknown phones)."""
 

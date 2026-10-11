@@ -81,6 +81,7 @@ api_v1 = [
         transaction.non_atomic_requests(reg.SelfRegistrationView.as_view()),
         name="register",
     ),
+    path("register/polling-unit/", reg.DelimLookupView.as_view(), name="register-polling-unit"),
     path("register/pin-code/", reg.PinCodeView.as_view(), name="register-pin-code"),
     path(
         "register/pin/",

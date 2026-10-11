@@ -1,9 +1,11 @@
 from django.core import signing
 from django.urls import reverse
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.choices import AccreditationStatus, Gender
 from apps.geography.scope import ScopeField, within_scope_q
+from apps.geography.serializers import NavigationSerializer, navigation_for
 
 from .models import (
     ACCREDITABLE_ROLES,
@@ -197,6 +199,14 @@ class PollingUnitSummarySerializer(serializers.Serializer):
     ward_code = serializers.CharField(source="ward.code")
     lga = serializers.CharField(source="ward.lga.name")
     state = serializers.CharField(source="ward.lga.state.name")
+    navigation = serializers.SerializerMethodField()
+
+    @extend_schema_field(NavigationSerializer(allow_null=True))
+    def get_navigation(self, unit):
+        # A DELIM lookup during public registration shows the unit, not its location.
+        if self.context.get("hide_location"):
+            return None
+        return navigation_for(unit)
 
 
 class MemberCardSerializer(serializers.ModelSerializer):
