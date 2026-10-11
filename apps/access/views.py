@@ -1,4 +1,5 @@
-"""Roles, appointments, the signed-in member's own appointments, and the audit log.
+"""Roles, appointments, delegated authority, National Administrator
+approvals, the signed-in member's own appointments, and the audit log.
 
 Views only check that the caller may use the endpoint at all; every rule
 about who may do what, where, lives in services.py and engine.py.
@@ -9,22 +10,36 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import User
 from apps.core.permissions import Capability, requires
-from apps.geography.scope import within_scope_any_q
+from apps.geography.scope import any_of, within_scope_any_q
 from apps.membership.models import Member
 
 from . import audit, engine, services
-from .models import AssignmentStatus, AuditEvent, RoleAssignment, RoleAssignmentArea, RoleDefinition
+from .models import (
+    AdminActionRequest,
+    AssignmentStatus,
+    AuditEvent,
+    DelegationGrant,
+    RoleAssignment,
+    RoleAssignmentArea,
+    RoleDefinition,
+)
 from .registry import PERMISSIONS
 from .serializers import (
     AccessReasonSerializer,
+    AdminActionCreateSerializer,
+    AdminActionSerializer,
+    AdministratorSerializer,
     AppointSerializer,
     AssignmentSerializer,
     AuditEventSerializer,
+    DelegateSerializer,
+    DelegationSerializer,
     GrantSerializer,
     PermissionInfoSerializer,
     RestrictSerializer,
@@ -33,6 +48,33 @@ from .serializers import (
 
 C = Capability
 ROLE_READERS = (C.VIEW_ROLES, C.MANAGE_ROLES, C.ASSIGN_ROLES, C.MANAGE_ASSIGNMENTS)
+
+
+class IsNationalAdministrator(BasePermission):
+    message = "Only a National Administrator can do this."
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and engine.is_national_administrator(user))
+
+
+class CanSeeAppointments(BasePermission):
+    """Holds a role-reading permission somewhere, or holds a role others report to."""
+
+    message = "Your role does not permit this action."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not (user and user.is_authenticated):
+            return False
+        return bool(engine.permissions_for(user) & set(ROLE_READERS)) or services.supervises_any(
+            user
+        )
+
+
+def _history(target_type, target_id):
+    events = AuditEvent.objects.filter(target_type=target_type, target_id=str(target_id))
+    return Response(AuditEventSerializer(events, many=True).data)
 
 
 class PermissionRegistryView(APIView):
@@ -118,7 +160,7 @@ class AssignmentViewSet(
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
 ):
-    """Appointments in the caller's areas. POST to appoint a member."""
+    """Appointments in the caller's areas, and those they supervise. POST to appoint."""
 
     serializer_class = AssignmentSerializer
     lookup_field = "uuid"
@@ -133,9 +175,10 @@ class AssignmentViewSet(
     def get_permissions(self):
         if self.action == "create":
             return [requires(C.ASSIGN_ROLES)()]
-        if self.action in ("suspend", "reactivate", "revoke", "restrict"):
+        if self.action in ("revoke", "restrict"):
             return [requires(C.MANAGE_ASSIGNMENTS)()]
-        return [requires(*ROLE_READERS)()]
+        # Supervisors may also see, suspend and reactivate what they supervise.
+        return [CanSeeAppointments()]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
@@ -143,9 +186,11 @@ class AssignmentViewSet(
         user = self.request.user
         if engine.is_national_administrator(user):
             return _assignments()
-        # An appointment is visible when one of its areas lies inside the caller's reach.
+        # Visible when one of its areas lies inside the caller's reach, or the
+        # caller holds a role above it whose areas include it.
         areas = RoleAssignmentArea.objects.filter(within_scope_any_q(user, ROLE_READERS))
-        return _assignments().filter(areas__in=areas).distinct()
+        visible = any_of(Q(areas__in=areas), services.supervised_q(user))
+        return _assignments().filter(visible).distinct()
 
     @extend_schema(request=AppointSerializer, responses={201: AssignmentSerializer})
     def create(self, request):
@@ -209,11 +254,158 @@ class AssignmentViewSet(
     @extend_schema(responses=AuditEventSerializer(many=True))
     @action(detail=True, methods=["get"])
     def history(self, request, uuid=None):
-        assignment = self.get_object()
-        events = AuditEvent.objects.filter(
-            target_type="roleAssignment", target_id=str(assignment.uuid)
+        return _history("roleAssignment", self.get_object().uuid)
+
+
+def _grants():
+    return DelegationGrant.objects.select_related(
+        "grantor", "recipient", "revoked_by", "source_grant", "source_assignment"
+    ).prefetch_related("areas")
+
+
+class DelegationViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Delegated authority made or received by the caller, or inside their
+    delegating reach. POST to delegate; revoking never cascades."""
+
+    serializer_class = DelegationSerializer
+    lookup_field = "uuid"
+    filterset_fields = {
+        "status": ["exact"],
+        "recipient__membership_number": ["exact"],
+        "grantor__access_id": ["exact"],
+    }
+    search_fields = ["recipient__full_name", "recipient__membership_number", "reason"]
+    ordering_fields = ["created_at", "starts_at"]
+
+    def get_permissions(self):
+        if self.action == "create":
+            return [requires(C.DELEGATE_AUTHORITY)()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return DelegationGrant.objects.none()
+        return services.delegations_visible_to(self.request.user)
+
+    @extend_schema(request=DelegateSerializer, responses={201: DelegationSerializer})
+    def create(self, request):
+        data = DelegateSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        values = dict(data.validated_data)
+        recipient = get_object_or_404(Member, membership_number=values.pop("recipient"))
+        grant = services.delegate(actor=request.user, recipient=recipient, **values)
+        return Response(
+            DelegationSerializer(_grants().get(pk=grant.pk)).data,
+            status=status.HTTP_201_CREATED,
         )
-        return Response(AuditEventSerializer(events, many=True).data)
+
+    @extend_schema(request=AccessReasonSerializer, responses=DelegationSerializer)
+    @action(detail=True, methods=["post"])
+    def revoke(self, request, uuid=None):
+        reason = AccessReasonSerializer(data=request.data)
+        reason.is_valid(raise_exception=True)
+        grant = services.revoke_delegation(
+            actor=request.user,
+            grant=self.get_object(),
+            reason=reason.validated_data.get("reason", ""),
+        )
+        return Response(DelegationSerializer(_grants().get(pk=grant.pk)).data)
+
+    @extend_schema(responses=AuditEventSerializer(many=True))
+    @action(detail=True, methods=["get"])
+    def history(self, request, uuid=None):
+        return _history("delegationGrant", self.get_object().uuid)
+
+
+class AdminActionViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Requests to suspend or remove a National Administrator.
+
+    The request is its requester's approval; it runs when a second
+    administrator approves. The administrator concerned can do neither.
+    """
+
+    serializer_class = AdminActionSerializer
+    lookup_field = "uuid"
+    permission_classes = [IsNationalAdministrator]
+    filterset_fields = {"status": ["exact"], "kind": ["exact"]}
+    ordering_fields = ["created_at"]
+
+    def get_queryset(self):
+        return AdminActionRequest.objects.select_related(
+            "target", "requested_by", "cancelled_by"
+        ).prefetch_related("approvals__approver")
+
+    @extend_schema(request=AdminActionCreateSerializer, responses={201: AdminActionSerializer})
+    def create(self, request):
+        data = AdminActionCreateSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        values = data.validated_data
+        target = get_object_or_404(User, access_id=values["target"].strip().upper())
+        made = services.request_admin_action(
+            actor=request.user, target=target, kind=values["kind"], reason=values["reason"]
+        )
+        return Response(
+            AdminActionSerializer(self.get_queryset().get(pk=made.pk)).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @extend_schema(request=None, responses=AdminActionSerializer)
+    @action(detail=True, methods=["post"])
+    def approve(self, request, uuid=None):
+        approved = services.approve_admin_action(actor=request.user, request=self.get_object())
+        return Response(AdminActionSerializer(self.get_queryset().get(pk=approved.pk)).data)
+
+    @extend_schema(request=AccessReasonSerializer, responses=AdminActionSerializer)
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, uuid=None):
+        reason = AccessReasonSerializer(data=request.data)
+        reason.is_valid(raise_exception=True)
+        cancelled = services.cancel_admin_action(
+            actor=request.user,
+            request=self.get_object(),
+            reason=reason.validated_data.get("reason", ""),
+        )
+        return Response(AdminActionSerializer(self.get_queryset().get(pk=cancelled.pk)).data)
+
+
+class AdministratorViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """National Administrator accounts and their standing; reinstate a suspended one."""
+
+    serializer_class = AdministratorSerializer
+    lookup_field = "access_id"
+    permission_classes = [IsNationalAdministrator]
+    pagination_class = None
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return User.objects.none()
+        return services.administrator_accounts().order_by("full_name")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        if not getattr(self, "swagger_fake_view", False):
+            context["active"] = services.active_national_administrators()
+        return context
+
+    @extend_schema(request=AccessReasonSerializer, responses=AdministratorSerializer)
+    @action(detail=True, methods=["post"])
+    def reinstate(self, request, access_id=None):
+        reason = AccessReasonSerializer(data=request.data)
+        reason.is_valid(raise_exception=True)
+        target = services.reinstate_administrator(
+            actor=request.user,
+            target=self.get_object(),
+            reason=reason.validated_data.get("reason", ""),
+        )
+        return Response(AdministratorSerializer(target, context=self.get_serializer_context()).data)
 
 
 class MyAccessView(APIView):

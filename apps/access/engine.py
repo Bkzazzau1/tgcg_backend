@@ -2,9 +2,10 @@
 
 An action P on a resource in area X is allowed only when one single grant
 holds P *and* covers X. A grant is an active, in-date assignment of an active
-role to a verified member with an active membership, or an account's legacy
-fixed role (with its single scope) during the transition. Grants are never
-pooled: permissions from one never combine with areas from another.
+role to a verified member with an active membership, an active delegation
+grant (its administrative powers only), or an account's legacy fixed role
+(with its single scope) during the transition. Grants are never pooled:
+permissions from one never combine with areas from another.
 
 Everything is read from the database, cached only for the current request,
 so suspensions, revocations, expiry and archiving take effect immediately,
@@ -21,11 +22,20 @@ from apps.core.choices import GeographyLevel, MembershipState, Role, Verificatio
 from apps.core.permissions import ROLE_CAPABILITIES
 from apps.geography.scope import LEVEL_FIELD
 
-from .models import AssignmentStatus, RoleAssignment, RoleStatus
+from .models import (
+    ADMIN_POWERS,
+    AssignmentStatus,
+    DelegationGrant,
+    GrantStatus,
+    RoleAssignment,
+    RoleStatus,
+)
 from .registry import PERMISSIONS, PROTECTED
 
 LEGACY = "legacy"
 ASSIGNMENT = "assignment"
+DELEGATION = "delegation"
+VIEW_ROLES = "viewRoles"
 
 # Per-request cache of computed grants, reset by AccessCacheMiddleware.
 _request_cache: contextvars.ContextVar[dict | None] = contextvars.ContextVar(
@@ -123,6 +133,31 @@ def _compute_grants(user, now) -> tuple[Grant, ...]:
                         protected=assignment.role.is_protected,
                     )
                 )
+
+        # Delegated authority: its administrative powers in its own areas, and
+        # the right to see appointments there. Never any operational permission.
+        delegations = (
+            DelegationGrant.objects.filter(
+                recipient=member, status=GrantStatus.ACTIVE, starts_at__lte=now
+            )
+            .filter(Q(ends_at__isnull=True) | Q(ends_at__gt=now))
+            .prefetch_related("areas")
+        )
+        for delegation in delegations:
+            powers = (set(delegation.permissions) & ADMIN_POWERS) - PROTECTED
+            areas = tuple(delegation.areas.all())
+            if powers and areas:
+                grants.append(
+                    Grant(
+                        source=DELEGATION,
+                        key=str(delegation.uuid),
+                        role_code="",
+                        role_name="Delegated authority",
+                        permissions=frozenset(powers | {VIEW_ROLES}),
+                        areas=areas,
+                        protected=False,
+                    )
+                )
     return tuple(grants)
 
 
@@ -172,19 +207,27 @@ def areas_for(user, permission: str) -> list:
     ]
 
 
-def scope_q(user, permission: str, prefix: str = "") -> Q:
-    """Filter for rows (scope fields under `prefix`) where the user holds `permission`.
+def areas_q(areas, prefix: str = "") -> Q:
+    """Filter for rows (scope fields under `prefix`) inside any of `areas`.
 
-    Matches nothing when no grant holds it.
+    An empty Q (everything) for a national area; matches nothing for no areas.
     """
     query = None
-    for area in areas_for(user, permission):
+    for area in areas:
         field = area.scope_unit_field
         if field is None:
             return Q()
         condition = Q(**{f"{prefix}{field}_id": getattr(area, f"{field}_id")})
         query = condition if query is None else query | condition
     return query if query is not None else Q(pk__in=[])
+
+
+def scope_q(user, permission: str, prefix: str = "") -> Q:
+    """Filter for rows (scope fields under `prefix`) where the user holds `permission`.
+
+    Matches nothing when no grant holds it.
+    """
+    return areas_q(areas_for(user, permission), prefix)
 
 
 def is_national_administrator(user) -> bool:

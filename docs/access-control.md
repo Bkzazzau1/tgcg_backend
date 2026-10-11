@@ -54,11 +54,13 @@ allowed(user, P, X) =
 ```
 
 `active_grants` = active, in-date assignments of active roles (member
-verified and active) + the legacy role, if any. Each grant keeps its own
-permissions and areas; they are never pooled, so a publish right in Kaduna
-and a view right in Kano never become a publish right in Kano. List queries
-use the same rule: `scope_q(user, P)` = OR of the areas of the grants that
-include `P`. Default is deny; missing data denies.
+verified and active) + active, in-date delegation grants (their
+administrative powers and `viewRoles` only, in their own areas) + the legacy
+role, if any. Each grant keeps its own permissions and areas; they are never
+pooled, so a publish right in Kaduna and a view right in Kano never become a
+publish right in Kano. List queries use the same rule: `scope_q(user, P)` =
+OR of the areas of the grants that include `P`. Default is deny; missing data
+denies.
 
 Expiry and scheduling are evaluated at request time, so an expired
 assignment stops working without any background job. Everything is read from
@@ -69,20 +71,24 @@ membership suspension apply immediately, including to existing tokens.
 
 - `RoleDefinition`: code, name (unique, case-insensitive; "National
   Administrator" reserved), description, category, permitted levels,
-  permissions (subset of the registry), supervising role (no cycles),
-  `allows_assignment`, `allows_role_creation`, system/protected flags,
-  status (active/archived) with who/when, creator, timestamps.
+  permissions (subset of the registry; holding `assignRoles` or
+  `manageRoles` is what lets a role appoint or create roles), supervising
+  role (no cycles), system/protected flags, status (active/archived) with
+  who/when, creator, timestamps.
 - `RoleAssignment`: member, role, restricted permissions (null = all of the
   role's; otherwise a subset — can only reduce), starts/ends, status
   (active, suspended, declined, resigned, revoked; scheduled/expired derived
-  from dates), who granted it and under which authority (provenance), and
-  who/when/why for each status change.
+  from dates), who granted it and under which authority (provenance: the
+  appointing assignment or delegation grant), and who/when/why for each
+  status change.
 - `RoleAssignmentArea`: the areas of an assignment (`ScopedModel`).
-- `DelegationGrant` + `DelegationGrantArea`: grantor, recipient, permission
-  set, role categories, levels, areas, may re-delegate (with remaining
-  depth), validity dates, status, provenance (the grantor's own source).
-- `AdminActionRequest`: two-person approval for suspending or removing a
-  National Administrator.
+- `DelegationGrant` + `DelegationGrantArea`: grantor, recipient (a member),
+  permission set, role categories, levels, areas, may re-delegate (with
+  remaining depth), validity dates, status with who/when/why revoked,
+  provenance (the grantor's own source: administrator, assignment or grant).
+- `AdminActionRequest` + `AdminActionApproval`: two-person approval for
+  suspending or removing a National Administrator (one pending request per
+  administrator, one approval per approver).
 - `AuditEvent`: append-only, hash-chained log of security events (actor,
   target, action, scope, before/after without sensitive values, reason,
   provenance).
@@ -96,34 +102,126 @@ An actor's authority sources, each checked on its own:
 
 1. **National Administrator** (protected system role, national area): any
    role, any area, except protected actions that need two administrators.
-2. **An assignment whose role allows assignment / role creation**: within
-   that assignment's areas and its effective permissions.
-3. **A delegation grant**: within the grant's permissions, categories,
-   levels and areas.
+2. **An assignment holding the power** (`assignRoles`, `manageRoles`,
+   `manageAssignments`, `delegateAuthority`): within that assignment's areas
+   and up to its effective permissions; any role category or level.
+3. **A delegation grant**: within the grant's permission ceiling, role
+   categories, levels, areas and remaining depth. A grant gives its
+   recipient the powers it names (and the right to see appointments in its
+   areas), never the operational permissions in its ceiling.
 
-To appoint member M to role R over areas A, one source must cover all of:
-R's (restricted) permissions, R's category, every area in A and its level.
-The appointee must be a verified, active member and cannot be the actor. A
-new role's permissions must fit inside the creator's source. A new grant
-must fit inside the grantor's source at creation time and records it as its
-provenance. Revoking a grant does not revoke grants made from it; those stay
-valid until revoked or expired, because each was validated when created.
+One source must cover the whole of a request:
+
+| Action | Needs | The source must cover |
+|---|---|---|
+| Create a role | `manageRoles` | the role's permissions, category and every permitted level |
+| Edit, archive or restore a role | `manageRoles`, as its creator or in a supervising appointment (§6) | as above, plus the areas of every current holder whenever the change reaches them (new permissions, a new reporting line, archiving, restoring) |
+| Appoint | `assignRoles` | the appointment's (restricted) permissions, the role's category, every area and its level |
+| Suspend, reactivate, revoke | `manageAssignments` | what the appointment carries, its category, areas and levels (or the actor supervises it, §6, for suspend/reactivate) |
+| Narrow a restriction | `manageAssignments` | everything the role could carry |
+| Lift or widen a restriction | `manageAssignments` and `assignRoles` | as above, and what appointing it as it would become needs |
+| Delegate | `delegateAuthority` | the grant's permissions, categories, levels, areas, and a depth below the source's |
+
+Passing on an administrative power (in a role, an appointment or a grant)
+is delegation: the source must itself hold `delegateAuthority`. Below a
+National Administrator, further delegation passes on only through a grant,
+where depth is counted, never by putting `delegateAuthority` into a role.
+Whatever passes on administrative powers may not outlast its source: a grant,
+an appointment carrying such powers, or a role change giving such powers to
+current holders, must end no later than a source that ends. National
+Administrator appointments are never restricted (every one is a full one).
+
+Self-protection: nobody appoints, restricts or changes their own
+appointment, delegates to themselves, or widens or restores a role they hold
+(that would carry powers they hold in one area into the areas of the other
+holding). "Themselves" includes another account with the same phone number.
+Authority never acts on someone it came from: no appointment, grant,
+management action or role widening can reach anyone upstream in its
+source's chain of grantors and appointers. The appointee or recipient must be
+a verified, active member. A restored role must be restored by whoever
+archived it or by a National Administrator.
+
+A new grant is validated against the grantor's authority when it is made
+and records that source as its provenance. Revoking a grant does not revoke
+grants or appointments made from it; those stay valid until revoked or
+expired, because each was validated when created. A grant can be revoked by
+a National Administrator or by anyone above it in its chain whose own
+account and membership are in good standing (its grantor included, even
+after the grantor's own authority has ended).
 
 Protected rules: only a National Administrator can appoint another; this
 cannot be delegated; no custom role can carry the protected permissions or
-the reserved name; suspending or removing a National Administrator needs two
-distinct administrators (neither the target), never removes the last one,
-and runs in one transaction. Ordinary membership suspension cannot target a
-National Administrator.
+the reserved name; suspending or removing a National Administrator follows
+§7. Ordinary membership suspension cannot target a National Administrator
+(Phase 4).
 
 ## 6. Supervision
 
-A role may name a supervising role (no cycles). Holders of the supervising
-role may view, suspend and reactivate assignments of the supervised role
-where their areas overlap. Supervision grants nothing else. Resignations are
-recorded in the audit log and shown to supervisors.
+A role may name a supervising role (no cycles). The reporting line is
+between roles, not places: a State Media Director in Kaduna can report to a
+National Media Director. Holders of any role above another in its reporting
+line may, within the areas of their own holding:
 
-## 7. Identity verification
+- see its appointments (any of the appointment's areas inside theirs);
+- suspend an appointment (all of its areas inside one holding of theirs),
+  and lift a suspension they made themselves; a suspension by a manager or
+  administrator is lifted by a manager or administrator;
+- edit the role's definition, if the supervising appointment itself holds
+  `manageRoles` covering the role as it would become (and its holders, §5).
+
+Supervision gives nothing else: no revoking, restricting or appointing, no
+action on whoever appointed the supervisor, and no access to the supervised
+role's operational records beyond what the supervisor's own role allows.
+Changing a reporting line once a role has holders needs authority over all
+of them. Suspensions by a supervisor are audited with the supervising role as
+provenance. Resignations are recorded in the audit log and visible to
+supervisors in the appointment list (state `resigned`).
+
+## 7. National Administrators
+
+**Two-administrator rule.** Suspending or removing a National Administrator
+starts with a request by another administrator, with a reason. The request
+counts as its requester's approval; it runs when a second, different
+administrator approves. The administrator concerned can neither request nor
+approve it, nobody approves twice, and there is at most one pending request
+per administrator. Accounts sharing a phone number count as one person. At
+execution the approvals are counted again: only approvers who are still
+active administrators (and not the one concerned) count. A request is refused
+unless at least two administrators other than the one concerned are active,
+and execution refuses to leave no active administrator. Every request,
+approval, cancellation, reinstatement and appointment of an administrator
+first takes one lock (`national-administrators`) and only then checks that
+the actor still is an administrator, so concurrent requests cannot together
+remove everyone and a suspended administrator cannot finish one more action.
+Each appointment changed this way gets its own audit event as well.
+
+- Suspend: a legacy administrator account is deactivated; administrator
+  appointments are suspended. Remove: the legacy role becomes `member`;
+  administrator appointments are revoked. In both cases the account's
+  refresh tokens are blacklisted, and its access stops at the next request.
+- The requester can cancel a pending request (any administrator can once
+  the requester is no longer one).
+- Reinstating a suspended administrator, like appointing one, takes a single
+  administrator other than the one concerned, and no pending request.
+
+**Recovery procedure.** The two-administrator rule is never bypassed by the
+API. When fewer than three administrators are active, two can no longer
+approve action on a third; if none of those left can be trusted or reached
+to appoint more, an operator with server access runs:
+
+```
+python manage.py recover_administrator --member TGCG-000123 \
+    --reason "Why, and who in the party approved it" --confirm
+```
+
+Without `--confirm` it only checks. It appoints one verified, active member
+with an account as National Administrator (authority `recovery`), only
+while fewer than three are active, never suspends or removes anyone, and
+writes `administrator.recovered` to the audit log with the operator's login
+name. Run it only on a written decision of the party leadership, then use
+the normal workflow.
+
+## 8. Identity verification
 
 Checks recorded per member: PVC captured, PVC validated against an
 authoritative source, duplicates, SMS phone verification, live selfie,
@@ -134,14 +232,14 @@ and no trusted reference photo, so those checks are recorded as
 **unsupported** and members go to coordinator review. Nothing is reported
 as passed unless it was actually performed.
 
-## 8. Sensitive data
+## 9. Sensitive data
 
 Coordinators see members in their areas (name, status, roles, area,
 verification status). Phone numbers, full VIN, PVC image, selfie and
 verification evidence need `viewMemberSensitiveData` for that member's area,
 enforced in the serializers.
 
-## 9. Transition
+## 10. Transition
 
 A data migration creates the system role definitions from the former fixed
 roles. Existing accounts keep their legacy access; nothing is deleted or
@@ -149,13 +247,16 @@ widened. An administrator links a staff account to a verified member, which
 converts its legacy role into a normal assignment. Unknown roles map to no
 access.
 
-## 10. API (Phase 2)
+## 11. API
 
 | Endpoint | Use |
 |---|---|
 | `GET /access/permissions/` | The permission registry (module, action, protected, sensitive). |
 | `/access/roles/` | List, search and filter roles (with active appointment counts); `POST` to create; `PATCH /<code>/`; `POST /<code>/archive/` and `/restore/`. |
-| `/access/assignments/` | Appointments in the caller's areas; `POST` to appoint (several areas, optional restriction and dates); `POST /<id>/suspend/`, `/reactivate/`, `/revoke/`, `/restrict/`; `GET /<id>/history/`. |
+| `/access/assignments/` | Appointments in the caller's areas and those they supervise; `POST` to appoint (several areas, optional restriction and dates); `POST /<id>/suspend/`, `/reactivate/` (managers and supervisors), `/revoke/`, `/restrict/`; `GET /<id>/history/`. |
+| `/access/delegations/` | Grants the caller made or received, or inside their delegating reach; `POST` to delegate; `POST /<id>/revoke/` (never cascades); `GET /<id>/history/`. |
+| `/access/admin-actions/` | National Administrators only: `POST` to request suspending or removing an administrator (`target` access ID, `kind`, `reason`); `POST /<id>/approve/`, `/cancel/`. |
+| `/access/administrators/` | National Administrators only: every administrator account with its state (active, suspended, inactive), legacy role, appointments and pending request; `POST /<access_id>/reinstate/`. |
 | `GET /me/access/` | Where the signed-in user's access comes from (also in `/auth/me/` as `access`). |
 | `/me/assignments/` | The member's own appointments; `POST /<id>/accept/`, `/decline/`, `/resign/`. |
 | `GET /access/audit/` | The audit log (viewAudit held nationwide); `GET /access/audit/verify/` checks the hash chain (National Administrators). |
@@ -164,18 +265,29 @@ Every existing endpoint now checks the permission it uses against the
 caller's grants and their areas (`within_scope_q`, `scope_contains` and
 `default_to_actor_scope` refuse a user without a permission).
 
-## 11. Status
+## 12. Status
 
 | Phase | State |
 |---|---|
 | 1 Audit and design | Done (this document) |
 | 2 Django foundation | Done: registry, role definitions, appointments with several areas, engine, all existing checks moved onto it, lifecycle, audit log, API, tests |
-| 3 Delegation and protection | Not started: delegation grants, supervisors acting on supervised appointments, two-administrator approval |
+| 3 Delegation and protection | Done (backend): delegation grants with depth, term and chain rules, non-cascading revocation, self-elevation guards, supervisors, two-administrator approval, reinstatement, server recovery command, audit, API, tests |
 | 4 Membership integration | Not started: verification checks and review, membership suspension/deactivation endpoints, polling-unit changes, sensitive fields |
 | 5 Flutter integration | Not started |
 | 6 Verification and cleanup | Not started |
 
-Known limitations so far: agent check-ins and live positions are located by
-the agent account's registered area; the audit log is readable only with a
-nationwide grant; until Phase 3, authority to appoint comes only from a
-National Administrator or an appointment holding `assignRoles`.
+Known limitations so far:
+
+- Agent check-ins and live positions are located by the agent account's
+  registered area.
+- The audit log is readable only with a nationwide grant.
+- Legacy fixed roles give no authority to appoint or delegate (only a
+  legacy National Administrator does).
+- There is no per-user notification system, so supervisors learn of
+  resignations from the appointment list and the audit log, not a message.
+- One administrator can appoint another (as the brief requires), so the
+  two-administrator rule stops a lone administrator acting directly, not one
+  who first appoints an accomplice; the audit log records both steps. Two
+  accounts of one person are recognised only when they share a phone number.
+- Row locks (`select_for_update`) take effect on PostgreSQL; the SQLite
+  database used in development and tests serialises writes instead.

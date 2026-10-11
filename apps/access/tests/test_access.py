@@ -34,13 +34,6 @@ def client_for(user):
     return client
 
 
-@pytest.fixture
-def admin():
-    return User.objects.create_user(
-        "NA-1", PASSWORD, full_name="National Admin", role=Role.NATIONAL_ADMINISTRATOR
-    )
-
-
 def member_account(phone, name="Musa Bello", verified=True, lga="KD-KADUNA-NORTH"):
     member = make_member(phone=phone, lga=lga, full_name=name)
     member.verification_status = (

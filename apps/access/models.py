@@ -149,6 +149,7 @@ class AuthoritySource(models.TextChoices):
     ASSIGNMENT = "assignment", "Appointing role"
     DELEGATION = "delegation", "Delegated authority"
     TRANSITION = "transition", "Converted from a legacy account"
+    RECOVERY = "recovery", "Server recovery procedure"
 
 
 class RoleAssignment(TimeStampedModel):
@@ -186,6 +187,9 @@ class RoleAssignment(TimeStampedModel):
     authority_assignment = models.ForeignKey(
         "self", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
     )
+    authority_grant = models.ForeignKey(
+        "DelegationGrant", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -217,6 +221,10 @@ class RoleAssignment(TimeStampedModel):
         super().clean()
         if self.ends_at and self.ends_at <= self.starts_at:
             raise ValidationError({"ends_at": "The end must come after the start."})
+        if self.restricted_permissions is not None and self.role.is_protected:
+            # The engine treats every administrator appointment as a full one.
+            message = "A National Administrator appointment is never restricted."
+            raise ValidationError({"restricted_permissions": message})
         if self.restricted_permissions is not None:
             restricted = sorted(set(self.restricted_permissions))
             outside = sorted(set(restricted) - set(self.role.permissions))
@@ -244,6 +252,188 @@ class RoleAssignmentArea(ScopedModel):
     def clean(self):
         super().clean()
         self.normalize_scope()
+
+
+class GrantStatus(models.TextChoices):
+    ACTIVE = "active", "Active"
+    REVOKED = "revoked", "Revoked"
+
+
+# Powers a delegation grant can pass on. Its other permissions are the ceiling
+# for the roles the recipient creates or appoints people to.
+ADMIN_POWERS = frozenset({"assignRoles", "manageRoles", "manageAssignments", "delegateAuthority"})
+
+
+class DelegationGrant(TimeStampedModel):
+    """Authority to create roles, appoint and manage within limits.
+
+    Validated against the grantor's own authority when created; its source is
+    recorded as provenance. Revoking a grant does not revoke the grants made
+    from it: each stays valid until it is revoked or expires.
+    """
+
+    grantor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    recipient = models.ForeignKey(
+        "membership.Member", on_delete=models.PROTECT, related_name="delegations_received"
+    )
+    permissions = models.JSONField(default=list)
+    categories = models.JSONField(default=list, help_text="Role categories it covers.")
+    levels = models.JSONField(default=list, help_text="Geographic levels it covers.")
+    can_redelegate = models.BooleanField(default=False)
+    depth = models.PositiveSmallIntegerField(
+        default=0, help_text="How many further levels of delegation it allows."
+    )
+    starts_at = models.DateTimeField(default=timezone.now)
+    ends_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=16, choices=GrantStatus.choices, default=GrantStatus.ACTIVE, db_index=True
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    revoke_reason = models.TextField(blank=True)
+    source = models.CharField(max_length=24, choices=AuthoritySource.choices)
+    source_grant = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    source_assignment = models.ForeignKey(
+        RoleAssignment, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Delegation to {self.recipient}"
+
+    def is_effective(self, now=None) -> bool:
+        now = now or timezone.now()
+        return (
+            self.status == GrantStatus.ACTIVE
+            and self.starts_at <= now
+            and (self.ends_at is None or now < self.ends_at)
+        )
+
+    def clean(self):
+        super().clean()
+        self.permissions = sorted(set(self.permissions or []))
+        unknown = unknown_codes(self.permissions)
+        if unknown:
+            raise ValidationError({"permissions": f"Unknown permissions: {', '.join(unknown)}."})
+        if set(self.permissions) & PROTECTED:
+            raise ValidationError({"permissions": "Protected permissions cannot be delegated."})
+        if not set(self.permissions) & ADMIN_POWERS:
+            raise ValidationError(
+                {
+                    "permissions": "Delegate at least one power: appoint, create roles, manage "
+                    "appointments or delegate."
+                }
+            )
+        redelegates = "delegateAuthority" in self.permissions
+        if self.can_redelegate != redelegates or (self.can_redelegate and self.depth < 1):
+            raise ValidationError(
+                {
+                    "can_redelegate": "Re-delegation needs the delegate permission and a depth of "
+                    "at least 1; without it the depth must be 0."
+                }
+            )
+        if not self.can_redelegate and self.depth:
+            raise ValidationError({"depth": "Without re-delegation the depth must be 0."})
+        self.categories = sorted(set(self.categories or []))
+        if not self.categories or not set(self.categories) <= set(RoleCategory.values):
+            raise ValidationError({"categories": "Choose the role categories it covers."})
+        order = list(GeographyLevel.values)
+        levels = list(dict.fromkeys(self.levels or []))
+        if not levels or any(level not in order for level in levels):
+            raise ValidationError({"levels": "Choose the geographic levels it covers."})
+        self.levels = sorted(levels, key=order.index)
+        if self.ends_at and self.ends_at <= self.starts_at:
+            raise ValidationError({"ends_at": "The end must come after the start."})
+
+
+class DelegationGrantArea(ScopedModel):
+    grant = models.ForeignKey(DelegationGrant, on_delete=models.CASCADE, related_name="areas")
+
+    def __str__(self):
+        unit = self.scope_unit_field
+        return "Nigeria" if unit is None else str(getattr(self, unit))
+
+
+class AdminActionKind(models.TextChoices):
+    SUSPEND = "suspend", "Suspend"
+    REMOVE = "remove", "Remove"
+
+
+class AdminActionStatus(models.TextChoices):
+    PENDING = "pending", "Awaiting approval"
+    EXECUTED = "executed", "Carried out"
+    CANCELLED = "cancelled", "Cancelled"
+
+
+class AdminActionRequest(TimeStampedModel):
+    """Suspending or removing a National Administrator: two distinct approvals.
+
+    The request counts as its requester's approval; a second administrator
+    must approve. Neither may be the administrator concerned.
+    """
+
+    target = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    kind = models.CharField(max_length=16, choices=AdminActionKind.choices)
+    reason = models.TextField()
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    status = models.CharField(
+        max_length=16,
+        choices=AdminActionStatus.choices,
+        default=AdminActionStatus.PENDING,
+        db_index=True,
+    )
+    executed_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    cancel_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["target"],
+                condition=models.Q(status="pending"),
+                name="one_pending_admin_action_per_target",
+                violation_error_message="A request about this administrator is already pending.",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.kind} {self.target} ({self.status})"
+
+
+class AdminActionApproval(models.Model):
+    request = models.ForeignKey(
+        AdminActionRequest, on_delete=models.CASCADE, related_name="approvals"
+    )
+    approver = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["request", "approver"], name="one_approval_per_administrator"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.approver} approved {self.request_id}"
 
 
 class AuditQuerySet(models.QuerySet):
