@@ -36,6 +36,7 @@ from .serializers import (
     SelfRegistrationSerializer,
     SetPinSerializer,
     VolunteerApplicationSerializer,
+    VolunteerOfferSerializer,
     member_from_card_token,
 )
 
@@ -263,27 +264,40 @@ class MyAnnouncementsView(MemberHomeMixin, generics.ListAPIView):
 
 
 class MyVolunteerView(MemberHomeMixin, APIView):
-    """The member's volunteer applications; POST to apply as a polling-unit agent."""
+    """The member's offers of party work; POST to offer help.
+
+    Volunteering is not a route to becoming an agent: coordinators accredit
+    agents separately, and agents sign in with their own agent accounts.
+    """
 
     @extend_schema(responses=VolunteerApplicationSerializer(many=True))
     def get(self, request):
-        applications = self.member().volunteering.select_related("member__polling_unit", "agent")
-        return Response(VolunteerApplicationSerializer(applications, many=True).data)
+        offers = self.member().volunteering.select_related(
+            "member__zone", "member__state", "member__lga", "member__ward", "member__polling_unit"
+        )
+        return Response(VolunteerApplicationSerializer(offers, many=True).data)
 
     @extend_schema(
-        request=inline_serializer(
-            "VolunteerRequest",
-            {"message": serializers.CharField(required=False, allow_blank=True)},
-        ),
-        responses={201: VolunteerApplicationSerializer},
+        request=VolunteerOfferSerializer, responses={201: VolunteerApplicationSerializer}
     )
     def post(self, request):
-        application = services.apply_to_volunteer(
-            member=self.member(), message=str(request.data.get("message", ""))[:1000]
-        )
-        return Response(
-            VolunteerApplicationSerializer(application).data, status=status.HTTP_201_CREATED
-        )
+        serializer = VolunteerOfferSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        offer = services.apply_to_volunteer(member=self.member(), **serializer.validated_data)
+        return Response(VolunteerApplicationSerializer(offer).data, status=status.HTTP_201_CREATED)
+
+
+class MyVolunteerWithdrawView(MemberHomeMixin, APIView):
+    """Take back an offer the coordinators have not answered yet."""
+
+    @extend_schema(request=None, responses=VolunteerApplicationSerializer)
+    def post(self, request, uuid):
+        member = self.member()
+        offer = member.volunteering.filter(uuid=uuid).first()
+        if offer is None:
+            raise Http404
+        offer = services.withdraw_volunteering(member=member, application=offer)
+        return Response(VolunteerApplicationSerializer(offer).data)
 
 
 # --- card verification (staff scan a member's QR code) --------------------------

@@ -12,7 +12,7 @@ from apps.accounts.verification import PhoneVerification
 from apps.core.choices import GeographyLevel, Role
 from apps.geography.models import Lga, PollingUnit, State
 from apps.geography.polling_units import load_polling_units
-from apps.membership.models import Member
+from apps.membership.models import AccreditedAgent, Member
 from conftest import PASSWORD
 
 # Code-checking views run outside the request transaction (so failed attempts
@@ -417,28 +417,53 @@ def test_staff_can_view_member_photo(outbox):
 # --- volunteering -------------------------------------------------------------------
 
 
-def test_volunteer_to_accreditation(outbox):
+def offer(client, interests, message=""):
+    return client.post(
+        "/api/v1/me/volunteer/", {"interests": interests, "message": message}, format="json"
+    )
+
+
+def test_members_volunteer_for_party_work_not_as_agents(outbox):
     me, card = member_client(outbox)
-    applied = me.post("/api/v1/me/volunteer/", {"message": "I live beside the unit."})
-    assert applied.status_code == 201
-    assert me.post("/api/v1/me/volunteer/", {}).status_code == 400  # one pending at a time
+    assert offer(me, []).status_code == 400  # at least one kind of work
+    assert offer(me, ["agent"]).status_code == 400  # not a kind of party work
+    sent = offer(me, ["mobilisation", "electionDay"], "Free on weekends.")
+    assert sent.status_code == 201, sent.content
+    assert sent.json()["interests"] == ["mobilisation", "electionDay"]
+    assert offer(me, ["logistics"]).status_code == 400  # one open offer at a time
 
     coordinator = kd_coordinator()
     queue = coordinator.get("/api/v1/volunteers/", {"status": "pending"}).json()
     assert queue["count"] == 1
-    application_id = queue["results"][0]["id"]
-    assert coordinator.post(f"/api/v1/volunteers/{application_id}/decline/", {}).status_code == 400
-    accepted = coordinator.post(f"/api/v1/volunteers/{application_id}/accept/", {}).json()
+    item = queue["results"][0]
+    assert item["member_name"] == "Musa Bello"
+    assert item["scope"]["pollingUnitId"] == "18-23-01-001"
+    assert coordinator.post(f"/api/v1/volunteers/{item['id']}/decline/", {}).status_code == 400
+    accepted = coordinator.post(f"/api/v1/volunteers/{item['id']}/accept/", {}).json()
     assert accepted["status"] == "accepted"
-    assert accepted["agent_id"] == "AG-00001"
 
-    agent = coordinator.get("/api/v1/agents/AG-00001/").json()
-    assert agent["status"] == "pending"
-    assert agent["scope"]["pollingUnitId"] == "18-23-01-001"
-    assert me.get("/api/v1/me/member/").json()["active_accreditation"]["agent_id"] == "AG-00001"
+    # Accepting an offer does not make the member an agent.
+    assert not AccreditedAgent.objects.exists()
+    assert "active_accreditation" not in me.get("/api/v1/me/member/").json()
+    assert "agent_id" not in accepted
 
 
-def test_member_without_polling_unit_cannot_volunteer(outbox):
+def test_member_withdraws_an_offer_and_sends_another(outbox):
+    me, _ = member_client(outbox)
+    other, _ = member_client(outbox, phone="08031234568", vin="90F5B0E8D0295847264")
+    first = offer(me, ["campaign"]).json()
+    assert other.post(f"/api/v1/me/volunteer/{first['id']}/withdraw/").status_code == 404
+    withdrawn = me.post(f"/api/v1/me/volunteer/{first['id']}/withdraw/")
+    assert withdrawn.json()["status"] == "withdrawn"
+    assert me.post(f"/api/v1/me/volunteer/{first['id']}/withdraw/").status_code == 400
+    assert offer(me, ["publicity"]).status_code == 201
+    assert [o["status"] for o in me.get("/api/v1/me/volunteer/").json()] == [
+        "pending",
+        "withdrawn",
+    ]
+
+
+def test_members_without_a_polling_unit_can_volunteer(outbox):
     assisted(kd_coordinator(), outbox)
     member = Member.objects.get()
     user = User.objects.create_user(
@@ -448,7 +473,7 @@ def test_member_without_polling_unit_cannot_volunteer(outbox):
     member.save()
     client = APIClient()
     client.force_authenticate(user)
-    assert client.post("/api/v1/me/volunteer/", {}).status_code == 400
+    assert offer(client, ["logistics"]).status_code == 201
 
 
 # --- announcements ---------------------------------------------------------------

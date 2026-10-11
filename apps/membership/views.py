@@ -157,7 +157,11 @@ class AgentViewSet(
 
 
 class VolunteerViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
-    """Members' applications to serve as agents, for coordinators to decide."""
+    """Members' offers of party work, for their coordinators to answer.
+
+    Accepting an offer does not make the member an agent: agents are accredited
+    separately (see AgentViewSet).
+    """
 
     serializer_class = VolunteerApplicationSerializer
     lookup_field = "uuid"
@@ -168,7 +172,7 @@ class VolunteerViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
 
     def get_permissions(self):
         if self.action in ("accept", "decline"):
-            return [requires(C.ACCREDIT_AGENTS)()]
+            return [requires(C.REGISTER_MEMBERS, C.MANAGE_MEMBERSHIP)()]
         return [requires(*MEMBERSHIP_READERS)()]
 
     def get_queryset(self):
@@ -176,7 +180,9 @@ class VolunteerViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             return VolunteerApplication.objects.none()
         return VolunteerApplication.objects.filter(
             within_scope_q(self.request.user, prefix="member__")
-        ).select_related("member__polling_unit", "agent")
+        ).select_related(
+            "member__zone", "member__state", "member__lga", "member__ward", "member__polling_unit"
+        )
 
     def _decide(self, request, decide):
         serializer = DecisionSerializer(data=request.data)

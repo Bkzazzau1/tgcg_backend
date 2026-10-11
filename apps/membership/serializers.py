@@ -1,10 +1,11 @@
 from django.core import signing
 from django.urls import reverse
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.choices import AccreditationStatus, Gender
-from apps.geography.scope import ScopeField, within_scope_q
+from apps.geography.scope import ScopeField, scope_payload, within_scope_q
 from apps.geography.serializers import NavigationSerializer, navigation_for
 
 from .models import (
@@ -219,10 +220,10 @@ class MemberCardSerializer(serializers.ModelSerializer):
     member_since = serializers.DateTimeField(source="created_at", read_only=True)
     photo_url = serializers.SerializerMethodField()
     qr_token = serializers.SerializerMethodField()
-    active_accreditation = serializers.SerializerMethodField()
 
     class Meta:
         model = Member
+        # No agent details: membership and agent accreditation are separate.
         fields = [
             "membership_number",
             "full_name",
@@ -239,7 +240,6 @@ class MemberCardSerializer(serializers.ModelSerializer):
             "member_since",
             "photo_url",
             "qr_token",
-            "active_accreditation",
         ]
         read_only_fields = [
             "membership_number",
@@ -258,9 +258,6 @@ class MemberCardSerializer(serializers.ModelSerializer):
 
     def get_qr_token(self, member) -> str:
         return card_token(member)
-
-    def get_active_accreditation(self, member) -> dict | None:
-        return _active_accreditation(member)
 
 
 class MemberSelfUpdateSerializer(serializers.ModelSerializer):
@@ -301,13 +298,16 @@ class CardVerificationSerializer(serializers.ModelSerializer):
 
 
 class VolunteerApplicationSerializer(serializers.ModelSerializer):
+    """A member's offer of party work."""
+
     id = serializers.UUIDField(source="uuid", read_only=True)
     member = serializers.CharField(source="member.membership_number", read_only=True)
     member_name = serializers.CharField(source="member.full_name", read_only=True)
-    polling_unit = serializers.CharField(
-        source="member.polling_unit.code", read_only=True, default=None
+    member_phone = serializers.CharField(source="member.phone_number", read_only=True)
+    scope = serializers.SerializerMethodField(help_text="Where the member is.")
+    interests = serializers.ListField(
+        child=serializers.ChoiceField(choices=VolunteerApplication.Interest.choices)
     )
-    agent_id = serializers.CharField(source="agent.agent_id", read_only=True, default=None)
 
     class Meta:
         model = VolunteerApplication
@@ -315,16 +315,31 @@ class VolunteerApplicationSerializer(serializers.ModelSerializer):
             "id",
             "member",
             "member_name",
-            "polling_unit",
-            "role",
+            "member_phone",
+            "scope",
+            "interests",
             "message",
             "status",
             "decision_reason",
             "decided_at",
-            "agent_id",
             "created_at",
         ]
-        read_only_fields = ["role", "status", "decision_reason", "decided_at", "created_at"]
+        read_only_fields = ["status", "decision_reason", "decided_at", "created_at"]
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_scope(self, application) -> dict:
+        return scope_payload(application.member)
+
+
+class VolunteerOfferSerializer(serializers.Serializer):
+    """What a member sends to volunteer."""
+
+    interests = serializers.ListField(
+        child=serializers.ChoiceField(choices=VolunteerApplication.Interest.choices),
+        allow_empty=False,
+        help_text="mobilisation, campaign, logistics, publicity and/or electionDay",
+    )
+    message = serializers.CharField(required=False, allow_blank=True, max_length=1000)
 
 
 class DecisionSerializer(serializers.Serializer):

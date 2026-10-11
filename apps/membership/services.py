@@ -4,7 +4,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.core.choices import AccreditationStatus, GeographyLevel
+from apps.core.choices import AccreditationStatus
 from apps.core.models import Sequence
 from apps.geography.scope import scope_contains
 
@@ -121,16 +121,35 @@ def update_readiness(*, actor, agent: AccreditedAgent, **fields) -> AccreditedAg
 
 
 @transaction.atomic
-def apply_to_volunteer(*, member: Member, message: str = "") -> VolunteerApplication:
-    if member.polling_unit_id is None:
-        raise ValidationError(
-            "Add your polling unit (scan your PVC or ask a coordinator) before volunteering."
-        )
-    if member.accreditations.filter(status__in=[S.PENDING, S.APPROVED]).exists():
-        raise ValidationError("You already have an active accreditation.")
+def apply_to_volunteer(
+    *, member: Member, interests: list[str], message: str = ""
+) -> VolunteerApplication:
+    """A member offers to help with party work. It does not make them an agent."""
+    chosen = list(dict.fromkeys(interests or []))
+    if not chosen:
+        raise ValidationError({"interests": "Choose at least one way you can help."})
+    if not set(chosen) <= set(VolunteerApplication.Interest.values):
+        raise ValidationError({"interests": "Choose from the listed kinds of party work."})
     if member.volunteering.filter(status=VolunteerApplication.Status.PENDING).exists():
-        raise ValidationError("You already have a pending application.")
-    return VolunteerApplication.objects.create(member=member, message=message.strip())
+        raise ValidationError(
+            "You already have an offer with your coordinators. Withdraw it to send a new one."
+        )
+    return VolunteerApplication.objects.create(
+        member=member, interests=chosen, message=message.strip()
+    )
+
+
+@transaction.atomic
+def withdraw_volunteering(*, member: Member, application: VolunteerApplication):
+    """The member takes back an offer their coordinators have not answered yet."""
+    application = VolunteerApplication.objects.select_for_update().get(pk=application.pk)
+    if application.member_id != member.pk:
+        raise PermissionDenied("This offer belongs to another member.")
+    if application.status != VolunteerApplication.Status.PENDING:
+        raise ValidationError(f"This offer is already {application.status}.")
+    application.status = VolunteerApplication.Status.WITHDRAWN
+    application.save(update_fields=["status", "updated_at"])
+    return application
 
 
 def _lock_application(actor, application):
@@ -141,25 +160,15 @@ def _lock_application(actor, application):
     )
     _require_scope(actor, application.member, "member")
     if application.status != VolunteerApplication.Status.PENDING:
-        raise ValidationError(f"This application is already {application.status}.")
+        raise ValidationError(f"This offer is already {application.status}.")
     return application
 
 
 @transaction.atomic
 def accept_volunteer(*, actor, application: VolunteerApplication, reason: str = ""):
-    """Accept and open a pending polling-unit accreditation for the member."""
+    """Accept a member's offer of party work. Agents are accredited separately."""
     application = _lock_application(actor, application)
-    member = application.member
-    agent = accredit(
-        actor=actor,
-        member=member,
-        role=application.role,
-        scope_level=GeographyLevel.POLLING_UNIT,
-        polling_unit=member.polling_unit,
-        registered_phone_number=member.phone_number,
-    )
     application.status = VolunteerApplication.Status.ACCEPTED
-    application.agent = agent
     application.decided_by = actor
     application.decided_at = timezone.now()
     application.decision_reason = reason.strip()
@@ -171,7 +180,7 @@ def accept_volunteer(*, actor, application: VolunteerApplication, reason: str = 
 def decline_volunteer(*, actor, application: VolunteerApplication, reason: str):
     application = _lock_application(actor, application)
     if not reason.strip():
-        raise ValidationError({"reason": "Tell the member why their application was declined."})
+        raise ValidationError({"reason": "Tell the member why their offer was declined."})
     application.status = VolunteerApplication.Status.DECLINED
     application.decided_by = actor
     application.decided_at = timezone.now()

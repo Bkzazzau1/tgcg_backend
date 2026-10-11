@@ -101,6 +101,11 @@ api_v1 = [
     path("me/polling-unit/", reg.MyPollingUnitView.as_view(), name="my-polling-unit"),
     path("me/announcements/", reg.MyAnnouncementsView.as_view(), name="my-announcements"),
     path("me/volunteer/", reg.MyVolunteerView.as_view(), name="my-volunteer"),
+    path(
+        "me/volunteer/<uuid:uuid>/withdraw/",
+        reg.MyVolunteerWithdrawView.as_view(),
+        name="my-volunteer-withdraw",
+    ),
     path("", include(router.urls)),
 ]
 

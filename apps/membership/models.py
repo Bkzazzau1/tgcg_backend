@@ -240,7 +240,11 @@ class AccreditationEvent(models.Model):
 
 
 class VolunteerApplication(TimeStampedModel):
-    """A member offering to serve as an agent, reviewed by a coordinator."""
+    """A member offering to help with party work, answered by a coordinator.
+
+    Volunteering is not a route to becoming an agent: polling-unit agents are
+    accredited by coordinators and sign in with their own agent accounts.
+    """
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -248,8 +252,17 @@ class VolunteerApplication(TimeStampedModel):
         DECLINED = "declined", "Declined"
         WITHDRAWN = "withdrawn", "Withdrawn"
 
+    class Interest(models.TextChoices):
+        MOBILISATION = "mobilisation", "Mobilisation and door-to-door"
+        CAMPAIGN = "campaign", "Campaign events and rallies"
+        LOGISTICS = "logistics", "Logistics and transport"
+        PUBLICITY = "publicity", "Publicity and social media"
+        ELECTION_DAY = "electionDay", "Election-day support"
+
     member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="volunteering")
-    role = models.CharField(max_length=32, choices=Role.choices, default=Role.POLLING_UNIT_AGENT)
+    interests = models.JSONField(
+        default=list, blank=True, help_text="What the member offers to help with (Interest values)."
+    )
     message = models.TextField(blank=True, max_length=1000)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     decided_by = models.ForeignKey(
@@ -261,13 +274,6 @@ class VolunteerApplication(TimeStampedModel):
     )
     decided_at = models.DateTimeField(null=True, blank=True)
     decision_reason = models.TextField(blank=True)
-    agent = models.OneToOneField(
-        "AccreditedAgent",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="application",
-    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -276,9 +282,9 @@ class VolunteerApplication(TimeStampedModel):
                 fields=["member"],
                 condition=Q(status="pending"),
                 name="one_pending_application_per_member",
-                violation_error_message="You already have a pending application.",
+                violation_error_message="You already have a pending offer to volunteer.",
             ),
         ]
 
     def __str__(self):
-        return f"{self.member.membership_number} → {self.role} ({self.status})"
+        return f"{self.member.membership_number} volunteers ({self.status})"
