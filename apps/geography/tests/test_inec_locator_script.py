@@ -157,3 +157,35 @@ def test_harvest_writes_rows_and_resumes(tmp_path, capsys):
     retry = FakeLocator()
     locator.harvest(retry, out, state=18, retry_missing=True)
     assert retry.directions_asked == [56437]
+
+
+class ManyUnits(FakeLocator):
+    """One ward of 15 units; INEC has coordinates only for units 13-15."""
+
+    def choices(self, kind, parent_field, parent_id):
+        if kind == "pus":
+            return [(1000 + n, n, f"UNIT {n}") for n in range(1, 16)]
+        return super().choices(kind, parent_field, parent_id)
+
+    def directions(self, state_id, lga_id, ward_id, unit_id):
+        self.directions_asked.append(unit_id)
+        if unit_id - 1000 >= 13:
+            return 302, headers(Location=REDIRECT), ""
+        return 302, headers(Location="https://maps.google.com/?q=UNIT, ZARIA, KADUNA"), ""
+
+
+def test_guard_stops_when_new_units_have_no_coordinates(tmp_path):
+    with pytest.raises(SystemExit, match="first 10 new units"):
+        locator.harvest(ManyUnits(), tmp_path / "locator.csv", state=18)
+
+
+def test_guard_ignores_units_retried_for_missing_locations(tmp_path):
+    out = tmp_path / "locator.csv"
+    with out.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, locator.FIELDS)
+        writer.writeheader()
+        for n in range(1, 13):  # 12 units INEC could not place last time
+            writer.writerow({"code": f"18-23-01-{n:03d}", "status": "no_location"})
+    # Retrying them first must not look like a format change.
+    retry = ManyUnits()
+    assert locator.harvest(retry, out, state=18, retry_missing=True) == (15, 3)

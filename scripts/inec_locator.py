@@ -231,23 +231,25 @@ class Locator:
 
 
 def read_finished(path, retry_missing=False):
+    """Codes not to fetch again, and codes INEC gave no location for last time."""
     if not os.path.exists(path):
-        return set()
-    finished = set()
+        return set(), set()
     with open(path, encoding="utf-8", newline="") as handle:
-        for row in csv.DictReader(handle):
-            if row["status"] in FINISHED and not (retry_missing and row["status"] == "no_location"):
-                finished.add(row["code"])
-    return finished
+        latest = {row["code"]: row["status"] for row in csv.DictReader(handle)}
+    missing = {code for code, status in latest.items() if status == "no_location"}
+    finished = {code for code, status in latest.items() if status in FINISHED}
+    return (finished - missing if retry_missing else finished), missing
 
 
 def harvest(locator, out, *, state=None, lga=None, limit=None, samples=None, retry_missing=False):
     """Walk the locator and append one row per polling unit to [out]."""
-    finished = read_finished(out, retry_missing)
+    finished, known_missing = read_finished(out, retry_missing)
     cache_path = Path(str(out) + ".lists.json")
     cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
     saved_samples = 0
     fetched = located = 0
+    # Units fetched for the first time, for the format-change guard below.
+    fresh = fresh_located = 0
 
     def choices(kind, parent_field, parent_id):
         key = f"{'units' if kind == 'pus' else kind}/{parent_id}"
@@ -325,12 +327,16 @@ def harvest(locator, out, *, state=None, lga=None, limit=None, samples=None, ret
                                 located += 1
                                 ward_found += 1
                             # Guard against a format change: stop early rather than walk
-                            # the whole country finding nothing.
-                            if fetched == 10 and located == 0:
-                                raise SystemExit(
-                                    "No coordinates in the first 10 responses. The locator may "
-                                    "have changed; check the --samples folder."
-                                )
+                            # the whole country finding nothing. Units retried because
+                            # they had no location before do not count.
+                            if code not in known_missing:
+                                fresh += 1
+                                fresh_located += row["status"] == "ok"
+                                if fresh == 10 and fresh_located == 0:
+                                    raise SystemExit(
+                                        "No coordinates in the first 10 new units. The locator "
+                                        "may have changed; check the --samples folder."
+                                    )
                         if ward_tried:
                             print(
                                 f"{ward_code} {lga_name} / {ward_name}: "
