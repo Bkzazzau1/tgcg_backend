@@ -81,8 +81,9 @@ Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
 | Makarfi | 208 | 201 | 11 | 7 | 0 |
 | Sabon Gari | 398 | 398 | 28 | 0 | 0 |
 | Sanga | 195 | 130 | 4 | 65 | 0 |
+| Soba | 298 | 287 | 4 | 11 | 0 |
 | Zaria | 584 | 584 | 41 | 0 | 0 |
-| **Total** | **7,377** | **7,135** | **596** | **211** | **31** |
+| **Total** | **7,675** | **7,422** | **600** | **222** | **31** |
 
 - **Located** units are imported. **Outside own ward** counts located units
   that fall just outside their ward on GRID3's operational ward map, whose
