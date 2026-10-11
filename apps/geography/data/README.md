@@ -74,8 +74,9 @@ Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
 | Kagarko | 222 | 209 | 19 | 13 | 0 |
 | Kajuru | 188 | 179 | 7 | 7 | 2 |
 | Kaura | 186 | 182 | 8 | 4 | 0 |
+| Kauru | 243 | 235 | 7 | 8 | 0 |
 | Zaria | 584 | 584 | 41 | 0 | 0 |
-| **Total** | **5,373** | **5,276** | **466** | **67** | **30** |
+| **Total** | **5,616** | **5,511** | **473** | **75** | **30** |
 
 - **Located** units are imported. **Outside own ward** counts located units
   that fall just outside their ward on GRID3's operational ward map, whose
