@@ -12,6 +12,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.utils import timezone
 
+from apps.core.permissions import Capability
 from apps.geography.gps import distance_m
 from apps.geography.models import PollingUnit
 from apps.geography.scope import ScopeRef, scope_contains
@@ -23,7 +24,8 @@ Pin = PollingUnitPin
 
 
 def require_unit_in_scope(actor, unit: PollingUnit):
-    if not scope_contains(actor, ScopeRef.resolve("pollingUnit", unit.code)):
+    unit_scope = ScopeRef.resolve("pollingUnit", unit.code)
+    if not scope_contains(actor, unit_scope, permission=Capability.CONFIRM_AGENT_LOCATION):
         raise PermissionDenied("This polling unit is outside your operational scope.")
 
 

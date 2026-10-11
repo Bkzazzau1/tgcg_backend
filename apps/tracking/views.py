@@ -2,7 +2,7 @@ from collections import Counter
 from datetime import datetime, time, timedelta
 
 from django.conf import settings
-from django.db.models import OuterRef, Subquery
+from django.db.models import OuterRef, Q, Subquery
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
@@ -15,13 +15,16 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User
 from apps.core.choices import GeographyLevel, Role
-from apps.core.permissions import Capability, has_capability, requires
+from apps.core.permissions import Capability, requires
 from apps.geography.gps import GpsFixSerializer, GpsReadSerializer, LocationStatus
 from apps.geography.scope import (
     LEVEL_FIELD,
     ScopeRef,
+    actor_area,
+    any_of,
     scope_contains,
     scope_payload,
+    within_scope_any_q,
     within_scope_q,
 )
 from apps.results.collation import CHILD_LEVEL, _units_within
@@ -87,10 +90,14 @@ class CheckInViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
         if getattr(self, "swagger_fake_view", False):
             return AgentCheckIn.objects.none()
         user = self.request.user
-        if has_capability(user, C.VIEW_SITUATION_ROOM, C.CONFIRM_AGENT_LOCATION):
-            queryset = AgentCheckIn.objects.filter(within_scope_q(user, prefix="agent__"))
-        else:
-            queryset = AgentCheckIn.objects.filter(agent=user)
+        queryset = AgentCheckIn.objects.filter(
+            any_of(
+                within_scope_any_q(
+                    user, (C.VIEW_SITUATION_ROOM, C.CONFIRM_AGENT_LOCATION), prefix="agent__"
+                ),
+                Q(agent=user),
+            )
+        )
         return queryset.select_related("agent", "polling_unit", "confirmed_by")
 
     @extend_schema(request=CheckInCreateSerializer, responses={201: CheckInSerializer})
@@ -168,14 +175,15 @@ class PingsView(APIView):
         return Response({"stored": stored})
 
 
-def _area(request):
+def _area(request, permission=Capability.VIEW_SITUATION_ROOM):
+    """The area asked for (level and code), or the user's own for `permission`."""
     level = request.query_params.get("level")
     scope = (
         ScopeRef.resolve(level, request.query_params.get("code"))
         if level
-        else ScopeRef.of(request.user)
+        else actor_area(request.user, permission)
     )
-    if not scope_contains(request.user, scope):
+    if not scope_contains(request.user, scope, permission=permission):
         raise PermissionDenied("This area is outside your operational scope.")
     return scope
 

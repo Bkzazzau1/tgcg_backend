@@ -14,10 +14,12 @@ from apps.accounts.phone import normalize_ng_phone
 from apps.core.choices import (
     AccreditationStatus,
     Gender,
+    MembershipState,
     RecordOrigin,
     RecordStatus,
     RegistrationChannel,
     Role,
+    VerificationStatus,
 )
 from apps.core.models import TimeStampedModel
 from apps.geography.scope import ScopedModel
@@ -101,6 +103,36 @@ class Member(TimeStampedModel, ScopedModel):
     status = models.CharField(
         max_length=16, choices=RecordStatus.choices, default=RecordStatus.SUBMITTED
     )
+    # Operational roles need a verified identity and an active membership.
+    verification_status = models.CharField(
+        max_length=16,
+        choices=VerificationStatus.choices,
+        default=VerificationStatus.UNVERIFIED,
+        db_index=True,
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    membership_state = models.CharField(
+        max_length=16,
+        choices=MembershipState.choices,
+        default=MembershipState.ACTIVE,
+        db_index=True,
+    )
+    state_changed_at = models.DateTimeField(null=True, blank=True)
+    state_changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    state_reason = models.TextField(blank=True)
     origin = models.CharField(
         max_length=16, choices=RecordOrigin.choices, default=RecordOrigin.LOCAL_ENTRY
     )
@@ -148,6 +180,14 @@ class Member(TimeStampedModel, ScopedModel):
     @property
     def has_pvc(self) -> bool:
         return bool(self.vin)
+
+    @property
+    def can_hold_roles(self) -> bool:
+        """Verified identity and active membership: eligible for operational roles."""
+        return (
+            self.verification_status == VerificationStatus.VERIFIED
+            and self.membership_state == MembershipState.ACTIVE
+        )
 
 
 class AccreditedAgent(TimeStampedModel, ScopedModel):

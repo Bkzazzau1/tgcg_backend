@@ -150,3 +150,18 @@ class Gender(models.TextChoices):
 class RegistrationChannel(models.TextChoices):
     SELF = "self", "Self-registration (app)"
     ASSISTED = "assisted", "Registered by a coordinator"
+
+
+class VerificationStatus(models.TextChoices):
+    """Whether a member's identity is verified, which operational roles require."""
+
+    UNVERIFIED = "unverified", "Not verified"
+    PENDING_REVIEW = "pendingReview", "Awaiting review"
+    VERIFIED = "verified", "Verified"
+    REJECTED = "rejected", "Rejected"
+
+
+class MembershipState(models.TextChoices):
+    ACTIVE = "active", "Active"
+    SUSPENDED = "suspended", "Suspended"
+    DEACTIVATED = "deactivated", "Deactivated"

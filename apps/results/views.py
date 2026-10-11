@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -9,9 +10,16 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.choices import GeographyLevel
-from apps.core.permissions import Capability, has_capability, requires
+from apps.core.permissions import Capability, requires
 from apps.field.views import EvidenceActionsMixin
-from apps.geography.scope import SCOPE_FIELDS, ScopeRef, scope_contains, within_scope_q
+from apps.geography.scope import (
+    SCOPE_FIELDS,
+    ScopeRef,
+    actor_area,
+    any_of,
+    scope_contains,
+    within_scope_any_q,
+)
 
 from . import collation, services
 from .models import Election, Party, ResultSubmission
@@ -31,9 +39,9 @@ RESULT_READERS = (C.VIEW_COLLATION, C.VERIFY_ELECTION_RESULT, C.DISPUTE_ELECTION
 
 def visible_results(user):
     """Results in scope for reviewers and collation viewers; otherwise own only."""
-    if has_capability(user, *RESULT_READERS):
-        return ResultSubmission.objects.filter(within_scope_q(user))
-    return ResultSubmission.objects.filter(submitted_by=user)
+    return ResultSubmission.objects.filter(
+        any_of(within_scope_any_q(user, RESULT_READERS), Q(submitted_by=user))
+    )
 
 
 class PartyViewSet(viewsets.ReadOnlyModelViewSet):
@@ -171,9 +179,9 @@ class CollationView(APIView):
         scope = (
             ScopeRef.resolve(level, request.query_params.get("code"))
             if level
-            else ScopeRef.of(request.user)
+            else actor_area(request.user, C.VIEW_COLLATION)
         )
-        if not scope_contains(request.user, scope):
+        if not scope_contains(request.user, scope, permission=C.VIEW_COLLATION):
             raise PermissionDenied("This area is outside your operational scope.")
         if not (scope_contains(election, scope) or scope_contains(scope, election)):
             return Response(

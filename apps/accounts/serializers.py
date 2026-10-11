@@ -1,6 +1,9 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from apps.access.engine import active_grants
+from apps.access.serializers import GrantSerializer
 from apps.core.permissions import capabilities_for
 from apps.geography.scope import ScopeField
 
@@ -10,6 +13,9 @@ from .models import User
 class UserProfileSerializer(serializers.ModelSerializer):
     scope = ScopeField(read_only=True)
     capabilities = serializers.SerializerMethodField()
+    access = serializers.SerializerMethodField(
+        help_text="Where the access comes from: each appointment, or a legacy role."
+    )
 
     class Meta:
         model = User
@@ -21,11 +27,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "role",
             "scope",
             "capabilities",
+            "access",
         ]
         read_only_fields = fields
 
     def get_capabilities(self, user) -> list[str]:
         return sorted(capabilities_for(user))
+
+    @extend_schema_field(GrantSerializer(many=True))
+    def get_access(self, user) -> list:
+        return GrantSerializer(active_grants(user), many=True).data
 
 
 class LoginSerializer(TokenObtainPairSerializer):

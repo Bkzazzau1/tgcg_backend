@@ -133,7 +133,7 @@ def submit_result(
     submission.normalize_scope()
     if not scope_contains(election, submission):
         raise ValidationError({"polling_unit": "This polling unit is not part of the election."})
-    if not scope_contains(actor, submission):
+    if not scope_contains(actor, submission, permission=C.SUBMIT_ELECTION_RESULT):
         raise PermissionDenied("The polling unit is outside your operational scope.")
 
     parties = {party.acronym: party for party in election.parties.all()}
@@ -201,10 +201,10 @@ def submit_result(
 
 def _lock_for_review(actor, submission, capability):
     submission = ResultSubmission.objects.select_for_update().get(pk=submission.pk)
-    if not has_capability(actor, capability):
+    if not scope_contains(actor, submission, permission=capability):
+        if has_capability(actor, capability):
+            raise PermissionDenied("The result is outside your operational scope.")
         raise PermissionDenied("Your role does not permit this action.")
-    if not scope_contains(actor, submission):
-        raise PermissionDenied("The result is outside your operational scope.")
     return submission
 
 

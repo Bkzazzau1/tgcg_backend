@@ -19,8 +19,9 @@ from apps.accounts.models import User
 from apps.accounts.verification import PhoneVerification, consume_code, require_phone, send_code
 from apps.core.choices import GeographyLevel, RegistrationChannel, Role
 from apps.core.models import Sequence
+from apps.core.permissions import Capability
 from apps.geography.models import PollingUnit
-from apps.geography.scope import SCOPE_FIELDS, scope_contains
+from apps.geography.scope import SCOPE_FIELDS, scope_contains_any
 
 from .models import Member
 
@@ -266,7 +267,9 @@ def assisted_register(
         **location,
     )
     member.full_clean(exclude=["membership_number"])
-    if not scope_contains(actor, member):
+    if not scope_contains_any(
+        actor, member, (Capability.REGISTER_MEMBERS, Capability.MANAGE_MEMBERSHIP)
+    ):
         raise PermissionDenied("The member's location is outside your operational scope.")
 
     consume_code(phone, PURPOSE.REGISTER, code)

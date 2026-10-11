@@ -8,6 +8,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.core.choices import Role
+from apps.core.permissions import Capability
 from apps.geography.gps import LocationStatus, assess
 from apps.geography.models import PollingUnit
 from apps.geography.scope import ScopeRef, scope_contains
@@ -48,7 +49,8 @@ def confirm_check_in(*, actor, check_in: AgentCheckIn) -> AgentCheckIn:
         AgentCheckIn.objects.select_for_update().select_related("polling_unit").get(pk=check_in.pk)
     )
     unit = check.polling_unit
-    if not scope_contains(actor, ScopeRef.resolve("pollingUnit", unit.code)):
+    unit_scope = ScopeRef.resolve("pollingUnit", unit.code)
+    if not scope_contains(actor, unit_scope, permission=Capability.CONFIRM_AGENT_LOCATION):
         raise PermissionDenied("This polling unit is outside your operational scope.")
     if check.agent_id == actor.pk:
         raise PermissionDenied("You cannot confirm your own check-in.")

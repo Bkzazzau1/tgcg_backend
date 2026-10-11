@@ -6,11 +6,13 @@ from django.utils import timezone
 
 from apps.core.choices import AccreditationStatus
 from apps.core.models import Sequence
-from apps.geography.scope import scope_contains
+from apps.core.permissions import Capability
+from apps.geography.scope import scope_contains_any
 
 from .models import AccreditationEvent, AccreditedAgent, Member, VolunteerApplication
 
 S = AccreditationStatus
+C = Capability
 
 # Allowed accreditation transitions. Revocation is final.
 TRANSITIONS = {
@@ -22,8 +24,9 @@ TRANSITIONS = {
 REASON_REQUIRED = {S.SUSPENDED, S.REVOKED}
 
 
-def _require_scope(actor, target, what):
-    if not scope_contains(actor, target):
+def _require_scope(actor, target, what, *permissions):
+    """One of `permissions` must be held by a grant covering `target`."""
+    if not scope_contains_any(actor, target, permissions):
         raise PermissionDenied(f"The {what} is outside your operational scope.")
 
 
@@ -42,11 +45,11 @@ def _save_unique(instance):
 
 @transaction.atomic
 def update_member(*, actor, member: Member, **fields) -> Member:
-    _require_scope(actor, member, "member")
+    _require_scope(actor, member, "member", C.MANAGE_MEMBERSHIP)
     for name, value in fields.items():
         setattr(member, name, value)
     member.full_clean(exclude=["membership_number"])
-    _require_scope(actor, member, "member's new registration area")
+    _require_scope(actor, member, "member's new registration area", C.MANAGE_MEMBERSHIP)
     _save_unique(member)
     return member
 
@@ -59,13 +62,13 @@ def accredit(*, actor, member: Member, **fields) -> AccreditedAgent:
         if existing is not None:
             return existing
 
-    _require_scope(actor, member, "member")
+    _require_scope(actor, member, "member", C.ACCREDIT_AGENTS)
     if member.accreditations.filter(status__in=[S.PENDING, S.APPROVED]).exists():
         raise ValidationError({"member": "This member already has an active accreditation."})
 
     agent = AccreditedAgent(member=member, created_by=actor, status=S.PENDING, **fields)
     agent.full_clean(exclude=["agent_id", "member"])
-    _require_scope(actor, agent, "assignment")
+    _require_scope(actor, agent, "assignment", C.ACCREDIT_AGENTS)
     agent.agent_id = f"AG-{Sequence.next_value('agent'):05d}"
     agent.status_changed_at = timezone.now()
     _save_unique(agent)
@@ -80,7 +83,7 @@ def change_status(
     *, actor, agent: AccreditedAgent, status: str, reason: str = ""
 ) -> AccreditedAgent:
     agent = AccreditedAgent.objects.select_for_update().get(pk=agent.pk)
-    _require_scope(actor, agent, "agent")
+    _require_scope(actor, agent, "agent", C.ACCREDIT_AGENTS)
     reason = reason.strip()
 
     if status == agent.status:
@@ -108,7 +111,7 @@ def change_status(
 
 @transaction.atomic
 def update_readiness(*, actor, agent: AccreditedAgent, **fields) -> AccreditedAgent:
-    _require_scope(actor, agent, "agent")
+    _require_scope(actor, agent, "agent", C.ACCREDIT_AGENTS, C.MANAGE_AGENT_ASSIGNMENTS)
     if agent.status == S.REVOKED:
         raise ValidationError("A revoked accreditation cannot be updated.")
     for name, value in fields.items():
@@ -158,7 +161,7 @@ def _lock_application(actor, application):
         .select_related("member")
         .get(pk=application.pk)
     )
-    _require_scope(actor, application.member, "member")
+    _require_scope(actor, application.member, "member", C.REGISTER_MEMBERS, C.MANAGE_MEMBERSHIP)
     if application.status != VolunteerApplication.Status.PENDING:
         raise ValidationError(f"This offer is already {application.status}.")
     return application

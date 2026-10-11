@@ -44,9 +44,18 @@ STATUS_CAPABILITY = {
 NOTE_REQUIRED = {I.ESCALATED, I.RESOLVED, I.CLOSED}
 
 
-def _require_scope(actor, target, what):
-    if not scope_contains(actor, target):
+def _require_scope(actor, target, what, permission):
+    if not scope_contains(actor, target, permission=permission):
         raise PermissionDenied(f"The {what} is outside your operational scope.")
+
+
+def _require_any(actor, target, permissions, refusal):
+    """One of `permissions` must be held by a grant that covers `target`."""
+    if any(scope_contains(actor, target, permission=p) for p in permissions):
+        return
+    if has_capability(actor, *permissions):
+        raise PermissionDenied("The incident is outside your operational scope.")
+    raise PermissionDenied(refusal)
 
 
 def _save(instance, exclude=None):
@@ -65,7 +74,7 @@ def report_incident(*, actor, **fields) -> Incident:
         existing = Incident.objects.filter(client_id=client_id, reporter=actor).first()
         if existing is not None:
             return existing  # offline retry
-    default_to_actor_scope(actor, fields)
+    default_to_actor_scope(actor, fields, C.CREATE_INCIDENT)
     gps = fields.pop("gps", None)
     if gps is None and fields.get("latitude") is not None:
         # Older clients send bare coordinates without accuracy.
@@ -74,7 +83,7 @@ def report_incident(*, actor, **fields) -> Incident:
     incident.normalize_scope()
     incident.apply_fix(gps, incident.polling_unit)
     incident.full_clean(exclude=["reference", "severity_rank"])
-    _require_scope(actor, incident, "incident location")
+    _require_scope(actor, incident, "incident location", C.CREATE_INCIDENT)
     incident.reference = f"INC-{Sequence.next_value('incident'):06d}"
     _save(incident, exclude=["severity_rank"])
     IncidentEvent.objects.create(
@@ -93,11 +102,13 @@ def _lock(incident):
 @transaction.atomic
 def change_incident_status(*, actor, incident, status, note="") -> Incident:
     incident = _lock(incident)
-    _require_scope(actor, incident, "incident")
     note = note.strip()
-
-    if not has_capability(actor, *STATUS_CAPABILITY.get(status, ())):
-        raise PermissionDenied("Your role cannot move an incident to this status.")
+    _require_any(
+        actor,
+        incident,
+        STATUS_CAPABILITY.get(status, ()),
+        "Your role cannot move an incident to this status.",
+    )
     if status == incident.status:
         raise ValidationError({"status": f"The incident is already {status}."})
     if status not in TRANSITIONS[incident.status]:
@@ -132,9 +143,7 @@ def change_incident_status(*, actor, incident, status, note="") -> Incident:
 @transaction.atomic
 def assign_incident(*, actor, incident, team, note="") -> Incident:
     incident = _lock(incident)
-    _require_scope(actor, incident, "incident")
-    if not has_capability(actor, C.ASSIGN_INCIDENT):
-        raise PermissionDenied("Your role cannot assign incidents.")
+    _require_any(actor, incident, (C.ASSIGN_INCIDENT,), "Your role cannot assign incidents.")
     team = " ".join(team.split())
     if not team:
         raise ValidationError({"team": "A response team is required."})
@@ -167,12 +176,12 @@ def submit_report(*, actor, **fields) -> FieldReport:
         existing = FieldReport.objects.filter(client_id=client_id, reporter=actor).first()
         if existing is not None:
             return existing
-    default_to_actor_scope(actor, fields)
+    default_to_actor_scope(actor, fields, C.SUBMIT_FIELD_REPORT)
     report = FieldReport(reporter=actor, status=RecordStatus.SUBMITTED, **fields)
     report.full_clean(exclude=["reference"])
-    _require_scope(actor, report, "report location")
+    _require_scope(actor, report, "report location", C.SUBMIT_FIELD_REPORT)
     if report.incident is not None:
-        _require_scope(actor, report.incident, "linked incident")
+        _require_scope(actor, report.incident, "linked incident", C.SUBMIT_FIELD_REPORT)
     report.reference = f"RPT-{Sequence.next_value('field_report'):06d}"
     _save(report)
     return report
@@ -181,7 +190,7 @@ def submit_report(*, actor, **fields) -> FieldReport:
 @transaction.atomic
 def review_report(*, actor, report, accepted: bool, reason="") -> FieldReport:
     report = FieldReport.objects.select_for_update().get(pk=report.pk)
-    _require_scope(actor, report, "report")
+    _require_scope(actor, report, "report", C.VERIFY_FIELD_REPORT)
     if report.reporter_id == actor.pk:
         raise PermissionDenied("You cannot review your own report.")
     if report.status not in (RecordStatus.SUBMITTED, RecordStatus.UNDER_REVIEW):
@@ -241,7 +250,7 @@ def _max_bytes(evidence_type):
 def can_add_evidence(actor, parent) -> bool:
     if parent.reporter_id == actor.pk:
         return True
-    return has_capability(actor, C.MANAGE_EVIDENCE) and scope_contains(actor, parent)
+    return scope_contains(actor, parent, permission=C.MANAGE_EVIDENCE)
 
 
 @transaction.atomic

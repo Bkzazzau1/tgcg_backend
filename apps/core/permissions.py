@@ -45,6 +45,20 @@ class Capability(models.TextChoices):
     EXPORT_REPORTS = "exportReports"
     MANAGE_USERS = "manageUsers"
     MANAGE_SYSTEM_SETTINGS = "manageSystemSettings"
+    # Roles, appointments and delegation (apps.access).
+    VIEW_ROLES = "viewRoles"
+    MANAGE_ROLES = "manageRoles"
+    ASSIGN_ROLES = "assignRoles"
+    MANAGE_ASSIGNMENTS = "manageAssignments"
+    DELEGATE_AUTHORITY = "delegateAuthority"
+    # Membership administration.
+    VIEW_MEMBER_SENSITIVE_DATA = "viewMemberSensitiveData"
+    VERIFY_MEMBER_IDENTITY = "verifyMemberIdentity"
+    SUSPEND_MEMBERS = "suspendMembers"
+    REVIEW_POLLING_UNIT_CHANGES = "reviewPollingUnitChanges"
+    # Protected: only National Administrators, never delegable.
+    APPOINT_NATIONAL_ADMINISTRATOR = "appointNationalAdministrator"
+    APPROVE_ADMINISTRATOR_REMOVAL = "approveAdministratorRemoval"
 
 
 C = Capability
@@ -289,14 +303,21 @@ ROLE_CAPABILITIES[Role.MEMBER] = frozenset()
 
 
 def is_staff_operator(user) -> bool:
-    """Authenticated platform operator (any role except plain member)."""
-    return bool(getattr(user, "is_authenticated", False)) and user.role != Role.MEMBER
+    """Authenticated account holding at least one operational permission."""
+    return bool(capabilities_for(user))
 
 
 def capabilities_for(user) -> frozenset[str]:
+    """Every permission the user holds somewhere (apps.access.engine).
+
+    Use this only for coarse checks ("may use this endpoint at all"); checks
+    on a resource in an area go through the engine with that area.
+    """
     if not getattr(user, "is_authenticated", False) or not user.is_active:
         return frozenset()
-    return ROLE_CAPABILITIES.get(user.role, frozenset())
+    from apps.access.engine import permissions_for
+
+    return permissions_for(user)
 
 
 def has_capability(user, *capabilities: str) -> bool:

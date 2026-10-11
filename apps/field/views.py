@@ -13,8 +13,14 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.choices import SEVERITY_RANK, IncidentSeverity
-from apps.core.permissions import Capability, has_capability, requires
-from apps.geography.scope import SCOPE_FIELDS, within_scope_q
+from apps.core.permissions import Capability, requires
+from apps.geography.scope import (
+    SCOPE_FIELDS,
+    any_of,
+    scope_contains,
+    within_scope_any_q,
+    within_scope_q,
+)
 from apps.membership.serializers import flatten_scope
 
 from . import services
@@ -34,16 +40,19 @@ C = Capability
 
 
 def visible_incidents(user):
-    """Incidents a user may see: everything in scope, or only their own."""
-    if has_capability(user, C.VIEW_INCIDENTS):
-        return Incident.objects.filter(within_scope_q(user))
-    return Incident.objects.filter(reporter=user)
+    """Incidents a user may see: their own, and all where they may view incidents."""
+    return Incident.objects.filter(
+        any_of(within_scope_q(user, permission=C.VIEW_INCIDENTS), Q(reporter=user))
+    )
 
 
 def visible_reports(user):
-    if has_capability(user, C.VERIFY_FIELD_REPORT, C.VIEW_INCIDENTS):
-        return FieldReport.objects.filter(within_scope_q(user))
-    return FieldReport.objects.filter(reporter=user)
+    return FieldReport.objects.filter(
+        any_of(
+            within_scope_any_q(user, (C.VERIFY_FIELD_REPORT, C.VIEW_INCIDENTS)),
+            Q(reporter=user),
+        )
+    )
 
 
 SCOPE_FILTER_FIELDS = {
@@ -96,7 +105,7 @@ class EvidenceActionsMixin:
         if request.method == "GET":
             if not (
                 parent.reporter_id == request.user.pk
-                or has_capability(request.user, C.VIEW_EVIDENCE)
+                or scope_contains(request.user, parent, permission=C.VIEW_EVIDENCE)
             ):
                 raise PermissionDenied("Your role does not permit viewing evidence.")
             return Response(
@@ -260,7 +269,7 @@ class EvidenceDownloadView(APIView):
         if not visible:
             return Response(status=status.HTTP_404_NOT_FOUND)
         is_own = evidence.parent.reporter_id == user.pk or evidence.uploader_id == user.pk
-        if not (is_own or has_capability(user, C.VIEW_EVIDENCE)):
+        if not (is_own or scope_contains(user, evidence.parent, permission=C.VIEW_EVIDENCE)):
             raise PermissionDenied("Your role does not permit viewing evidence.")
 
         response = FileResponse(

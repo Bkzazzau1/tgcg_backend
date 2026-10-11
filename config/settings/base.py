@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.results",
     "apps.announcements",
     "apps.tracking",
+    "apps.access",
 ]
 
 MIDDLEWARE = [
@@ -50,6 +51,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.access.middleware.AccessCacheMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -162,6 +164,7 @@ SPECTACULAR_SETTINGS = {
         "RecordStatus": "apps.core.choices.RecordStatus",
         "RecordOrigin": "apps.core.choices.RecordOrigin",
         "Role": "apps.core.choices.Role",
+        "PermissionCode": "apps.core.permissions.Capability",
         "GeographyLevel": "apps.core.choices.GeographyLevel",
         "IncidentStatus": "apps.core.choices.IncidentStatus",
         "IncidentSeverity": "apps.core.choices.IncidentSeverity",

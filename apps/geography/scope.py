@@ -119,24 +119,84 @@ class ScopedModel(models.Model):
         return LEVEL_FIELD[self.scope_level]
 
 
-def default_to_actor_scope(actor, fields: dict) -> None:
-    """Give a new record the actor's own scope when none was supplied."""
-    if "scope_level" not in fields:
-        fields["scope_level"] = actor.scope_level
-        for name in SCOPE_FIELDS:
-            fields[name] = getattr(actor, name)
+def _is_user(actor) -> bool:
+    # Accounts carry is_authenticated; scopes, records and ScopeRefs do not.
+    return hasattr(actor, "is_authenticated")
 
 
-def within_scope_q(actor: ScopedModel, prefix: str = "") -> Q:
-    """Filter for rows (with scope fields under `prefix`) inside actor's scope."""
+def _require_permission(permission):
+    if permission is None:
+        raise TypeError("A user's reach depends on the permission being used: pass `permission`.")
+
+
+def default_to_actor_scope(actor, fields: dict, permission: str | None = None) -> None:
+    """Give a new record the actor's area when none was supplied.
+
+    For a user this is the one area where they hold `permission`; with several
+    such areas they must choose.
+    """
+    if "scope_level" in fields:
+        return
+    source = actor
+    if _is_user(actor):
+        _require_permission(permission)
+        from apps.access.engine import areas_for
+
+        areas = areas_for(actor, permission)
+        if len(areas) != 1:
+            raise ValidationError({"scope": "Choose which of your areas this is for."})
+        source = areas[0]
+    fields["scope_level"] = source.scope_level
+    for name in SCOPE_FIELDS:
+        fields[name] = getattr(source, name)
+
+
+def within_scope_q(actor, prefix: str = "", permission: str | None = None) -> Q:
+    """Filter for rows (scope fields under `prefix`) inside the actor's reach.
+
+    For a user, the reach is every area of every grant holding `permission`
+    (see apps.access.engine); for a scope or a record, its own area.
+    """
+    if _is_user(actor):
+        _require_permission(permission)
+        from apps.access.engine import scope_q
+
+        return scope_q(actor, permission, prefix)
     field = actor.scope_unit_field
     if field is None:
         return Q()
     return Q(**{f"{prefix}{field}_id": getattr(actor, f"{field}_id")})
 
 
-def scope_contains(actor: ScopedModel, target: ScopedModel) -> bool:
-    """True when `target`'s scope lies inside `actor`'s scope."""
+def any_of(*conditions: Q) -> Q:
+    """OR of filters, where an empty Q (no restriction, e.g. national) wins.
+
+    Plain `|` would drop an empty Q and silently narrow the result.
+    """
+    result = None
+    for condition in conditions:
+        if not condition:
+            return Q()
+        result = condition if result is None else result | condition
+    return result if result is not None else Q(pk__in=[])
+
+
+def within_scope_any_q(user, permissions, prefix: str = "") -> Q:
+    """Rows where the user holds at least one of `permissions` (each per its own grants)."""
+    return any_of(*(within_scope_q(user, prefix, permission=p) for p in permissions))
+
+
+def scope_contains_any(user, target, permissions) -> bool:
+    return any(scope_contains(user, target, permission=p) for p in permissions)
+
+
+def scope_contains(actor, target, permission: str | None = None) -> bool:
+    """True when `target` lies inside the actor's reach (see within_scope_q)."""
+    if _is_user(actor):
+        _require_permission(permission)
+        from apps.access.engine import allows
+
+        return allows(actor, permission, target)
     field = actor.scope_unit_field
     if field is None:
         return True
@@ -329,3 +389,23 @@ def covering_q(target, prefix: str = "") -> Q:
         if unit_id is not None:
             condition |= Q(**{f"{prefix}scope_level": level, f"{prefix}{field}_id": unit_id})
     return condition
+
+
+def actor_area(user, permission: str):
+    """The area a user means when they did not choose one, for `permission`.
+
+    National if a grant holding it is national; their one area if they have
+    exactly one; otherwise they must choose (level and code).
+    """
+    from django.core.exceptions import PermissionDenied
+
+    from apps.access.engine import areas_for
+
+    areas = areas_for(user, permission)
+    if not areas:
+        raise PermissionDenied("Your role does not permit this action.")
+    if any(area.scope_level == GeographyLevel.COUNTRY for area in areas):
+        return ScopeRef.national()
+    if len(areas) == 1:
+        return ScopeRef.of(areas[0])
+    raise ValidationError({"level": "Choose one of your areas (level and code)."})

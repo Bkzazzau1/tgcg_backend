@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.core.permissions import Capability, requires
-from apps.geography.scope import SCOPE_FIELDS, within_scope_q
+from apps.geography.scope import SCOPE_FIELDS, within_scope_any_q
 
 from . import services
 from .models import AccreditedAgent, Member, VolunteerApplication
@@ -75,7 +75,7 @@ class MemberViewSet(
         if getattr(self, "swagger_fake_view", False):  # schema generation
             return Member.objects.none()
         return (
-            Member.objects.filter(within_scope_q(self.request.user))
+            Member.objects.filter(within_scope_any_q(self.request.user, MEMBERSHIP_READERS))
             .select_related(*SCOPE_FIELDS)
             .prefetch_related(Prefetch("accreditations"))
         )
@@ -119,9 +119,10 @@ class AgentViewSet(
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):  # schema generation
             return AccreditedAgent.objects.none()
-        return AccreditedAgent.objects.filter(within_scope_q(self.request.user)).select_related(
-            "member", *SCOPE_FIELDS
-        )
+        user = self.request.user
+        return AccreditedAgent.objects.filter(
+            within_scope_any_q(user, MEMBERSHIP_READERS)
+        ).select_related("member", *SCOPE_FIELDS)
 
     def perform_create(self, serializer):
         data = flatten_scope(serializer.validated_data)
@@ -179,7 +180,7 @@ class VolunteerViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         if getattr(self, "swagger_fake_view", False):
             return VolunteerApplication.objects.none()
         return VolunteerApplication.objects.filter(
-            within_scope_q(self.request.user, prefix="member__")
+            within_scope_any_q(self.request.user, MEMBERSHIP_READERS, prefix="member__")
         ).select_related(
             "member__zone", "member__state", "member__lga", "member__ward", "member__polling_unit"
         )

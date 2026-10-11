@@ -5,6 +5,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
+from apps.access import views as access
 from apps.accounts.views import LoginView, LogoutView, MeView
 from apps.announcements.views import AnnouncementViewSet
 from apps.core.views import HealthView
@@ -39,6 +40,10 @@ router.register("field-reports", FieldReportViewSet, basename="field-report")
 router.register("parties", PartyViewSet)
 router.register("elections", ElectionViewSet)
 router.register("results", ResultViewSet, basename="result")
+router.register("access/roles", access.RoleViewSet, basename="role")
+router.register("access/assignments", access.AssignmentViewSet, basename="role-assignment")
+router.register("access/audit", access.AuditEventViewSet, basename="audit-event")
+router.register("me/assignments", access.MyAssignmentsViewSet, basename="my-assignment")
 
 api_v1 = [
     path("health/", HealthView.as_view(), name="health"),
@@ -96,6 +101,8 @@ api_v1 = [
     path("members/verify/", reg.CardVerificationView.as_view(), name="member-card-verify"),
     path("members/verify/photo/", reg.CardPhotoView.as_view(), name="member-card-photo"),
     # Member home
+    path("access/permissions/", access.PermissionRegistryView.as_view(), name="permissions"),
+    path("me/access/", access.MyAccessView.as_view(), name="my-access"),
     path("me/member/", reg.MyMemberView.as_view(), name="my-member"),
     path("me/member/photo/", reg.MyMemberPhotoView.as_view(), name="my-member-photo"),
     path("me/polling-unit/", reg.MyPollingUnitView.as_view(), name="my-polling-unit"),

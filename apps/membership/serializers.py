@@ -5,6 +5,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.choices import AccreditationStatus, Gender
+from apps.core.permissions import Capability
 from apps.geography.scope import ScopeField, scope_payload, within_scope_q
 from apps.geography.serializers import NavigationSerializer, navigation_for
 
@@ -351,7 +352,7 @@ class ScopedMemberField(serializers.SlugRelatedField):
 
     def get_queryset(self):
         user = self.context["request"].user
-        return Member.objects.filter(within_scope_q(user))
+        return Member.objects.filter(within_scope_q(user, permission=Capability.ACCREDIT_AGENTS))
 
 
 class AgentSerializer(serializers.ModelSerializer):

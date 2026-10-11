@@ -11,10 +11,10 @@ from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.core.permissions import Capability, requires
+from apps.core.permissions import Capability, has_capability, requires
 from apps.geography.gps import GpsFixSerializer, GpsReadSerializer
 from apps.geography.models import PollingUnit
-from apps.geography.scope import LEVEL_FIELD, ScopeRef, scope_payload
+from apps.geography.scope import LEVEL_FIELD, ScopeRef, any_of, scope_payload
 from apps.results.collation import CHILD_LEVEL, PU_PATH, _pu_filter, _units_within
 
 from . import mapping
@@ -98,7 +98,15 @@ class ProblemSerializer(serializers.Serializer):
 
 
 def _units_for(user):
-    return PollingUnit.objects.filter(_pu_filter(ScopeRef.of(user))).select_related("ward")
+    """Polling units in every area where the user may view mapping."""
+    from apps.access.engine import areas_for
+
+    conditions = [
+        _pu_filter(ScopeRef.of(area))
+        for permission in MAPPING_VIEWERS
+        for area in areas_for(user, permission)
+    ]
+    return PollingUnit.objects.filter(any_of(*conditions)).select_related("ward")
 
 
 class MappingUnitsView(generics.ListAPIView):
@@ -227,7 +235,8 @@ class MappingProgressView(APIView):
 
     @extend_schema(parameters=AREA_PARAMS, responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
-        scope = _area(request)
+        held = next((p for p in MAPPING_VIEWERS if has_capability(request.user, p)), None)
+        scope = _area(request, held or MAPPING_VIEWERS[0])
         units = PollingUnit.objects.filter(_pu_filter(scope))
         body = {"scope": scope_payload(scope), **_with_percent(_status_counts(units))}
         if scope.scope_level in CHILD_LEVEL and scope.scope_level != "ward":

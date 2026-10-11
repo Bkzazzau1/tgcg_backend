@@ -27,19 +27,22 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Announcement.objects.none()
-        return Announcement.objects.filter(within_scope_q(self.request.user)).select_related(
-            "author", *SCOPE_FIELDS
-        )
+        user = self.request.user
+        return Announcement.objects.filter(
+            within_scope_q(user, permission=Capability.SEND_BROADCAST)
+        ).select_related("author", *SCOPE_FIELDS)
 
     def _save(self, serializer, **extra):
         data = flatten_scope(serializer.validated_data)
         if serializer.instance is None:
-            default_to_actor_scope(self.request.user, data)
+            default_to_actor_scope(self.request.user, data, Capability.SEND_BROADCAST)
         announcement = serializer.instance or Announcement(author=self.request.user)
         for name, value in {**data, **extra}.items():
             setattr(announcement, name, value)
         announcement.full_clean()
-        if not scope_contains(self.request.user, announcement):
+        if not scope_contains(
+            self.request.user, announcement, permission=Capability.SEND_BROADCAST
+        ):
             raise PermissionDenied("You can only address areas inside your own scope.")
         announcement.save()
         serializer.instance = announcement
