@@ -52,7 +52,7 @@ Polling unit coordinates from INEC's public Polling Unit Locator, applied by
 | Source | INEC Polling Unit Locator, https://cvr.inecnigeria.org/pu. Its GET DIRECTIONS button redirects to a Google Maps link holding the unit's coordinates. |
 | Collected with | `scripts/inec_locator.py`, one request per unit, on 2026-10-11 |
 | Checked with | `scripts/check_inec_locations.py`, against the register above and the Flutter app's LGA and ward boundaries |
-| Coverage | Kaduna State, LGA by LGA as each one is fully collected. See **Coverage** below. |
+| Coverage | **All of Kaduna State: 23 LGAs, 8,012 units, 7,753 located (96.8%).** Other states are added by collecting them and re-running the check. See **Coverage** below. |
 
 Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
 `fetched_at`.
@@ -82,8 +82,9 @@ Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
 | Sabon Gari | 398 | 398 | 28 | 0 | 0 |
 | Sanga | 195 | 130 | 4 | 65 | 0 |
 | Soba | 298 | 287 | 4 | 11 | 0 |
+| Zangon Kataf | 337 | 331 | 36 | 3 | 3 |
 | Zaria | 584 | 584 | 41 | 0 | 0 |
-| **Total** | **7,675** | **7,422** | **600** | **222** | **31** |
+| **Total** | **8,012** | **7,753** | **636** | **225** | **34** |
 
 - **Located** units are imported. **Outside own ward** counts located units
   that fall just outside their ward on GRID3's operational ward map, whose
@@ -98,9 +99,9 @@ Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
   the location seen in the locator by hand (11.0539, 7.712955).
 
 **Precision.** The locator drops trailing zeros, so `11.064` means `11.0640`.
-In the first ten Kaduna LGAs, 2,387 latitudes had 4 decimal places, 257 had 3,
-32 had 2 and 2 had 1: the 10:1 pattern that dropped zeros produce. Others have
-5 to 9 places. Four places is at most about 6 m off, so the loader treats every
+Across Kaduna, 4,758 latitudes had 4 decimal places, 485 had 3, 54 had 2, 7 had
+1 and 1 had none: the 10:1 pattern that dropped zeros produce. Others have 5 to
+9 places. Four places is at most about 6 m off, so the loader treats every
 coordinate as at least that precise, stores the margin as the unit's
 `location_accuracy_m`, and allows it to a coordinator's confirming pin.
 
