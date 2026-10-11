@@ -52,12 +52,15 @@ Polling unit coordinates from INEC's public Polling Unit Locator, applied by
 | Source | INEC Polling Unit Locator, https://cvr.inecnigeria.org/pu. Its GET DIRECTIONS button redirects to a Google Maps link holding the unit's coordinates. |
 | Collected with | `scripts/inec_locator.py`, one request per unit, on 2026-10-11 |
 | Checked with | `scripts/check_inec_locations.py`, against the register above and the Flutter app's LGA and ward boundaries |
-| Coverage | **All of Kaduna State: 23 LGAs, 8,012 units, 7,753 located (96.8%).** Other states are added by collecting them and re-running the check. See **Coverage** below. |
+| Coverage | **All of Kaduna State: 23 LGAs, 8,012 units, 7,753 located (96.8%). Osun State in progress: 19 of 30 LGAs, 2,261 units, 2,105 located (93.1%).** Other states are added by collecting them and re-running the check. See **Coverage** below. |
 
 Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
 `fetched_at`.
 
-**Coverage.** The check prints this table; replace it whenever LGAs are added.
+**Coverage.** The check prints one table for the whole file; it is split by
+state here. Replace the rows whenever LGAs are added.
+
+**Kaduna State** (complete)
 
 | LGA | Units | Located | Outside own ward | No INEC location | Rejected |
 |---|---:|---:|---:|---:|---:|
@@ -85,6 +88,37 @@ Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
 | Zangon Kataf | 337 | 331 | 36 | 3 | 3 |
 | Zaria | 584 | 584 | 41 | 0 | 0 |
 | **Total** | **8,012** | **7,753** | **636** | **225** | **34** |
+
+**Osun State** (19 of 30 LGAs so far; collection continuing)
+
+| LGA | Units | Located | Outside own ward | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|
+| Atakumosa East | 77 | 45 | 2 | 14 | 18 |
+| Atakumosa West | 76 | 70 | 5 | 1 | 5 |
+| Ayedaade | 150 | 145 | 11 | 4 | 1 |
+| Ayedire | 67 | 65 | 14 | 1 | 1 |
+| Boluwaduro | 74 | 64 | 14 | 7 | 3 |
+| Boripe | 112 | 106 | 26 | 1 | 5 |
+| Ede North | 139 | 136 | 29 | 0 | 3 |
+| Ede South | 101 | 76 | 8 | 12 | 13 |
+| Egbedore | 90 | 88 | 4 | 1 | 1 |
+| Ejigbo | 133 | 130 | 6 | 0 | 3 |
+| Ife Central | 215 | 215 | 42 | 0 | 0 |
+| Ife East | 200 | 185 | 22 | 2 | 13 |
+| Ife North | 111 | 101 | 16 | 0 | 10 |
+| Ife South | 131 | 125 | 10 | 1 | 5 |
+| Ifedayo | 63 | 49 | 9 | 9 | 5 |
+| Ifelodun | 145 | 141 | 20 | 0 | 4 |
+| Ila | 124 | 124 | 22 | 0 | 0 |
+| Ilesa East | 132 | 119 | 29 | 0 | 13 |
+| Ilesa West | 121 | 121 | 20 | 0 | 0 |
+| **Total so far** | **2,261** | **2,105** | **309** | **53** | **103** |
+
+Osun's rejections (4.6%, against 0.4% in Kaduna) look like boundary detail
+rather than wrong points: 100 of the 103 fall inside a neighbouring Osun LGA,
+half of them less than 1.9 km beyond the unit's own LGA, and whole wards fall
+together (all of Iwara ward, Atakumosa East, lands 2 to 4 km inside Atakumosa
+West). The 1 km rule is unchanged; coordinators pin these units.
 
 - **Located** units are imported. **Outside own ward** counts located units
   that fall just outside their ward on GRID3's operational ward map, whose
