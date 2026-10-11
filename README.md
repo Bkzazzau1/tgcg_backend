@@ -18,6 +18,7 @@ uv sync                                   # create .venv and install
 cp .env.example .env                      # then set DJANGO_SECRET_KEY
 uv run python manage.py migrate           # also seeds zones, states, districts, LGAs, parties
 uv run python manage.py load_polling_units  # 8,809 wards + 176,846 INEC polling units (~5s)
+uv run python manage.py load_inec_locations # unit coordinates from INEC's locator (collected LGAs)
 uv run python manage.py createsuperuser   # prompts for access ID + full name
 uv run python manage.py runserver
 ```
@@ -134,9 +135,33 @@ agreement with an independent INEC list for Zaria) are in
   coordinates added locally are kept.
 - Units dropped from a newer file are reported, not deleted.
 - `--lga KD-ZARIA` loads a single LGA.
-- The data has **no registered voter counts or coordinates**. Until they are
-  added, the "accredited exceeds registered" check uses the figure on the
-  submitted result sheet.
+- The data has **no registered voter counts**. Until they are added, the
+  "accredited exceeds registered" check uses the figure on the submitted
+  result sheet.
+
+### Polling unit locations
+
+INEC's public [Polling Unit Locator](https://cvr.inecnigeria.org/pu) gives
+each unit's coordinates, one unit at a time. They are collected, checked and
+imported in three steps:
+
+```bash
+python scripts/inec_locator.py --out inec_locator.csv --state 18     # Kaduna; omit for all states
+uv run --with shapely python scripts/check_inec_locations.py \
+    --locations inec_locator.csv --geo ../TheGameChangerGroup/assets/geo
+uv run python manage.py load_inec_locations
+```
+
+- The collector sends one request per second and can be stopped at any time;
+  re-running it continues where it stopped. The whole country is about
+  186,000 requests, roughly two days.
+- The check rejects points outside their unit's LGA and spots shared by units
+  of several wards, and writes `apps/geography/data/inec_locations.csv.gz`.
+- An INEC location counts as a first pin: members and agents get directions
+  straight away, and one coordinator pin nearby confirms it. Locations from the
+  field are never overwritten.
+- Which LGAs are covered so far, and how they scored, is in
+  `apps/geography/data/README.md`.
 
 ## Users and scope
 

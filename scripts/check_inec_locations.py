@@ -9,8 +9,9 @@ Each polling unit's point must:
 Points outside their ward (where GRID3 ward boundaries exist) are reported but
 kept, because GRID3's operational wards do not always follow INEC's lines.
 
-Writes the file load_inec_locations imports (default
-apps/geography/data/inec_locations.csv.gz) and prints a summary.
+Merges the results into the file load_inec_locations imports (default
+apps/geography/data/inec_locations.csv.gz), keeping units collected earlier,
+and prints a summary.
 
 Usage (shapely is only needed for this check):
     uv run --with shapely python scripts/check_inec_locations.py \\
@@ -120,10 +121,17 @@ def main():
     args = parser.parse_args()
 
     results, units, spots = check(args.locations, args.register, args.geo)
+    # Merge into the existing file so LGAs collected earlier are kept.
+    merged = {}
+    if Path(args.out).exists():
+        with gzip.open(args.out, "rt", encoding="utf-8", newline="") as handle:
+            merged = {row["code"]: row for row in csv.DictReader(handle)}
+    earlier = len(merged.keys() - {out["code"] for out in results})
+    merged.update({out["code"]: out for out in results})
     with gzip.open(args.out, "wt", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, COLUMNS, extrasaction="ignore")
         writer.writeheader()
-        writer.writerows(results)
+        writer.writerows(row for _, row in sorted(merged.items()))
 
     qa = Counter(out["qa"] for out in results)
     located = [out for out in results if out["latitude"]]
@@ -140,7 +148,7 @@ def main():
     )
     sizes = Counter(len(group) for group in spots.values())
     print("Units per spot:", dict(sorted(sizes.items())))
-    print(f"Wrote {args.out}")
+    print(f"Wrote {args.out}: {len(merged):,} units, {earlier:,} of them from earlier collections")
 
 
 if __name__ == "__main__":

@@ -26,13 +26,13 @@ class Command(BaseCommand):
             )
         )
         kept = {
-            "kept_field_location": "have a location from the field",
-            "kept_checked_by_coordinator": "were already checked by a coordinator",
-            "kept_problem_report": "have a problem report",
+            "kept_field_location": "a location from the field",
+            "kept_checked_by_coordinator": "already been checked by a coordinator",
+            "kept_problem_report": "a problem report",
         }
         for key, reason in kept.items():
             if counts[key]:
-                self.stdout.write(f"Left unchanged: {counts[key]:,} units {reason}.")
+                self.stdout.write(f"Left unchanged (has {reason}): {counts[key]:,}")
         rejected = {key: value for key, value in counts.items() if key.startswith("rejected_")}
         for key, value in sorted(rejected.items()):
             self.stdout.write(

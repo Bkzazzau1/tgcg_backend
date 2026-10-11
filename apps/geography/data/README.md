@@ -41,3 +41,55 @@ unit from verified sources. The loader never overwrites these fields.
 
 **To refresh**, replace the file (same columns) and run
 `uv run python manage.py load_polling_units`.
+
+## inec_locations.csv.gz
+
+Polling unit coordinates from INEC's public Polling Unit Locator, applied by
+`uv run python manage.py load_inec_locations`.
+
+| | |
+|---|---|
+| Source | INEC Polling Unit Locator, https://cvr.inecnigeria.org/pu. Its GET DIRECTIONS button redirects to a Google Maps link holding the unit's coordinates. |
+| Collected with | `scripts/inec_locator.py`, one request per unit, on 2026-10-11 |
+| Checked with | `scripts/check_inec_locations.py`, against the register above and the Flutter app's LGA and ward boundaries |
+| Coverage | **Zaria LGA only (KD-ZARIA): 584 of 584 units.** Other LGAs are added by collecting them and re-running the check. |
+
+Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
+`fetched_at`.
+
+**Zaria results:**
+
+- All 584 units have a location, and all 584 lie inside Zaria LGA.
+- 543 (93%) lie inside their own ward. The other 41 fall just outside it on
+  GRID3's operational ward map, whose lines do not always follow INEC's. They
+  are kept (`qa = ok_outside_ward`).
+- No spot is shared by units of different wards. One pair of units shares a
+  spot, as two units at one school would.
+- Unit `18-23-01-014` (UNG. ASKA I/ L.E.A. ANGUWAN KAHU) matches the location
+  seen in the locator by hand (11.0539, 7.712955).
+
+**Precision.** The locator stores latitudes to 4 or 8 decimal places and drops
+trailing zeros, so `11.064` means `11.0640`. In Zaria, 296 latitudes had 4
+places, 35 had 3 and 3 had 2, the 10:1 pattern that dropped zeros produce. Four
+places is at most about 6 m off. The loader stores that margin as the unit's
+`location_accuracy_m`, and a coordinator's confirming pin is allowed it.
+
+**Rejected by the check** (`qa` values that are not imported):
+`outside_lga` (more than 1 km outside the unit's LGA), `shared_spot` (one spot
+claimed by units of three or more wards, a placeholder rather than a
+building), `not_in_register`, `no_location` and `outside_nigeria`.
+
+**Not the 2022 public file.** The `mykeels/inec-polling-units` file, scraped in
+2022, has coordinates for 67% of units, but most are town or LGA centres:
+nationally 24% of its points are outside their own LGA and 59% outside their
+own ward. The locator's current data is far better, as the Zaria results show.
+
+**To extend**, collect more units, check them (the check merges them into this
+file and keeps the LGAs already here), and reload:
+
+```bash
+python scripts/inec_locator.py --out inec_locator.csv --state 18
+uv run --with shapely python scripts/check_inec_locations.py \
+    --locations inec_locator.csv --geo ../TheGameChangerGroup/assets/geo
+uv run python manage.py load_inec_locations
+```
