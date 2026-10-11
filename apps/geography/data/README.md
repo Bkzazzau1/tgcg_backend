@@ -70,8 +70,9 @@ Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
 | Jema'a | 325 | 318 | 14 | 6 | 1 |
 | Kachia | 317 | 300 | 3 | 5 | 12 |
 | Kaduna North | 704 | 703 | 37 | 1 | 0 |
+| Kaduna South | 796 | 793 | 182 | 0 | 3 |
 | Zaria | 584 | 584 | 41 | 0 | 0 |
-| **Total** | **3,981** | **3,913** | **250** | **43** | **25** |
+| **Total** | **4,777** | **4,706** | **432** | **43** | **28** |
 
 - **Located** units are imported. **Outside own ward** counts located units
   that fall just outside their ward on GRID3's operational ward map, whose
