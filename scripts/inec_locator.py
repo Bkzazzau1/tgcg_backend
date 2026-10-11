@@ -53,6 +53,10 @@ FINISHED = {"ok", "no_location", "outside_nigeria"}
 LATITUDES = (3.5, 14.5)
 LONGITUDES = (2.5, 15.0)
 RETRY_CODES = {429, 500, 502, 503, 504}
+# Waits between attempts when the locator fails: about 15 minutes in all.
+RETRY_WAITS = (30, 60, 120, 240, 480)
+# After a failure the collector slows down, up to one request every 4 s.
+MAX_DELAY = 4.0
 
 _OPTION = re.compile(r'<option value="(\d+)">\s*(\d+)\s*-\s*([^<]+)</option>')
 _LABEL = re.compile(r"\s*(\d+)\s*-\s*(.+?)\s*$")
@@ -157,7 +161,6 @@ class Locator:
         )
         self.sleep = sleep
         self.clock = clock
-        self.failures = 0
         self._last = None
 
     def _pace(self):
@@ -176,29 +179,35 @@ class Locator:
             headers.update({"X-Requested-With": "XMLHttpRequest", "Accept": "application/json"})
         if form is not None:
             headers["Origin"] = BASE
-        for attempt in range(4):
+        reason = ""
+        for attempt in range(len(RETRY_WAITS) + 1):
             self._pace()
             try:
                 # The URL always starts with the fixed https BASE.
                 request = urllib.request.Request(url, data, headers)  # noqa: S310
                 with self.opener.open(request, timeout=40) as r:
-                    self.failures = 0
                     return r.status, r.headers, r.read().decode("utf-8", "replace")
             except urllib.error.HTTPError as error:
                 if 300 <= error.code < 400:
-                    self.failures = 0
                     return error.code, error.headers, error.read().decode("utf-8", "replace")
                 if error.code not in RETRY_CODES:
                     raise SystemExit(
                         f"The locator refused {path} (HTTP {error.code}). Stopping."
                     ) from None
-            except (urllib.error.URLError, TimeoutError, ConnectionError):
-                pass
-            self.failures += 1
-            if self.failures >= 10:
-                raise SystemExit("The locator failed 10 times in a row. Re-run later to resume.")
-            self.sleep(30 * 2**attempt)
-        raise SystemExit(f"{path} kept failing. Re-run later to resume.")
+                reason = f"HTTP {error.code}"
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as error:
+                reason = str(getattr(error, "reason", "") or error) or type(error).__name__
+            if attempt == len(RETRY_WAITS):
+                break
+            # The locator is struggling: wait, then carry on more slowly.
+            wait = RETRY_WAITS[attempt]
+            self.delay = min(self.delay * 2, MAX_DELAY)
+            print(
+                f"{path}: {reason}. Waiting {wait} s, then one request every {self.delay:g} s.",
+                flush=True,
+            )
+            self.sleep(wait)
+        raise SystemExit(f"{path} kept failing for about 15 minutes ({reason}). Re-run to resume.")
 
     def choices(self, kind, parent_field, parent_id):
         _, _, body = self.request(
@@ -295,6 +304,8 @@ def harvest(locator, out, *, state=None, lga=None, limit=None, samples=None, ret
                                 "inec_unit_id": unit_id,
                                 "fetched_at": datetime.now(UTC).isoformat(timespec="seconds"),
                                 "status": "no_location",
+                                # Kept so a missing location can be explained later.
+                                "maps_url": headers.get("Location") or f"HTTP {status}",
                             }
                             if found:
                                 latitude, longitude, link = found
