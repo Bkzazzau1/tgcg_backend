@@ -472,3 +472,10 @@ def test_audit_log_is_for_national_viewers_only(admin):
     appoint(admin, member, role, [KD])
     assert client_for(member.user).get("/api/v1/access/audit/").json()["count"] == 0
     assert client_for(admin).get("/api/v1/access/audit/").json()["count"] >= 2
+
+
+def test_the_profile_names_the_member_behind_an_account(admin):
+    member = member_account("08031110026")
+    me = client_for(member.user).get("/api/v1/auth/me/").json()
+    assert me["membership_number"] == member.membership_number
+    assert client_for(admin).get("/api/v1/auth/me/").json()["membership_number"] is None

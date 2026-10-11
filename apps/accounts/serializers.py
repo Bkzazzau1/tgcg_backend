@@ -16,6 +16,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
     access = serializers.SerializerMethodField(
         help_text="Where the access comes from: each appointment, or a legacy role."
     )
+    membership_number = serializers.CharField(
+        source="member.membership_number",
+        read_only=True,
+        default=None,
+        help_text="The member behind this account, if any.",
+    )
 
     class Meta:
         model = User
@@ -28,6 +34,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "scope",
             "capabilities",
             "access",
+            "membership_number",
         ]
         read_only_fields = fields
 

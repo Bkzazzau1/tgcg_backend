@@ -310,7 +310,7 @@ verified member, converting its legacy role into a normal assignment.
 | `/access/delegations/` | Grants the caller made or received, or inside their delegating reach; `POST` to delegate; `POST /<id>/revoke/` (never cascades); `GET /<id>/history/`. |
 | `/access/admin-actions/` | National Administrators only: `POST` to request suspending or removing an administrator (`target` access ID, `kind`, `reason`); `POST /<id>/approve/`, `/cancel/`. |
 | `/access/administrators/` | National Administrators only: every administrator account with its state (active, suspended, inactive), legacy role, appointments and pending request; `POST /<access_id>/reinstate/`. |
-| `GET /me/access/` | Where the signed-in user's access comes from (also in `/auth/me/` as `access`). |
+| `GET /me/access/` | Where the signed-in user's access comes from (also in `/auth/me/` as `access`, with `membership_number` when the account belongs to a member). |
 | `/me/assignments/` | The member's own appointments; `POST /<id>/accept/`, `/decline/`, `/resign/`. |
 | `GET /access/audit/` | The audit log (viewAudit held nationwide); `GET /access/audit/verify/` checks the hash chain (National Administrators). |
 | `/members/` | Members in the caller's areas, with `verification_status`, `membership_state`, `roles` and personal details only where allowed; filter by both states; `?phone=`. `POST /<number>/suspend/`, `/deactivate/`, `/restore/`; `GET /<number>/history/`. |
@@ -330,10 +330,14 @@ caller's grants and their areas (`within_scope_q`, `scope_contains` and
 | 2 Django foundation | Done: registry, role definitions, appointments with several areas, engine, all existing checks moved onto it, lifecycle, audit log, API, tests |
 | 3 Delegation and protection | Done (backend): delegation grants with depth, term and chain rules, non-cascading revocation, self-elevation guards, supervisors, two-administrator approval, reinstatement, server recovery command, audit, API, tests |
 | 4 Membership integration | Done (backend): verification checks at registration and coordinator review, membership suspension, deactivation and restore, polling-unit change requests, personal-detail restrictions, verified identity required to approve agents, audit, API, tests |
-| 5 Flutter integration | Not started |
+| 5 Flutter integration | Done: navigation and every in-app check follow the server's permissions (`session.can`), members holding appointments get the operations app with a "Your access" summary, Roles & Access (roles, appointments, delegations, administrators, audit log), Member Review (identity review, polling unit changes, standing), My access (accept, decline, resign), and polling unit change requests in the member app |
 | 6 Verification and cleanup | Not started |
 
 Known limitations so far:
+
+- In offline presentation mode the app still uses its built-in role matrix
+  and demo data; the role screens need a server connection, and no change
+  to roles or access is ever queued offline.
 
 - Agent check-ins and live positions are located by the agent account's
   registered area.
