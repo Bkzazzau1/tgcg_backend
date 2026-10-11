@@ -21,22 +21,25 @@ Usage (shapely is only needed for this check):
 import argparse
 import csv
 import gzip
+import io
 import json
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from shapely.geometry import Point, Polygon
-from shapely.ops import unary_union
-
 BACKEND = Path(__file__).resolve().parent.parent
 REGISTER = BACKEND / "apps" / "geography" / "data" / "inec_polling_units.csv.gz"
 OUTPUT = BACKEND / "apps" / "geography" / "data" / "inec_locations.csv.gz"
+GEOGRAPHY = BACKEND / "apps" / "geography" / "data" / "nigeria_geography.json"
 LGA_MARGIN_DEGREES = 0.009  # about 1 km
 SHARED_SPOT_WARDS = 3
 COLUMNS = ["code", "latitude", "longitude", "qa", "fetched_at"]
 
 
 def shape(rings):
+    # shapely is imported here so the rest of this file loads without it (tests).
+    from shapely.geometry import Polygon
+    from shapely.ops import unary_union
+
     polygons = [Polygon(list(zip(ring[0::2], ring[1::2], strict=True))) for ring in rings]
     return unary_union([p if p.is_valid else p.buffer(0) for p in polygons])
 
@@ -45,16 +48,42 @@ def decimals(text):
     return len(text.split(".", 1)[1]) if "." in text else 0
 
 
-def check(locations, register, geo):
+def read_collected(path):
+    """Collected rows by code (the last row for a code wins).
+
+    A half-written last line is ignored, so the file can be checked while the
+    collector is still adding to it.
+    """
+    text = Path(path).read_text(encoding="utf-8")
+    text = text[: text.rfind("\n") + 1]
+    return {row["code"]: row for row in csv.DictReader(io.StringIO(text)) if row.get("status")}
+
+
+def complete_lgas(collected, units):
+    """LGAs whose every polling unit in the register has been collected."""
+    by_lga = defaultdict(set)
+    for code, unit in units.items():
+        by_lga[unit["lga"]].add(code)
+    touched = {units[code]["lga"] for code in collected if code in units}
+    return {lga for lga in touched if by_lga[lga] <= collected.keys()}
+
+
+def check(locations, register, geo, complete_only=False):
+    from shapely.geometry import Point
+
     units = {}
     with gzip.open(register, "rt", encoding="utf-8", newline="") as handle:
         for row in csv.DictReader(handle):
             units[row["pu_inec"]] = row
 
-    collected = {}
-    with open(locations, encoding="utf-8", newline="") as handle:
-        for row in csv.DictReader(handle):
-            collected[row["code"]] = row  # the last row for a code wins
+    collected = read_collected(locations)
+    if complete_only:
+        done = complete_lgas(collected, units)
+        collected = {
+            code: row
+            for code, row in collected.items()
+            if code in units and units[code]["lga"] in done
+        }
 
     lga_shapes, ward_shapes = {}, {}
 
@@ -112,15 +141,54 @@ def check(locations, register, geo):
     return results, units, spots
 
 
+def coverage_table(rows, units, names):
+    """A Markdown table of what the data file holds, one line per LGA."""
+    totals = defaultdict(Counter)
+    for row in rows:
+        unit = units.get(row["code"])
+        if unit:
+            totals[unit["lga"]][row["qa"]] += 1
+    register = Counter(unit["lga"] for unit in units.values())
+    lines = [
+        "| LGA | Units | Located | Outside own ward | No INEC location | Rejected |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    grand = Counter()
+    for lga in sorted(totals, key=lambda code: names.get(code, code)):
+        qa = totals[lga]
+        cells = {
+            "units": register[lga],
+            "located": qa["ok"] + qa["ok_outside_ward"],
+            "outside_ward": qa["ok_outside_ward"],
+            "missing": qa["no_location"],
+            "rejected": sum(qa.values()) - qa["ok"] - qa["ok_outside_ward"] - qa["no_location"],
+        }
+        grand.update(cells)
+        lines.append(
+            f"| {names.get(lga, lga)} | {cells['units']:,} | {cells['located']:,} | "
+            f"{cells['outside_ward']:,} | {cells['missing']:,} | {cells['rejected']:,} |"
+        )
+    lines.append(
+        f"| **Total** | **{grand['units']:,}** | **{grand['located']:,}** | "
+        f"**{grand['outside_ward']:,}** | **{grand['missing']:,}** | **{grand['rejected']:,}** |"
+    )
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--locations", required=True, help="CSV written by inec_locator.py")
     parser.add_argument("--geo", required=True, help="the Flutter app's assets/geo folder")
     parser.add_argument("--register", default=str(REGISTER))
     parser.add_argument("--out", default=str(OUTPUT))
+    parser.add_argument(
+        "--complete-only",
+        action="store_true",
+        help="only take LGAs whose units have all been collected (safe during a run)",
+    )
     args = parser.parse_args()
 
-    results, units, spots = check(args.locations, args.register, args.geo)
+    results, units, spots = check(args.locations, args.register, args.geo, args.complete_only)
     # Merge into the existing file so LGAs collected earlier are kept.
     merged = {}
     if Path(args.out).exists():
@@ -149,6 +217,10 @@ def main():
     sizes = Counter(len(group) for group in spots.values())
     print("Units per spot:", dict(sorted(sizes.items())))
     print(f"Wrote {args.out}: {len(merged):,} units, {earlier:,} of them from earlier collections")
+    geography = json.loads(GEOGRAPHY.read_text(encoding="utf-8"))
+    names = {lga["code"]: lga["name"] for lga in geography["lgas"]}
+    print("\nCoverage of the data file (for apps/geography/data/README.md):\n")
+    print(coverage_table(merged.values(), units, names))
 
 
 if __name__ == "__main__":

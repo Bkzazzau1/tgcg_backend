@@ -52,27 +52,45 @@ Polling unit coordinates from INEC's public Polling Unit Locator, applied by
 | Source | INEC Polling Unit Locator, https://cvr.inecnigeria.org/pu. Its GET DIRECTIONS button redirects to a Google Maps link holding the unit's coordinates. |
 | Collected with | `scripts/inec_locator.py`, one request per unit, on 2026-10-11 |
 | Checked with | `scripts/check_inec_locations.py`, against the register above and the Flutter app's LGA and ward boundaries |
-| Coverage | **Zaria LGA only (KD-ZARIA): 584 of 584 units.** Other LGAs are added by collecting them and re-running the check. |
+| Coverage | Kaduna State, LGA by LGA as each one is fully collected. See **Coverage** below. |
 
 Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
 `fetched_at`.
 
-**Zaria results:**
+**Coverage.** The check prints this table; replace it whenever LGAs are added.
 
-- All 584 units have a location, and all 584 lie inside Zaria LGA.
-- 543 (93%) lie inside their own ward. The other 41 fall just outside it on
-  GRID3's operational ward map, whose lines do not always follow INEC's. They
-  are kept (`qa = ok_outside_ward`).
-- No spot is shared by units of different wards. One pair of units shares a
-  spot, as two units at one school would.
-- Unit `18-23-01-014` (UNG. ASKA I/ L.E.A. ANGUWAN KAHU) matches the location
-  seen in the locator by hand (11.0539, 7.712955).
+| LGA | Units | Located | Outside own ward | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|
+| Birnin Gwari | 263 | 255 | 18 | 5 | 3 |
+| Chikun | 543 | 534 | 53 | 5 | 4 |
+| Giwa | 262 | 257 | 26 | 4 | 1 |
+| Igabi | 600 | 596 | 33 | 0 | 4 |
+| Ikara | 251 | 238 | 16 | 13 | 0 |
+| Jaba | 132 | 128 | 9 | 4 | 0 |
+| Jema'a | 325 | 318 | 14 | 6 | 1 |
+| Kachia | 317 | 300 | 3 | 5 | 12 |
+| Kaduna North | 704 | 703 | 37 | 1 | 0 |
+| Zaria | 584 | 584 | 41 | 0 | 0 |
+| **Total** | **3,981** | **3,913** | **250** | **43** | **25** |
 
-**Precision.** The locator stores latitudes to 4 or 8 decimal places and drops
-trailing zeros, so `11.064` means `11.0640`. In Zaria, 296 latitudes had 4
-places, 35 had 3 and 3 had 2, the 10:1 pattern that dropped zeros produce. Four
-places is at most about 6 m off. The loader stores that margin as the unit's
-`location_accuracy_m`, and a coordinator's confirming pin is allowed it.
+- **Located** units are imported. **Outside own ward** counts located units
+  that fall just outside their ward on GRID3's operational ward map, whose
+  lines do not always follow INEC's. They are kept (`qa = ok_outside_ward`).
+- **No INEC location:** the locator has no coordinates for these units and
+  only offers a Google Maps search by name. Coordinators pin them.
+- **Rejected:** INEC's point is more than 1 km outside the unit's LGA. These
+  units stay unmapped until a coordinator pins them.
+- No spot is shared by units of three or more wards. A few pairs share a spot,
+  as two units at one school would.
+- Spot check: unit `18-23-01-014` (UNG. ASKA I/ L.E.A. ANGUWAN KAHU) matches
+  the location seen in the locator by hand (11.0539, 7.712955).
+
+**Precision.** The locator drops trailing zeros, so `11.064` means `11.0640`.
+In the first ten Kaduna LGAs, 2,387 latitudes had 4 decimal places, 257 had 3,
+32 had 2 and 2 had 1: the 10:1 pattern that dropped zeros produce. Others have
+5 to 9 places. Four places is at most about 6 m off, so the loader treats every
+coordinate as at least that precise, stores the margin as the unit's
+`location_accuracy_m`, and allows it to a coordinator's confirming pin.
 
 **Rejected by the check** (`qa` values that are not imported):
 `outside_lga` (more than 1 km outside the unit's LGA), `shared_spot` (one spot
@@ -82,14 +100,16 @@ building), `not_in_register`, `no_location` and `outside_nigeria`.
 **Not the 2022 public file.** The `mykeels/inec-polling-units` file, scraped in
 2022, has coordinates for 67% of units, but most are town or LGA centres:
 nationally 24% of its points are outside their own LGA and 59% outside their
-own ward. The locator's current data is far better, as the Zaria results show.
+own ward. The locator's current data is far better, as the coverage table shows.
 
 **To extend**, collect more units, check them (the check merges them into this
-file and keeps the LGAs already here), and reload:
+file and keeps the LGAs already here), and reload. `--complete-only` takes just
+the LGAs whose units have all been collected, so it is safe to run while the
+collector is still working:
 
 ```bash
 python scripts/inec_locator.py --out inec_locator.csv --state 18
 uv run --with shapely python scripts/check_inec_locations.py \
-    --locations inec_locator.csv --geo ../TheGameChangerGroup/assets/geo
+    --locations inec_locator.csv --geo ../TheGameChangerGroup/assets/geo --complete-only
 uv run python manage.py load_inec_locations
 ```
