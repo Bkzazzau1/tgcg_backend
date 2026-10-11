@@ -304,13 +304,13 @@ verified member, converting its legacy role into a normal assignment.
 
 | Endpoint | Use |
 |---|---|
-| `GET /access/permissions/` | The permission registry (module, action, protected, sensitive). |
+| `GET /access/permissions/` | The permission registry (module, action, protected, sensitive), readable by anyone signed in: it holds no personal data. |
 | `/access/roles/` | List, search and filter roles (with active appointment counts); `POST` to create; `PATCH /<code>/`; `POST /<code>/archive/` and `/restore/`. |
 | `/access/assignments/` | Appointments in the caller's areas and those they supervise; `POST` to appoint (several areas, optional restriction and dates); `POST /<id>/suspend/`, `/reactivate/` (managers and supervisors), `/revoke/`, `/restrict/`; `GET /<id>/history/`. |
 | `/access/delegations/` | Grants the caller made or received, or inside their delegating reach; `POST` to delegate; `POST /<id>/revoke/` (never cascades); `GET /<id>/history/`. |
 | `/access/admin-actions/` | National Administrators only: `POST` to request suspending or removing an administrator (`target` access ID, `kind`, `reason`); `POST /<id>/approve/`, `/cancel/`. |
 | `/access/administrators/` | National Administrators only: every administrator account with its state (active, suspended, inactive), legacy role, appointments and pending request; `POST /<access_id>/reinstate/`. |
-| `GET /me/access/` | Where the signed-in user's access comes from (also in `/auth/me/` as `access`, with `membership_number` when the account belongs to a member). |
+| `GET /me/access/` | Where the signed-in user's access comes from (also in `/auth/me/` as `access`, with `membership_number` when the account belongs to a member and `supervises` when it holds a role others report to). |
 | `/me/assignments/` | The member's own appointments; `POST /<id>/accept/`, `/decline/`, `/resign/`. |
 | `GET /access/audit/` | The audit log (viewAudit held nationwide); `GET /access/audit/verify/` checks the hash chain (National Administrators). |
 | `/members/` | Members in the caller's areas, with `verification_status`, `membership_state`, `roles` and personal details only where allowed; filter by both states; `?phone=`. `POST /<number>/suspend/`, `/deactivate/`, `/restore/`; `GET /<number>/history/`. |
@@ -331,14 +331,45 @@ caller's grants and their areas (`within_scope_q`, `scope_contains` and
 | 3 Delegation and protection | Done (backend): delegation grants with depth, term and chain rules, non-cascading revocation, self-elevation guards, supervisors, two-administrator approval, reinstatement, server recovery command, audit, API, tests |
 | 4 Membership integration | Done (backend): verification checks at registration and coordinator review, membership suspension, deactivation and restore, polling-unit change requests, personal-detail restrictions, verified identity required to approve agents, audit, API, tests |
 | 5 Flutter integration | Done: navigation and every in-app check follow the server's permissions (`session.can`), members holding appointments get the operations app with a "Your access" summary, Roles & Access (roles, appointments, delegations, administrators, audit log), Member Review (identity review, polling unit changes, standing), My access (accept, decline, resign), and polling unit change requests in the member app |
-| 6 Verification and cleanup | Not started |
+| 6 Verification and cleanup | Done: see **Verification** below |
 
-Known limitations so far:
+### Verification
+
+- Each of the brief's required test cases has at least one automated test,
+  including concurrency-sensitive rules (approvals are re-counted under the
+  administrators' lock), session revocation (real JWTs stop working when a
+  membership ends; refresh tokens are blacklisted) and privilege escalation
+  (self-appointment by a second account, authority flowing back up its
+  chain, widening a held role, lifting restrictions, delegation depth and
+  term, supervisors undoing a superior).
+- Independent adversarial reviews of Phases 3, 4 and 5; every confirmed
+  finding was fixed, and all but two small interface ones (end dates that
+  cover the whole chosen day, closing My access once the last appointment
+  ends) have a regression test.
+- Client contract tests replay the exact requests the Flutter client builds
+  (`apps/access/tests/test_client_contract.py`).
+- Flutter widget tests cover the new screens at desktop and phone width,
+  server-driven permissions, and members with appointments signing in to
+  the operations app; module visibility per legacy role is unchanged.
+- Checks run before every commit: `ruff check`, `ruff format --check`,
+  `manage.py check`, `makemigrations --check`, OpenAPI validation with no
+  warnings, the full backend suite on a fresh database, `flutter analyze`
+  and the full Flutter suite.
+- True concurrency (two transactions at once) needs PostgreSQL; the tests run
+  on SQLite, so the locking is verified by design and by re-checks under the
+  lock, not by parallel transactions.
+
+Known limitations:
 
 - In offline presentation mode the app still uses its built-in role matrix
   and demo data; the role screens need a server connection, and no change
   to roles or access is ever queued offline.
-
+- A member appointed to the Polling Unit Agent role uses the operations app.
+  Checking in at a polling unit and sharing location still need an agent
+  account (the field app and tracking serve the field roles' accounts).
+- An operator with appointments in several areas works in the smallest area
+  containing them all (Nigeria when they span zones); every request is still
+  checked per appointment by the server.
 - Agent check-ins and live positions are located by the agent account's
   registered area.
 - The audit log is readable only with a nationwide grant.

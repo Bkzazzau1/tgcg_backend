@@ -479,3 +479,22 @@ def test_the_profile_names_the_member_behind_an_account(admin):
     me = client_for(member.user).get("/api/v1/auth/me/").json()
     assert me["membership_number"] == member.membership_number
     assert client_for(admin).get("/api/v1/auth/me/").json()["membership_number"] is None
+
+
+def test_the_profile_says_who_supervises_and_anyone_reads_the_catalogue(admin):
+    """Legacy LGA coordinators supervise ward coordinators by default."""
+    lga_coordinator = User.objects.create_user(
+        "LC-KD",
+        PASSWORD,
+        full_name="LGA Coordinator",
+        role=Role.LGA_COORDINATOR,
+        scope_level=GeographyLevel.LGA,
+        lga=Lga.objects.get(code="KD-KADUNA-NORTH"),
+    )
+    assert client_for(lga_coordinator).get("/api/v1/auth/me/").json()["supervises"] is True
+    member = member_account("08031110027")
+    assert client_for(member.user).get("/api/v1/auth/me/").json()["supervises"] is False
+    catalogue = client_for(member.user).get("/api/v1/access/permissions/")
+    assert catalogue.status_code == 200
+    assert {item["code"] for item in catalogue.json()} >= {"sendBroadcast", "viewRoles"}
+    assert APIClient().get("/api/v1/access/permissions/").status_code == 401

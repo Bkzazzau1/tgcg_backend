@@ -22,6 +22,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         default=None,
         help_text="The member behind this account, if any.",
     )
+    supervises = serializers.SerializerMethodField(
+        help_text="Holds a role that other roles report to (supervision of their appointments)."
+    )
 
     class Meta:
         model = User
@@ -35,6 +38,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "capabilities",
             "access",
             "membership_number",
+            "supervises",
         ]
         read_only_fields = fields
 
@@ -44,6 +48,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
     @extend_schema_field(GrantSerializer(many=True))
     def get_access(self, user) -> list:
         return GrantSerializer(active_grants(user), many=True).data
+
+    def get_supervises(self, user) -> bool:
+        from apps.access.services import supervises_any
+
+        return supervises_any(user)
 
 
 class LoginSerializer(TokenObtainPairSerializer):

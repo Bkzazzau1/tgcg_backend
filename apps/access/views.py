@@ -78,9 +78,13 @@ def _history(target_type, target_id):
 
 
 class PermissionRegistryView(APIView):
-    """Every permission code a role can hold, by module and action."""
+    """Every permission code a role can hold, by module and action.
 
-    permission_classes = [requires(*ROLE_READERS)]
+    The catalogue holds no personal data; anyone signed in may read it, so
+    the app can name the permissions their own appointments give them.
+    """
+
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(responses=PermissionInfoSerializer(many=True))
     def get(self, request):
