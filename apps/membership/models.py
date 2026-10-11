@@ -328,3 +328,105 @@ class VolunteerApplication(TimeStampedModel):
 
     def __str__(self):
         return f"{self.member.membership_number} volunteers ({self.status})"
+
+
+class VerificationCheck(TimeStampedModel):
+    """The latest result of one identity check for a member.
+
+    A result is recorded only for what was actually done: checks the system
+    cannot perform are `unsupported` and go to a coordinator's review, never
+    `passed`. `detail` never holds the VIN, phone number or images.
+    """
+
+    class Kind(models.TextChoices):
+        PVC_CAPTURED = "pvcCaptured", "PVC details captured"
+        PVC_VALIDATED = "pvcValidated", "PVC confirmed with an authoritative source"
+        DUPLICATES = "duplicates", "No duplicate registration"
+        PHONE = "phoneVerified", "Phone number confirmed by SMS"
+        SELFIE = "selfieCaptured", "Selfie captured"
+        LIVENESS = "liveness", "Liveness detection"
+        FACE_MATCH = "faceMatch", "Face matches a trusted reference image"
+
+    class Result(models.TextChoices):
+        PASSED = "passed", "Passed"
+        FAILED = "failed", "Failed"
+        PENDING = "pending", "Needs review"
+        UNSUPPORTED = "unsupported", "Not available"
+
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="verification_checks")
+    kind = models.CharField(max_length=24, choices=Kind.choices)
+    result = models.CharField(max_length=16, choices=Result.choices)
+    detail = models.CharField(max_length=300, blank=True)
+    checked_at = models.DateTimeField(default=timezone.now)
+    checked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="Empty when the system recorded it.",
+    )
+
+    class Meta:
+        ordering = ["member", "kind"]
+        constraints = [
+            models.UniqueConstraint(fields=["member", "kind"], name="one_result_per_check")
+        ]
+
+    def __str__(self):
+        return f"{self.member.membership_number} {self.kind}: {self.result}"
+
+
+class PollingUnitChangeRequest(TimeStampedModel, ScopedModel):
+    """A member asks to move their registered polling unit after an INEC transfer.
+
+    Its scope is the requested polling unit. It takes effect only when a
+    coordinator covering that unit has checked the updated voter card.
+    Operational appointments are untouched.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Awaiting review"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    member = models.ForeignKey(
+        Member, on_delete=models.CASCADE, related_name="polling_unit_changes"
+    )
+    from_polling_unit = models.ForeignKey(
+        "geography.PollingUnit",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    delim = models.CharField(max_length=32, help_text="Code read from the updated voter card.")
+    pvc_image = models.ImageField(upload_to=member_pvc_path)
+    reason = models.TextField(blank=True, max_length=1000)
+    status = models.CharField(
+        max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True
+    )
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["member"],
+                condition=Q(status="pending"),
+                name="one_pending_polling_unit_change_per_member",
+                violation_error_message="A polling unit change is already awaiting review.",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.member.membership_number} to {self.polling_unit_id} ({self.status})"

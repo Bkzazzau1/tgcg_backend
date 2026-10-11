@@ -294,6 +294,8 @@ for _role in (
 ):
     ROLE_CAPABILITIES[_role] = ROLE_CAPABILITIES[_role] | {
         C.REGISTER_MEMBERS,
+        # They saw members' contact details before those needed this permission.
+        C.VIEW_MEMBER_SENSITIVE_DATA,
         # Confirming an agent's check-in also teaches the polling unit's location.
         C.CONFIRM_AGENT_LOCATION,
     }

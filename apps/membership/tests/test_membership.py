@@ -2,7 +2,7 @@ import pytest
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.core.choices import GeographyLevel, Role
+from apps.core.choices import GeographyLevel, Role, VerificationStatus
 from apps.geography.models import Lga, PollingUnit, State, Ward
 from apps.membership.models import AccreditationEvent
 from conftest import PASSWORD, make_member
@@ -78,9 +78,13 @@ def kd_lga(db):
     )
 
 
-def new_member(phone="08031112222", lga="KD-KADUNA-NORTH"):
+def new_member(phone="08031112222", lga="KD-KADUNA-NORTH", verified=True):
     """Create a member directly; registration itself is tested in test_registration."""
-    return make_member(phone=phone, lga=lga).membership_number
+    member = make_member(phone=phone, lga=lga)
+    if verified:
+        member.verification_status = VerificationStatus.VERIFIED
+        member.save()
+    return member.membership_number
 
 
 def pu_scope(pu):
@@ -223,6 +227,19 @@ def test_approval_requires_readiness(admin, kd_state, kd_polling_units):
     approved = kd_state.post(f"/api/v1/agents/{agent_id}/status/", {"status": "approved"})
     assert approved.status_code == 200
     assert approved.json()["status"] == "approved"
+
+
+def test_only_verified_members_are_approved_as_agents(admin, kd_state, kd_polling_units):
+    number = new_member(verified=False)
+    agent_id = accredit(kd_state, number, kd_polling_units[0]).json()["agent_id"]
+    kd_state.patch(
+        f"/api/v1/agents/{agent_id}/readiness/",
+        {"training_completed": True, "biometric_enrolled": True},
+        format="json",
+    )
+    refused = kd_state.post(f"/api/v1/agents/{agent_id}/status/", {"status": "approved"})
+    assert refused.status_code == 400
+    assert "verified identity" in refused.json()["status"][0]
 
 
 def ready_agent(admin, coordinator, pu, phone):

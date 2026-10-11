@@ -17,12 +17,13 @@ from PIL import Image, UnidentifiedImageError
 
 from apps.accounts.models import User
 from apps.accounts.verification import PhoneVerification, consume_code, require_phone, send_code
-from apps.core.choices import GeographyLevel, RegistrationChannel, Role
+from apps.core.choices import GeographyLevel, MembershipState, RegistrationChannel, Role
 from apps.core.models import Sequence
 from apps.core.permissions import Capability
 from apps.geography.models import PollingUnit
 from apps.geography.scope import SCOPE_FIELDS, scope_contains_any
 
+from . import identity
 from .models import Member
 
 PURPOSE = PhoneVerification.Purpose
@@ -203,6 +204,7 @@ def self_register(
         member.consent_at = now
         _save_member(member)
         user = _member_account(member, pin)
+        member = identity.record_checks(member)
     return member, user
 
 
@@ -278,6 +280,7 @@ def assisted_register(
         member.phone_verified_at = now
         member.consent_at = now
         _save_member(member)
+        member = identity.record_checks(member)
     return member
 
 
@@ -299,6 +302,8 @@ def set_pin(*, phone_number, code, pin):
     member = Member.objects.select_related("user").filter(phone_number=phone).first()
     if member is None:
         raise ValidationError({"code": "The code is wrong or has expired. Request a new one."})
+    if member.membership_state == MembershipState.DEACTIVATED:
+        raise ValidationError({"phone_number": "This membership has ended."})
     if member.user is None and User.objects.filter(phone_number=phone).exists():
         raise ValidationError(
             {"phone_number": "This phone number belongs to a staff account. Contact support."}

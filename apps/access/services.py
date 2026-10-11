@@ -256,7 +256,7 @@ def _is_self(actor, member) -> bool:
     return bool(phone) and phone == _phone(member.phone_number)
 
 
-def _in_good_standing(user) -> bool:
+def in_good_standing(user) -> bool:
     """An active account whose membership, if any, is active."""
     if not user.is_active:
         return False
@@ -264,6 +264,34 @@ def _in_good_standing(user) -> bool:
         return user.member.membership_state == MembershipState.ACTIVE
     except ObjectDoesNotExist:
         return True
+
+
+def authority_over_member(actor, permission, member, *, area=None, what="member"):
+    """The grant under which `actor` may use `permission` on `member`.
+
+    One grant must hold the permission and cover `area` (the member's own
+    registration by default), and must not have come from the member: nobody
+    acts on themselves, and authority never acts on someone it came from.
+    """
+    if _is_self(actor, member):
+        raise PermissionDenied("You cannot do this to yourself.")
+    area = member if area is None else area
+    covering = [
+        grant
+        for grant in engine.active_grants(actor)
+        if permission in grant.permissions and grant.covers(area)
+    ]
+    if not covering:
+        raise PermissionDenied(f"The {what} is outside your area for this.")
+    for grant in covering:
+        source = None
+        if grant.source == engine.ASSIGNMENT:
+            source = RoleAssignment.objects.filter(uuid=grant.key).first()
+        elif grant.source == engine.DELEGATION:
+            source = DelegationGrant.objects.filter(uuid=grant.key).first()
+        if not (member.user_id and member.user_id in _upstream_accounts(source)):
+            return grant
+    raise PermissionDenied("Authority cannot be used on someone it came from.")
 
 
 def active_national_administrators() -> set[int]:
@@ -1066,7 +1094,7 @@ def _revoking_authority(actor, grant) -> Authority | None:
     grantor included) whose own standing is still good."""
     if engine.is_national_administrator(actor):
         return NATIONAL
-    if _in_good_standing(actor) and actor.pk in _upstream_accounts(grant):
+    if in_good_standing(actor) and actor.pk in _upstream_accounts(grant):
         return Authority(kind=UPSTREAM, permissions=frozenset(), areas=())
     return None
 

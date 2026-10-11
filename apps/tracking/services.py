@@ -7,6 +7,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from apps.access.services import in_good_standing
 from apps.core.choices import Role
 from apps.core.permissions import Capability
 from apps.geography.gps import LocationStatus, assess
@@ -21,12 +22,19 @@ FIELD_APP_ROLES = (Role.POLLING_UNIT_AGENT, Role.OBSERVER)
 def _require_field_role(user):
     if user.role not in FIELD_APP_ROLES:
         raise PermissionDenied("Only field agents and observers share location from the app.")
+    _require_standing(user)
+
+
+def _require_standing(user):
+    if not in_good_standing(user):
+        raise PermissionDenied("Your membership is suspended; field reporting is off.")
 
 
 @transaction.atomic
 def check_in(*, agent, gps, client_id=None) -> AgentCheckIn:
     if agent.role != Role.POLLING_UNIT_AGENT or agent.polling_unit_id is None:
         raise PermissionDenied("Only polling-unit agents check in at a polling unit.")
+    _require_standing(agent)
     if not gps:
         raise ValidationError({"gps": "Turn on location to check in."})
     if client_id:
@@ -56,6 +64,8 @@ def confirm_check_in(*, actor, check_in: AgentCheckIn) -> AgentCheckIn:
         raise PermissionDenied("You cannot confirm your own check-in.")
     if check.confirmed_at:
         raise ValidationError("This check-in is already confirmed.")
+    if not in_good_standing(check.agent):
+        raise ValidationError("This agent's membership is suspended; the check-in cannot count.")
     if check.location_status in (LocationStatus.SUSPECT, LocationStatus.NO_GPS):
         raise ValidationError("A check-in with a faked or missing location cannot be confirmed.")
 

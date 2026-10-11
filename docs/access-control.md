@@ -152,8 +152,8 @@ after the grantor's own authority has ended).
 Protected rules: only a National Administrator can appoint another; this
 cannot be delegated; no custom role can carry the protected permissions or
 the reserved name; suspending or removing a National Administrator follows
-§7. Ordinary membership suspension cannot target a National Administrator
-(Phase 4).
+§7. Membership suspension, deactivation and identity review refuse a
+National Administrator (§8, §9).
 
 ## 6. Supervision
 
@@ -223,31 +223,84 @@ the normal workflow.
 
 ## 8. Identity verification
 
-Checks recorded per member: PVC captured, PVC validated against an
-authoritative source, duplicates, SMS phone verification, live selfie,
-liveness, face comparison. Each check is passed, failed, pending or
-unsupported. Automatic verification only when every required check has
-passed. Today there is no authoritative PVC source, no liveness detection
-and no trusted reference photo, so those checks are recorded as
-**unsupported** and members go to coordinator review. Nothing is reported
-as passed unless it was actually performed.
+Checks recorded per member (`VerificationCheck`, one current result per
+check, each passed, failed, pending or unsupported):
 
-## 9. Sensitive data
+| Check | How it is decided today |
+|---|---|
+| `pvcCaptured` | Passed when the VIN and polling unit code came with a photo of the card; pending when they were typed in without one, or with a VIN only; failed without a PVC. |
+| `pvcValidated` | **Unsupported**: no authoritative INEC source is connected. Reading a PVC is not validating it. |
+| `duplicates` | Phone and VIN are unique by design; pending when someone else has the same name and date of birth (a count only, as they may be outside the reviewer's area), or when there is no date of birth to compare. |
+| `phoneVerified` | Passed when a code sent by SMS was entered. |
+| `selfieCaptured` | Passed when a selfie was captured, noted as not biometric verification; failed without one. |
+| `liveness` | **Unsupported**: no liveness detection. |
+| `faceMatch` | **Unsupported**: no trusted reference photo exists to compare with. |
 
-Coordinators see members in their areas (name, status, roles, area,
-verification status). Phone numbers, full VIN, PVC image, selfie and
-verification evidence need `viewMemberSensitiveData` for that member's area,
-enforced in the serializers.
+Checks run at both kinds of registration, and on demand (`POST
+.../verification/check/`, or `manage.py record_verification_checks` for
+members registered before). A member is verified automatically only when
+every check has passed, which cannot happen today: everyone goes to
+**pendingReview**. A coordinator holding `verifyMemberIdentity` for the
+member's area reviews in person, records notes and approves (the checks are
+run again first; refused while any has failed) or rejects. Nobody reviews
+themselves, anyone their authority came from (§5), or a National
+Administrator. Rejection, like any loss of verification, stops every
+appointment at once. Changing a verified member's name or date of birth
+sends them back to review, so it needs `verifyMemberIdentity` as well as
+`manageMembership`, and a reason; a National Administrator's identity
+details are never changed through the API. Every run and decision is in the
+audit log with whoever caused it; check details never hold the VIN, phone
+number or images. A member's history (`/members/<number>/history/`) is
+for those holding `verifyMemberIdentity` or `suspendMembers` there.
 
-## 10. Transition
+## 9. Membership standing and registered polling unit
+
+Holders of `suspendMembers` for a member's area can suspend (reason
+required; all operational access stops at once, sessions are ended),
+deactivate (reason required; the account can no longer sign in) and
+restore a membership. Appointments stay on record and only those still
+otherwise valid authorize anything after a restore. Nobody acts on their
+own membership or on anyone their authority came from, and these endpoints
+refuse National Administrators (§7). A suspended member shares no location,
+cannot check in, start duty or volunteer, and is left out of live maps and
+coverage. A deactivated member cannot set a PIN to sign in again, and their
+membership card scans as not valid.
+
+A member's registered polling unit comes from their PVC. After an INEC
+transfer the member asks to move (`/me/polling-unit/changes/`), sending
+the DELIM code and a photo of the updated card. A coordinator holding
+`reviewPollingUnitChanges` for the requested unit checks the card and
+approves or rejects (reason required). Approval moves the registered
+polling unit and keeps the new card image; it never changes appointments.
+Staff edits cannot move a PVC holder (only a National Administrator can). A
+member can make at most five requests in 30 days, and withdrawals are
+audited too.
+
+## 10. Sensitive data
+
+Coordinators see members in their areas: name, membership and
+verification status, roles, area. Phone number, email, VIN (even masked),
+date of birth and photo come back as `null` (with `sensitive_visible:
+false`) unless the caller holds `viewMemberSensitiveData` for that
+member's area; the same applies to the member photo endpoint, the phone of
+volunteers and the registered phone of agents. Finding a member by phone
+(`?phone=`) only searches those areas. Legacy coordinator roles were given
+this permission explicitly, because they already saw these details. The
+updated-card photo of a polling unit change is shown to its reviewers, as
+the evidence for that decision. A staff member scanning a membership card's
+QR code still sees the holder's photo, to compare with the person in front
+of them. Members always see their own details.
+
+## 11. Transition
 
 A data migration creates the system role definitions from the former fixed
 roles. Existing accounts keep their legacy access; nothing is deleted or
-widened. An administrator links a staff account to a verified member, which
-converts its legacy role into a normal assignment. Unknown roles map to no
-access.
+widened, except that legacy coordinators now hold `viewMemberSensitiveData`
+explicitly for what they already saw. Unknown roles map to no access.
+Planned, not built yet: an administrator links a staff account to a
+verified member, converting its legacy role into a normal assignment.
 
-## 11. API
+## 12. API
 
 | Endpoint | Use |
 |---|---|
@@ -260,19 +313,23 @@ access.
 | `GET /me/access/` | Where the signed-in user's access comes from (also in `/auth/me/` as `access`). |
 | `/me/assignments/` | The member's own appointments; `POST /<id>/accept/`, `/decline/`, `/resign/`. |
 | `GET /access/audit/` | The audit log (viewAudit held nationwide); `GET /access/audit/verify/` checks the hash chain (National Administrators). |
+| `/members/` | Members in the caller's areas, with `verification_status`, `membership_state`, `roles` and personal details only where allowed; filter by both states; `?phone=`. `POST /<number>/suspend/`, `/deactivate/`, `/restore/`; `GET /<number>/history/`. |
+| `/members/<number>/verification/` | `GET` the decision and every check; `POST check/` to run them again, `approve/` (notes) or `reject/` (reason). |
+| `/polling-unit-changes/` | Requests to move into the caller's areas; `POST /<id>/approve/`, `/reject/`; `GET /<id>/card/` (the updated card photo). |
+| `/me/polling-unit/changes/` | The member's own requests; `POST` (multipart: `delim`, `pvc_image`, `reason`); `POST /<id>/withdraw/`. `/me/member/` now includes `verification_status` and `membership_state`. |
 
 Every existing endpoint now checks the permission it uses against the
 caller's grants and their areas (`within_scope_q`, `scope_contains` and
 `default_to_actor_scope` refuse a user without a permission).
 
-## 12. Status
+## 13. Status
 
 | Phase | State |
 |---|---|
 | 1 Audit and design | Done (this document) |
 | 2 Django foundation | Done: registry, role definitions, appointments with several areas, engine, all existing checks moved onto it, lifecycle, audit log, API, tests |
 | 3 Delegation and protection | Done (backend): delegation grants with depth, term and chain rules, non-cascading revocation, self-elevation guards, supervisors, two-administrator approval, reinstatement, server recovery command, audit, API, tests |
-| 4 Membership integration | Not started: verification checks and review, membership suspension/deactivation endpoints, polling-unit changes, sensitive fields |
+| 4 Membership integration | Done (backend): verification checks at registration and coordinator review, membership suspension, deactivation and restore, polling-unit change requests, personal-detail restrictions, verified identity required to approve agents, audit, API, tests |
 | 5 Flutter integration | Not started |
 | 6 Verification and cleanup | Not started |
 
@@ -291,3 +348,8 @@ Known limitations so far:
   accounts of one person are recognised only when they share a phone number.
 - Row locks (`select_for_update`) take effect on PostgreSQL; the SQLite
   database used in development and tests serialises writes instead.
+- Legacy agent and staff accounts not linked to a member cannot be suspended
+  as members; their account must be deactivated instead.
+- Existing before this work: asking for a registration code
+  (`POST /register/code/`) answers differently for a phone number or VIN
+  that is already registered, so it reveals whether someone is a member.

@@ -512,3 +512,16 @@ def test_announcements_reach_members_in_the_area(outbox):
     titles = [a["title"] for a in me.get("/api/v1/me/announcements/").json()["results"]]
     assert sorted(titles) == ["Kaduna rally", "Zaria LGA"]
     assert Lga.objects.get(code="KD-ZARIA").inec_code == "18-23"
+
+
+# --- identity checks at registration ------------------------------------------------
+
+
+def test_registration_records_checks_and_awaits_review(outbox):
+    _, card = member_client(outbox)
+    assert card["verification_status"] == "pendingReview"
+    member = Member.objects.get(membership_number=card["membership_number"])
+    results = dict(member.verification_checks.values_list("kind", "result"))
+    assert results["pvcCaptured"] == "passed" and results["phoneVerified"] == "passed"
+    # What cannot be checked is recorded as such, never as passed.
+    assert results["pvcValidated"] == results["liveness"] == results["faceMatch"] == "unsupported"

@@ -1,22 +1,42 @@
+from django.core.exceptions import PermissionDenied
 from django.db.models import Prefetch
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.access.models import AssignmentStatus, AuditEvent, RoleAssignment
+from apps.access.serializers import AuditEventSerializer
+from apps.accounts.phone import normalize_ng_phone
 from apps.core.permissions import Capability, requires
-from apps.geography.scope import SCOPE_FIELDS, within_scope_any_q
+from apps.geography.scope import (
+    SCOPE_FIELDS,
+    scope_contains,
+    scope_contains_any,
+    within_scope_any_q,
+    within_scope_q,
+)
 
-from . import services
-from .models import AccreditedAgent, Member, VolunteerApplication
-from .registration_views import _photo_response
+from . import identity, services
+from .models import (
+    AccreditedAgent,
+    Member,
+    PollingUnitChangeRequest,
+    VerificationCheck,
+    VolunteerApplication,
+)
+from .registration_views import _photo_response, image_response
 from .serializers import (
     AccreditationEventSerializer,
     AgentSerializer,
     DecisionSerializer,
     MemberSerializer,
+    PollingUnitChangeSerializer,
     ReadinessSerializer,
+    StandingChangeSerializer,
     StatusChangeSerializer,
+    VerificationNotesSerializer,
+    VerificationSerializer,
     VolunteerApplicationSerializer,
     flatten_scope,
 )
@@ -28,6 +48,18 @@ MEMBERSHIP_READERS = (
     C.ACCREDIT_AGENTS,
     C.MANAGE_AGENT_ASSIGNMENTS,
 )
+# Who can find members in their areas: the above, and those who verify,
+# suspend or see members' personal details there.
+MEMBER_READERS = (
+    *MEMBERSHIP_READERS,
+    C.VERIFY_MEMBER_IDENTITY,
+    C.SUSPEND_MEMBERS,
+    C.VIEW_MEMBER_SENSITIVE_DATA,
+)
+STANDING_ACTIONS = ("suspend", "deactivate", "restore")
+# The record of standing and identity decisions: for those who make them.
+HISTORY_READERS = (C.VERIFY_MEMBER_IDENTITY, C.SUSPEND_MEMBERS)
+VERIFICATION_ACTIONS = ("verification", "run_checks", "verify", "reject_identity")
 
 SCOPE_FILTERS = {
     "scope_level": ["exact"],
@@ -53,37 +85,166 @@ class MemberViewSet(
     """
 
     serializer_class = MemberSerializer
-    permission_classes = [requires(C.MANAGE_MEMBERSHIP, safe=MEMBERSHIP_READERS)]
+    permission_classes = [requires(C.MANAGE_MEMBERSHIP, safe=MEMBER_READERS)]
     lookup_field = "membership_number"
-    http_method_names = ["get", "patch", "head", "options"]
+    http_method_names = ["get", "post", "patch", "head", "options"]
     filterset_fields = {
         "status": ["exact"],
+        "verification_status": ["exact"],
+        "membership_state": ["exact"],
         "origin": ["exact"],
         "registration_channel": ["exact"],
         "gender": ["exact"],
         **SCOPE_FILTERS,
     }
-    search_fields = ["full_name", "phone_number", "membership_number"]
+    # Phone numbers are personal: find by phone with ?phone=, inside the
+    # areas where the caller may see personal details.
+    search_fields = ["full_name", "membership_number"]
     ordering_fields = ["created_at", "full_name"]
 
     def get_permissions(self):
         if self.action == "photo":
-            return [requires(*MEMBERSHIP_READERS)()]
+            return [requires(C.VIEW_MEMBER_SENSITIVE_DATA)()]
+        if self.action in STANDING_ACTIONS:
+            return [requires(C.SUSPEND_MEMBERS)()]
+        if self.action in VERIFICATION_ACTIONS:
+            return [requires(C.VERIFY_MEMBER_IDENTITY)()]
+        if self.action == "history":
+            return [requires(*HISTORY_READERS)()]
         return super().get_permissions()
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):  # schema generation
             return Member.objects.none()
-        return (
-            Member.objects.filter(within_scope_any_q(self.request.user, MEMBERSHIP_READERS))
+        user = self.request.user
+        members = (
+            Member.objects.filter(within_scope_any_q(user, MEMBER_READERS))
             .select_related(*SCOPE_FIELDS)
-            .prefetch_related(Prefetch("accreditations"))
+            .prefetch_related(
+                Prefetch("accreditations"),
+                Prefetch(
+                    "role_assignments",
+                    queryset=RoleAssignment.objects.select_related("role").filter(
+                        status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.SUSPENDED]
+                    ),
+                ),
+            )
         )
+        phone = self.request.query_params.get("phone")
+        if phone and self.action == "list":
+            members = members.filter(
+                within_scope_q(user, permission=C.VIEW_MEMBER_SENSITIVE_DATA),
+                phone_number=normalize_ng_phone(phone) or phone,
+            )
+        return members
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "phone",
+                str,
+                description="Exact phone number; matches only where you may see personal details.",
+            )
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
 
     @extend_schema(responses={(200, "image/jpeg"): bytes})
     @action(detail=True, methods=["get"])
     def photo(self, request, membership_number=None):
-        return _photo_response(self.get_object())
+        member = self.get_object()
+        if not scope_contains(request.user, member, permission=C.VIEW_MEMBER_SENSITIVE_DATA):
+            raise PermissionDenied("Personal details of this member are outside your access.")
+        return _photo_response(member)
+
+    def _standing(self, request, change):
+        data = StandingChangeSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        member = change(
+            actor=request.user,
+            member=self.get_object(),
+            reason=data.validated_data.get("reason", ""),
+        )
+        return Response(self.get_serializer(self.get_queryset().get(pk=member.pk)).data)
+
+    @extend_schema(request=StandingChangeSerializer, responses=MemberSerializer)
+    @action(detail=True, methods=["post"])
+    def suspend(self, request, membership_number=None):
+        """Block all of the member's operational access (reason required)."""
+        return self._standing(request, services.suspend_membership)
+
+    @extend_schema(request=StandingChangeSerializer, responses=MemberSerializer)
+    @action(detail=True, methods=["post"])
+    def deactivate(self, request, membership_number=None):
+        """End the membership; the member can no longer sign in (reason required)."""
+        return self._standing(request, services.deactivate_membership)
+
+    @extend_schema(request=StandingChangeSerializer, responses=MemberSerializer)
+    @action(detail=True, methods=["post"])
+    def restore(self, request, membership_number=None):
+        return self._standing(request, services.restore_membership)
+
+    def _verification(self, member):
+        checks = VerificationCheck.objects.select_related("checked_by")
+        member = (
+            Member.objects.select_related("verified_by")
+            .prefetch_related(Prefetch("verification_checks", queryset=checks))
+            .get(pk=member.pk)
+        )
+        return Response(VerificationSerializer(member).data)
+
+    def _require_reviewer(self, member):
+        identity.require_reviewer(self.request.user, member)
+
+    @extend_schema(responses=VerificationSerializer)
+    @action(detail=True, methods=["get"])
+    def verification(self, request, membership_number=None):
+        """The identity decision and every check behind it."""
+        member = self.get_object()
+        self._require_reviewer(member)
+        return self._verification(member)
+
+    @extend_schema(request=None, responses=VerificationSerializer)
+    @action(detail=True, methods=["post"], url_path="verification/check")
+    def run_checks(self, request, membership_number=None):
+        """Run the checks the system can perform again (e.g. after a PVC was added)."""
+        member = self.get_object()
+        self._require_reviewer(member)
+        return self._verification(identity.record_checks(member, actor=request.user))
+
+    @extend_schema(request=VerificationNotesSerializer, responses=VerificationSerializer)
+    @action(detail=True, methods=["post"], url_path="verification/approve")
+    def verify(self, request, membership_number=None):
+        """Confirm the identity after reviewing what the system could not check."""
+        data = VerificationNotesSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        member = identity.approve(
+            actor=request.user, member=self.get_object(), notes=data.validated_data["notes"]
+        )
+        return self._verification(member)
+
+    @extend_schema(request=DecisionSerializer, responses=VerificationSerializer)
+    @action(detail=True, methods=["post"], url_path="verification/reject")
+    def reject_identity(self, request, membership_number=None):
+        data = DecisionSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        member = identity.reject(
+            actor=request.user,
+            member=self.get_object(),
+            reason=data.validated_data.get("reason", ""),
+        )
+        return self._verification(member)
+
+    @extend_schema(responses=AuditEventSerializer(many=True))
+    @action(detail=True, methods=["get"])
+    def history(self, request, membership_number=None):
+        """Verification, standing and polling unit changes, newest first."""
+        member = self.get_object()
+        if not scope_contains_any(request.user, member, HISTORY_READERS):
+            raise PermissionDenied("This member's history is outside your area.")
+        events = AuditEvent.objects.filter(target_type="member", target_id=member.membership_number)
+        return Response(AuditEventSerializer(events, many=True).data)
 
     def perform_update(self, serializer):
         serializer.instance = services.update_member(
@@ -193,7 +354,9 @@ class VolunteerViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             application=self.get_object(),
             reason=serializer.validated_data.get("reason", ""),
         )
-        return Response(VolunteerApplicationSerializer(application).data)
+        return Response(
+            VolunteerApplicationSerializer(application, context={"request": request}).data
+        )
 
     @extend_schema(request=DecisionSerializer, responses=VolunteerApplicationSerializer)
     @action(detail=True, methods=["post"])
@@ -204,3 +367,55 @@ class VolunteerViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
     @action(detail=True, methods=["post"])
     def decline(self, request, uuid=None):
         return self._decide(request, services.decline_volunteer)
+
+
+class PollingUnitChangeViewSet(
+    mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet
+):
+    """Members' requests to move their registered polling unit, for the
+    coordinators covering the unit they ask to move to.
+
+    Approving moves the member's registered polling unit only; their
+    operational appointments are not changed.
+    """
+
+    serializer_class = PollingUnitChangeSerializer
+    permission_classes = [requires(C.REVIEW_POLLING_UNIT_CHANGES)]
+    lookup_field = "uuid"
+    filterset_fields = {"status": ["exact"], **SCOPE_FILTERS}
+    search_fields = ["member__full_name", "member__membership_number"]
+    ordering_fields = ["created_at"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return PollingUnitChangeRequest.objects.none()
+        return PollingUnitChangeRequest.objects.filter(
+            within_scope_q(self.request.user, permission=C.REVIEW_POLLING_UNIT_CHANGES)
+        ).select_related("member", "polling_unit", "from_polling_unit", "decided_by", *SCOPE_FIELDS)
+
+    def _decide(self, request, decide):
+        data = DecisionSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        change = decide(
+            actor=request.user,
+            change=self.get_object(),
+            reason=data.validated_data.get("reason", ""),
+        )
+        return Response(PollingUnitChangeSerializer(self.get_queryset().get(pk=change.pk)).data)
+
+    @extend_schema(request=DecisionSerializer, responses=PollingUnitChangeSerializer)
+    @action(detail=True, methods=["post"])
+    def approve(self, request, uuid=None):
+        """The updated voter card was checked: move the member's polling unit."""
+        return self._decide(request, services.approve_polling_unit_change)
+
+    @extend_schema(request=DecisionSerializer, responses=PollingUnitChangeSerializer)
+    @action(detail=True, methods=["post"])
+    def reject(self, request, uuid=None):
+        return self._decide(request, services.reject_polling_unit_change)
+
+    @extend_schema(responses={(200, "image/jpeg"): bytes})
+    @action(detail=True, methods=["get"])
+    def card(self, request, uuid=None):
+        """The photo of the updated voter card, the evidence for this decision."""
+        return image_response(self.get_object().pvc_image)

@@ -6,7 +6,7 @@ from rest_framework import serializers
 
 from apps.core.choices import AccreditationStatus, Gender
 from apps.core.permissions import Capability
-from apps.geography.scope import ScopeField, scope_payload, within_scope_q
+from apps.geography.scope import ScopeField, scope_contains, scope_payload, within_scope_q
 from apps.geography.serializers import NavigationSerializer, navigation_for
 
 from .models import (
@@ -14,6 +14,8 @@ from .models import (
     AccreditationEvent,
     AccreditedAgent,
     Member,
+    PollingUnitChangeRequest,
+    VerificationCheck,
     VolunteerApplication,
 )
 
@@ -41,6 +43,21 @@ def masked_vin(member: Member) -> str | None:
     return f"{'*' * 15}{member.vin[-4:]}" if member.vin else None
 
 
+# Personal details shown only with viewMemberSensitiveData for the member's area.
+SENSITIVE_MEMBER_FIELDS = ("phone_number", "email", "vin", "date_of_birth", "photo_url")
+
+
+def may_see_sensitive(serializer, member) -> bool:
+    """The member themselves, or holders of viewMemberSensitiveData for their area."""
+    request = serializer.context.get("request")
+    user = getattr(request, "user", None)
+    if not getattr(user, "is_authenticated", False):
+        return False
+    if member.user_id and member.user_id == user.pk:
+        return True
+    return scope_contains(user, member, permission=Capability.VIEW_MEMBER_SENSITIVE_DATA)
+
+
 def _absolute(serializer, path):
     request = serializer.context.get("request")
     return request.build_absolute_uri(path) if request else path
@@ -60,11 +77,28 @@ class ActiveAccreditationSerializer(serializers.ModelSerializer):
 
 
 class MemberSerializer(serializers.ModelSerializer):
-    """Staff view of a member. Only the last 4 digits of the VIN are shown."""
+    """Staff view of a member. Only the last 4 digits of the VIN are shown.
+
+    Phone, email, VIN, date of birth and photo are withheld (null) unless the
+    caller holds viewMemberSensitiveData for the member's area.
+    """
 
     id = serializers.UUIDField(source="uuid", read_only=True)
     scope = ScopeField(required=False)
+    phone_number = serializers.CharField(read_only=True, allow_null=True)
+    email = serializers.EmailField(required=False, allow_blank=True, allow_null=True)
     vin = serializers.SerializerMethodField()
+    sensitive_visible = serializers.SerializerMethodField(
+        help_text="False when personal details were withheld."
+    )
+    roles = serializers.SerializerMethodField(help_text="Current appointments.")
+    reason = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        max_length=1000,
+        help_text="Required when a change sends a verified identity back to review.",
+    )
     has_pvc = serializers.BooleanField(read_only=True)
     phone_verified = serializers.SerializerMethodField()
     has_app_account = serializers.SerializerMethodField()
@@ -85,6 +119,8 @@ class MemberSerializer(serializers.ModelSerializer):
             "date_of_birth",
             "occupation",
             "status",
+            "verification_status",
+            "membership_state",
             "registration_channel",
             "phone_verified",
             "has_app_account",
@@ -92,6 +128,9 @@ class MemberSerializer(serializers.ModelSerializer):
             "client_id",
             "scope",
             "photo_url",
+            "sensitive_visible",
+            "roles",
+            "reason",
             "active_accreditation",
             "created_at",
             "updated_at",
@@ -99,6 +138,8 @@ class MemberSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "membership_number",
             "phone_number",
+            "verification_status",
+            "membership_state",
             "registration_channel",
             "origin",
             "client_id",
@@ -130,6 +171,27 @@ class MemberSerializer(serializers.ModelSerializer):
 
     def get_active_accreditation(self, member) -> dict | None:
         return _active_accreditation(member)
+
+    def get_sensitive_visible(self, member) -> bool:
+        return may_see_sensitive(self, member)
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_roles(self, member) -> list:
+        return [
+            {"role": a.role.code, "role_name": a.role.name, "state": a.effective_status()}
+            for a in member.role_assignments.all()
+            if a.status in ("active", "suspended")
+        ]
+
+    def validate_email(self, value):
+        return value or ""
+
+    def to_representation(self, member):
+        data = super().to_representation(member)
+        if not data["sensitive_visible"]:
+            for field in SENSITIVE_MEMBER_FIELDS:
+                data[field] = None
+        return data
 
 
 def _active_accreditation(member):
@@ -236,6 +298,8 @@ class MemberCardSerializer(serializers.ModelSerializer):
             "date_of_birth",
             "occupation",
             "status",
+            "verification_status",
+            "membership_state",
             "scope",
             "polling_unit",
             "member_since",
@@ -249,6 +313,8 @@ class MemberCardSerializer(serializers.ModelSerializer):
             "gender",
             "date_of_birth",
             "status",
+            "verification_status",
+            "membership_state",
         ]
 
     def get_vin(self, member) -> str | None:
@@ -270,7 +336,9 @@ class MemberSelfUpdateSerializer(serializers.ModelSerializer):
 class CardVerificationSerializer(serializers.ModelSerializer):
     """Shown to a coordinator who scans a membership card's QR code."""
 
-    valid = serializers.SerializerMethodField()
+    valid = serializers.SerializerMethodField(
+        help_text="A current member: an active membership on an accepted record."
+    )
     has_pvc = serializers.BooleanField(read_only=True)
     scope = ScopeField(read_only=True)
     photo_url = serializers.SerializerMethodField()
@@ -283,6 +351,8 @@ class CardVerificationSerializer(serializers.ModelSerializer):
             "membership_number",
             "full_name",
             "status",
+            "membership_state",
+            "verification_status",
             "has_pvc",
             "scope",
             "member_since",
@@ -290,7 +360,7 @@ class CardVerificationSerializer(serializers.ModelSerializer):
         ]
 
     def get_valid(self, member) -> bool:
-        return member.status not in ("rejected", "archived")
+        return member.status not in ("rejected", "archived") and member.membership_state == "active"
 
     def get_photo_url(self, member) -> str | None:
         if not member.photo:
@@ -304,7 +374,9 @@ class VolunteerApplicationSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(source="uuid", read_only=True)
     member = serializers.CharField(source="member.membership_number", read_only=True)
     member_name = serializers.CharField(source="member.full_name", read_only=True)
-    member_phone = serializers.CharField(source="member.phone_number", read_only=True)
+    member_phone = serializers.SerializerMethodField(
+        help_text="Withheld (null) without viewMemberSensitiveData for the member's area."
+    )
     scope = serializers.SerializerMethodField(help_text="Where the member is.")
     interests = serializers.ListField(
         child=serializers.ChoiceField(choices=VolunteerApplication.Interest.choices)
@@ -330,6 +402,10 @@ class VolunteerApplicationSerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_scope(self, application) -> dict:
         return scope_payload(application.member)
+
+    def get_member_phone(self, application) -> str | None:
+        member = application.member
+        return member.phone_number if may_see_sensitive(self, member) else None
 
 
 class VolunteerOfferSerializer(serializers.Serializer):
@@ -389,6 +465,12 @@ class AgentSerializer(serializers.ModelSerializer):
         # Accreditation constraints are enforced by the model and service.
         validators = []
 
+    def to_representation(self, agent):
+        data = super().to_representation(agent)
+        if not may_see_sensitive(self, agent.member):
+            data["registered_phone_number"] = None  # a phone number is personal
+        return data
+
 
 class ReadinessSerializer(serializers.ModelSerializer):
     class Meta:
@@ -407,3 +489,72 @@ class AccreditationEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = AccreditationEvent
         fields = ["from_status", "to_status", "reason", "actor", "created_at"]
+
+
+class VerificationCheckSerializer(serializers.ModelSerializer):
+    checked_by = serializers.CharField(source="checked_by.access_id", default=None, read_only=True)
+
+    class Meta:
+        model = VerificationCheck
+        fields = ["kind", "result", "detail", "checked_at", "checked_by"]
+        read_only_fields = fields
+
+
+class VerificationSerializer(serializers.Serializer):
+    """A member's identity verification: the decision and every check behind it."""
+
+    membership_number = serializers.CharField()
+    verification_status = serializers.CharField()
+    verified_at = serializers.DateTimeField(allow_null=True)
+    reviewed_by = serializers.CharField(source="verified_by.access_id", default=None)
+    checks = VerificationCheckSerializer(source="verification_checks", many=True)
+
+
+class VerificationNotesSerializer(serializers.Serializer):
+    notes = serializers.CharField(max_length=1000, help_text="What you checked and how.")
+
+
+class StandingChangeSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+
+
+class PollingUnitChangeSerializer(serializers.ModelSerializer):
+    """A request to move a member's registered polling unit."""
+
+    id = serializers.UUIDField(source="uuid", read_only=True)
+    member = serializers.CharField(source="member.membership_number", read_only=True)
+    member_name = serializers.CharField(source="member.full_name", read_only=True)
+    from_polling_unit = serializers.CharField(
+        source="from_polling_unit.code", default=None, read_only=True
+    )
+    to_polling_unit = serializers.CharField(source="polling_unit.code", read_only=True)
+    to_polling_unit_name = serializers.CharField(source="polling_unit.name", read_only=True)
+    scope = ScopeField(read_only=True)
+    decided_by = serializers.CharField(source="decided_by.access_id", default=None, read_only=True)
+
+    class Meta:
+        model = PollingUnitChangeRequest
+        fields = [
+            "id",
+            "member",
+            "member_name",
+            "from_polling_unit",
+            "to_polling_unit",
+            "to_polling_unit_name",
+            "scope",
+            "reason",
+            "status",
+            "decided_by",
+            "decided_at",
+            "decision_reason",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class PollingUnitChangeRequestSerializer(serializers.Serializer):
+    """What a member sends: the code and a photo of their updated voter card."""
+
+    delim = serializers.CharField(max_length=32)
+    pvc_image = serializers.ImageField()
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=1000)

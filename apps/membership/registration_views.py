@@ -6,6 +6,7 @@ in config/urls.py so failed code attempts are recorded.
 
 import mimetypes
 
+from django.db import transaction
 from django.http import FileResponse, Http404
 from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import generics, serializers, status
@@ -23,7 +24,7 @@ from apps.core.permissions import Capability, has_capability, is_staff_operator
 from apps.geography.models import PollingUnit
 
 from . import registration, services
-from .models import Member
+from .models import Member, PollingUnitChangeRequest
 from .serializers import (
     AssistedRegistrationSerializer,
     CardVerificationSerializer,
@@ -31,6 +32,8 @@ from .serializers import (
     MemberSelfUpdateSerializer,
     MemberSerializer,
     PinCodeSerializer,
+    PollingUnitChangeRequestSerializer,
+    PollingUnitChangeSerializer,
     PollingUnitSummarySerializer,
     RegistrationCodeSerializer,
     SelfRegistrationSerializer,
@@ -194,23 +197,31 @@ class MyMemberView(MemberHomeMixin, generics.RetrieveUpdateAPIView):
 
     @extend_schema(request=MemberSelfUpdateSerializer, responses=MemberCardSerializer)
     def patch(self, request, *args, **kwargs):
-        member = self.member()
-        serializer = MemberSelfUpdateSerializer(member, data=request.data, partial=True)
+        serializer = MemberSelfUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        for name, value in serializer.validated_data.items():
-            setattr(member, name, value)
-        member.full_clean()
-        member.save()
-        return Response(MemberCardSerializer(member, context={"request": request}).data)
+        with transaction.atomic():
+            # Lock and save only the edited fields, so a suspension or review
+            # decided meanwhile is never written back over.
+            member = Member.objects.select_for_update().get(pk=request.user.member.pk)
+            for name, value in serializer.validated_data.items():
+                setattr(member, name, value)
+            member.full_clean()
+            member.save(update_fields=[*serializer.validated_data, "updated_at"])
+        return Response(MemberCardSerializer(self.member(), context={"request": request}).data)
+
+
+def image_response(image):
+    """Serve a private image (never cached)."""
+    if not image:
+        raise Http404
+    content_type = mimetypes.guess_type(image.name)[0] or "image/jpeg"
+    response = FileResponse(image.open("rb"), content_type=content_type)
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 def _photo_response(member):
-    if not member.photo:
-        raise Http404
-    content_type = mimetypes.guess_type(member.photo.name)[0] or "image/jpeg"
-    response = FileResponse(member.photo.open("rb"), content_type=content_type)
-    response["Cache-Control"] = "private, no-store"
-    return response
+    return image_response(member.photo)
 
 
 class MyMemberPhotoView(MemberHomeMixin, APIView):
@@ -275,7 +286,9 @@ class MyVolunteerView(MemberHomeMixin, APIView):
         offers = self.member().volunteering.select_related(
             "member__zone", "member__state", "member__lga", "member__ward", "member__polling_unit"
         )
-        return Response(VolunteerApplicationSerializer(offers, many=True).data)
+        return Response(
+            VolunteerApplicationSerializer(offers, many=True, context={"request": request}).data
+        )
 
     @extend_schema(
         request=VolunteerOfferSerializer, responses={201: VolunteerApplicationSerializer}
@@ -284,7 +297,10 @@ class MyVolunteerView(MemberHomeMixin, APIView):
         serializer = VolunteerOfferSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         offer = services.apply_to_volunteer(member=self.member(), **serializer.validated_data)
-        return Response(VolunteerApplicationSerializer(offer).data, status=status.HTTP_201_CREATED)
+        return Response(
+            VolunteerApplicationSerializer(offer, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class MyVolunteerWithdrawView(MemberHomeMixin, APIView):
@@ -297,7 +313,7 @@ class MyVolunteerWithdrawView(MemberHomeMixin, APIView):
         if offer is None:
             raise Http404
         offer = services.withdraw_volunteering(member=member, application=offer)
-        return Response(VolunteerApplicationSerializer(offer).data)
+        return Response(VolunteerApplicationSerializer(offer, context={"request": request}).data)
 
 
 # --- card verification (staff scan a member's QR code) --------------------------
@@ -329,3 +345,48 @@ class CardPhotoView(APIView):
     def get(self, request):
         member, _ = _member_for_token(request)
         return _photo_response(member)
+
+
+# --- registered polling unit changes (after an INEC transfer) -------------------
+
+
+class MyPollingUnitChangeView(MemberHomeMixin, APIView):
+    """The member's requests to move their registered polling unit; POST the
+    code and a photo of the updated voter card to ask for one."""
+
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    @extend_schema(responses=PollingUnitChangeSerializer(many=True))
+    def get(self, request):
+        changes = self.member().polling_unit_changes.select_related(
+            "member", "polling_unit", "from_polling_unit", "decided_by"
+        )
+        return Response(PollingUnitChangeSerializer(changes, many=True).data)
+
+    @extend_schema(
+        request={"multipart/form-data": PollingUnitChangeRequestSerializer},
+        responses={201: PollingUnitChangeSerializer},
+    )
+    def post(self, request):
+        serializer = PollingUnitChangeRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        change = services.request_polling_unit_change(
+            member=self.member(), **serializer.validated_data
+        )
+        change = PollingUnitChangeRequest.objects.select_related(
+            "member", "polling_unit", "from_polling_unit"
+        ).get(pk=change.pk)
+        return Response(PollingUnitChangeSerializer(change).data, status=status.HTTP_201_CREATED)
+
+
+class MyPollingUnitChangeWithdrawView(MemberHomeMixin, APIView):
+    """Take back a change request that has not been reviewed yet."""
+
+    @extend_schema(request=None, responses=PollingUnitChangeSerializer)
+    def post(self, request, uuid):
+        member = self.member()
+        change = member.polling_unit_changes.filter(uuid=uuid).first()
+        if change is None:
+            raise Http404
+        change = services.withdraw_polling_unit_change(member=member, change=change)
+        return Response(PollingUnitChangeSerializer(change).data)

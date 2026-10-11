@@ -12,7 +12,12 @@ from apps.core.views import HealthView
 from apps.field.views import EvidenceDownloadView, FieldReportViewSet, IncidentViewSet
 from apps.geography import views as geography
 from apps.membership import registration_views as reg
-from apps.membership.views import AgentViewSet, MemberViewSet, VolunteerViewSet
+from apps.membership.views import (
+    AgentViewSet,
+    MemberViewSet,
+    PollingUnitChangeViewSet,
+    VolunteerViewSet,
+)
 from apps.results.views import CollationView, ElectionViewSet, PartyViewSet, ResultViewSet
 from apps.tracking import mapping_views as mapping
 from apps.tracking.views import (
@@ -33,6 +38,7 @@ router.register("geography/polling-units", geography.PollingUnitViewSet)
 router.register("members", MemberViewSet, basename="member")
 router.register("agents", AgentViewSet, basename="agent")
 router.register("volunteers", VolunteerViewSet, basename="volunteer")
+router.register("polling-unit-changes", PollingUnitChangeViewSet, basename="polling-unit-change")
 router.register("announcements", AnnouncementViewSet, basename="announcement")
 router.register("tracking/check-ins", CheckInViewSet, basename="check-in")
 router.register("incidents", IncidentViewSet, basename="incident")
@@ -109,6 +115,16 @@ api_v1 = [
     path("me/member/", reg.MyMemberView.as_view(), name="my-member"),
     path("me/member/photo/", reg.MyMemberPhotoView.as_view(), name="my-member-photo"),
     path("me/polling-unit/", reg.MyPollingUnitView.as_view(), name="my-polling-unit"),
+    path(
+        "me/polling-unit/changes/",
+        reg.MyPollingUnitChangeView.as_view(),
+        name="my-polling-unit-changes",
+    ),
+    path(
+        "me/polling-unit/changes/<uuid:uuid>/withdraw/",
+        reg.MyPollingUnitChangeWithdrawView.as_view(),
+        name="my-polling-unit-change-withdraw",
+    ),
     path("me/announcements/", reg.MyAnnouncementsView.as_view(), name="my-announcements"),
     path("me/volunteer/", reg.MyVolunteerView.as_view(), name="my-volunteer"),
     path(

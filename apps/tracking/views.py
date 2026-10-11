@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
-from apps.core.choices import GeographyLevel, Role
+from apps.core.choices import GeographyLevel, MembershipState, Role
 from apps.core.permissions import Capability, requires
 from apps.geography.gps import GpsFixSerializer, GpsReadSerializer, LocationStatus
 from apps.geography.scope import (
@@ -196,6 +196,10 @@ AREA_PARAMS = [
 ]
 
 
+# Memberships that share no location and count for nothing.
+STOPPED = [MembershipState.SUSPENDED, MembershipState.DEACTIVATED]
+
+
 class LiveAgentsView(APIView):
     """On-duty agents with their latest position, for the live map."""
 
@@ -208,6 +212,7 @@ class LiveAgentsView(APIView):
         sessions = (
             DutySession.objects.filter(ended_at__isnull=True)
             .filter(within_scope_q(scope, prefix="user__"))
+            .exclude(user__member__membership_state__in=STOPPED)
             .select_related("user__polling_unit")
             .annotate(ping_id=Subquery(latest.values("pk")[:1]))
         )
@@ -250,9 +255,13 @@ class CoverageView(APIView):
         tz = timezone.get_current_timezone()
         start = timezone.make_aware(datetime.combine(day, time.min), tz)
 
-        agents = User.objects.filter(
-            role=Role.POLLING_UNIT_AGENT, is_active=True, polling_unit__isnull=False
-        ).filter(within_scope_q(scope))
+        agents = (
+            User.objects.filter(
+                role=Role.POLLING_UNIT_AGENT, is_active=True, polling_unit__isnull=False
+            )
+            .filter(within_scope_q(scope))
+            .exclude(member__membership_state__in=STOPPED)
+        )
         check_ins = (
             AgentCheckIn.objects.filter(
                 created_at__gte=start, created_at__lt=start + timedelta(days=1)
@@ -265,6 +274,7 @@ class CoverageView(APIView):
         on_duty = set(
             DutySession.objects.filter(ended_at__isnull=True)
             .filter(within_scope_q(scope, prefix="user__"))
+            .exclude(user__member__membership_state__in=STOPPED)
             .values_list("user_id", flat=True)
         )
 
