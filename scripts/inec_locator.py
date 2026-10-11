@@ -244,8 +244,12 @@ def read_finished(path, retry_missing=False):
 def harvest(locator, out, *, state=None, lga=None, limit=None, samples=None, retry_missing=False):
     """Walk the locator and append one row per polling unit to [out]."""
     finished, known_missing = read_finished(out, retry_missing)
+    # The list cache only saves requests: a missing or damaged one is rebuilt.
     cache_path = Path(str(out) + ".lists.json")
-    cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
+    try:
+        cache = json.loads(cache_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        cache = {}
     saved_samples = 0
     fetched = located = 0
     # Units fetched for the first time, for the format-change guard below.
@@ -258,9 +262,15 @@ def harvest(locator, out, *, state=None, lga=None, limit=None, samples=None, ret
         return [tuple(item) for item in cache[key]]
 
     def save_cache():
-        tmp = cache_path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(cache), encoding="utf-8")
-        tmp.replace(cache_path)
+        # Windows can briefly lock the file (antivirus, file watchers), so retry,
+        # and never stop a run over it.
+        for _ in range(5):
+            try:
+                cache_path.write_text(json.dumps(cache), encoding="utf-8")
+                return
+            except OSError:
+                time.sleep(0.5)
+        print("Could not save the list cache; carrying on without it.", flush=True)
 
     new_file = not os.path.exists(out)
     _, _, page = locator.request("/pu")

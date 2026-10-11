@@ -159,6 +159,14 @@ def test_harvest_writes_rows_and_resumes(tmp_path, capsys):
     assert retry.directions_asked == [56437]
 
 
+def test_damaged_list_cache_is_rebuilt(tmp_path):
+    out = tmp_path / "locator.csv"
+    Path(str(out) + ".lists.json").write_text('{"lgas/19": [[369, 23', encoding="utf-8")
+    assert locator.harvest(FakeLocator(), out, state=18) == (2, 1)
+    cache = json.loads(Path(str(out) + ".lists.json").read_text(encoding="utf-8"))
+    assert cache["units/4244"] == [[56437, 1, "KWARBAI I"], [56450, 14, "UNG. ASKA I"]]
+
+
 class ManyUnits(FakeLocator):
     """One ward of 15 units; INEC has coordinates only for units 13-15."""
 
