@@ -78,8 +78,9 @@ Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
 | Kubau | 310 | 306 | 35 | 4 | 0 |
 | Kudan | 193 | 183 | 2 | 10 | 0 |
 | Lere | 457 | 406 | 43 | 50 | 1 |
+| Makarfi | 208 | 201 | 11 | 7 | 0 |
 | Zaria | 584 | 584 | 41 | 0 | 0 |
-| **Total** | **6,576** | **6,406** | **553** | **139** | **31** |
+| **Total** | **6,784** | **6,607** | **564** | **146** | **31** |
 
 - **Located** units are imported. **Outside own ward** counts located units
   that fall just outside their ward on GRID3's operational ward map, whose
