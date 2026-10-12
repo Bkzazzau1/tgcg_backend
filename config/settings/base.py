@@ -139,6 +139,7 @@ REST_FRAMEWORK = {
         "login": env("API_THROTTLE_LOGIN", default="10/min"),
         "registration": env("API_THROTTLE_REGISTRATION", default="30/hour"),
         "delim_lookup": env("API_THROTTLE_DELIM_LOOKUP", default="120/hour"),
+        "pvc_reading": env("API_THROTTLE_PVC_READING", default="30/hour"),
     },
 }
 
@@ -213,6 +214,12 @@ OTP_MAX_PER_HOUR = 5
 
 # --- Member registration ---------------------------------------------------------
 MEMBER_PHOTO_MAX_MB = env.int("MEMBER_PHOTO_MAX_MB", default=8)
+
+# --- Reading PVC photos for browsers (see apps/membership/pvc_reading.py) ----------
+# Google Cloud Vision when a key is set (the photo goes to Google); otherwise
+# Tesseract, if installed; otherwise people type the details from the card.
+GOOGLE_VISION_API_KEY = env("GOOGLE_VISION_API_KEY", default="")
+TESSERACT_CMD = env("TESSERACT_CMD", default="tesseract")
 
 # --- Joining by USSD (see apps/membership/ussd.py) ---------------------------------
 # The provider posts to /api/v1/ussd/<USSD_CALLBACK_TOKEN>/; empty turns USSD off.

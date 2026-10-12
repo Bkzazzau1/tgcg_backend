@@ -40,10 +40,13 @@ NO_PVC_LEVELS = (GeographyLevel.LGA, GeographyLevel.WARD, GeographyLevel.POLLING
 
 
 def polling_unit_from_delim(delim: str) -> PollingUnit:
-    """Resolve the PVC DELIM code (e.g. 18/23/01/001) to a polling unit."""
+    """Resolve the polling unit code on a PVC (marked CODE, older cards DELIM;
+    e.g. 18-23-01-001) to a polling unit."""
     match = _DELIM.match(delim or "")
     if not match:
-        raise ValidationError({"delim": "Enter the DELIM code from the PVC, e.g. 18/23/01/001."})
+        raise ValidationError(
+            {"delim": "Enter the polling unit code from the PVC (marked CODE), e.g. 18-23-01-001."}
+        )
     state, lga, ward, unit = match.groups()
     code = f"{int(state):02d}-{int(lga):02d}-{int(ward):02d}-{int(unit):03d}"
     polling_unit = (

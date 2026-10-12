@@ -56,8 +56,8 @@ def dial(*answers, session="ATUid_1", phone=PHONE):
 def test_joining_step_by_step():
     assert dial() == "CON Welcome to TGCG\n1. Join TGCG\n2. My membership"
     assert dial("1") == "CON Enter your full name as written on your PVC:"
-    assert dial("1", "musa BELLO").startswith("CON Enter the DELIM code on your PVC")
-    # The DELIM code one number at a time, each named back to the member...
+    assert dial("1", "musa BELLO").startswith("CON Enter the polling unit CODE on your PVC")
+    # The code one number at a time, each named back to the member...
     assert dial("1", "musa BELLO", "18").startswith("CON Kaduna State. Enter the 2nd number")
     assert dial("1", "musa BELLO", "18", "23").startswith("CON Zaria LGA. Enter the 3rd number")
     assert dial("1", "musa BELLO", "18", "23", "1").startswith("CON KWARBAI")
@@ -124,7 +124,7 @@ def test_wrong_answers_are_asked_again():
     # A wrong answer is asked again, and the next answer counts.
     assert dial(*name, "99", "18").startswith("CON Kaduna State.")
     # The member can enter the code again if the unit named is not theirs.
-    assert dial(*name, "18*23*01*001", "2").startswith("CON Enter the DELIM code")
+    assert dial(*name, "18*23*01*001", "2").startswith("CON Enter the polling unit CODE")
 
     unit = [*name, "18*23*01*001", "1"]
     assert dial(*unit, "3").startswith("CON Choose 1 or 2.\n")

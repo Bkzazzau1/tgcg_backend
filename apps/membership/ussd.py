@@ -61,7 +61,7 @@ def _message(error: ValidationError) -> str:
 
 
 def _number(value: str, digits: int) -> int | None:
-    """One number of a DELIM code: up to `digits` digits, not zero."""
+    """One number of a polling unit code: up to `digits` digits, not zero."""
     if not re.fullmatch(rf"[0-9]{{1,{digits}}}", value) or int(value) == 0:
         return None
     return int(value)
@@ -315,20 +315,18 @@ class _Session:
                 text = "Enter your full name as written on your PVC:"
             case "state":
                 text = (
-                    "Enter the DELIM code on your PVC with * between the numbers, "
+                    "Enter the polling unit CODE on your PVC with * between the numbers, "
                     "e.g. 18*23*01*001:"
                 )
             case "lga":
                 text = (
                     f"{_state_label(_short(self.state_name, 25))}. "
-                    "Enter the 2nd number of the DELIM code:"
+                    "Enter the 2nd number of the code:"
                 )
             case "ward":
-                text = f"{_short(self.lga.name, 28)} LGA. Enter the 3rd number of the DELIM code:"
+                text = f"{_short(self.lga.name, 28)} LGA. Enter the 3rd number of the code:"
             case "unit":
-                text = (
-                    f"{_short(self.ward.name, 30)} ward. Enter the last number of the DELIM code:"
-                )
+                text = f"{_short(self.ward.name, 30)} ward. Enter the last number of the code:"
             case "confirm_unit":
                 text = (
                     f"Polling unit: {_short(self.unit.name, 50)}\n"

@@ -23,7 +23,7 @@ from apps.announcements.views import announcements_for
 from apps.core.permissions import Capability, has_capability, is_staff_operator
 from apps.geography.models import PollingUnit
 
-from . import registration, services
+from . import pvc_reading, registration, services
 from .models import Member, PollingUnitChangeRequest
 from .serializers import (
     AssistedRegistrationSerializer,
@@ -106,7 +106,7 @@ class SelfRegistrationView(PublicRegistrationView):
 
 
 class DelimLookupView(PublicRegistrationView):
-    """Show which polling unit a PVC DELIM code belongs to, before registering."""
+    """Show which polling unit a PVC's polling unit code belongs to, before registering."""
 
     throttle_scope = "delim_lookup"
 
@@ -117,6 +117,36 @@ class DelimLookupView(PublicRegistrationView):
     def get(self, request):
         unit = registration.polling_unit_from_delim(request.query_params.get("delim", ""))
         return Response(PollingUnitSummarySerializer(unit, context={"hide_location": True}).data)
+
+
+class ReadPvcView(PublicRegistrationView):
+    """Read the text on a PVC photo, for registering from a browser (see
+    apps.membership.pvc_reading). The app picks out the fields; the member
+    checks them. Nothing is stored."""
+
+    throttle_scope = "pvc_reading"
+    parser_classes = [MultiPartParser, FormParser]
+
+    @extend_schema(
+        request={
+            "multipart/form-data": inline_serializer(
+                "PvcPhoto", {"image": serializers.ImageField()}
+            )
+        },
+        responses={200: inline_serializer("PvcText", {"text": serializers.CharField()})},
+    )
+    def post(self, request):
+        upload = request.FILES.get("image")
+        registration.validate_image(upload, "image", required=True)
+        try:
+            text = pvc_reading.read_text(upload)
+        except pvc_reading.ReaderUnavailable:
+            detail = "Reading cards is not set up on this server. Type the details from the card."
+            return Response({"detail": detail}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except pvc_reading.ReadFailed:
+            detail = "The card could not be read just now. Type the details from the card."
+            return Response({"detail": detail}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response({"text": text})
 
 
 class PinCodeView(PublicRegistrationView):

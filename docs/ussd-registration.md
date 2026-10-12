@@ -16,9 +16,11 @@ Welcome to TGCG
 Joining asks, one screen at a time:
 
 1. Full name, as written on the PVC (at least two names).
-2. The DELIM code on the PVC. Members can type it one number at a time, and
-   each answer is named back to them ("Kaduna State. Enter the 2nd number..."),
-   or all at once with `*` between the numbers: `18*23*01*001`.
+2. The polling unit code on the PVC, marked CODE (for example 18-23-01-001;
+   older cards mark it DELIM, while today's DELIM line names the state, LGA
+   and ward). Members can type it one number at a time, and each answer is
+   named back to them ("Kaduna State. Enter the 2nd number..."), or all at
+   once with `*` between the numbers: `18*23*01*001`.
 3. The polling unit found, to confirm or enter again.
 4. Gender.
 5. Date of birth as DDMMYYYY, or 0 to skip.

@@ -97,6 +97,7 @@ api_v1 = [
         name="register",
     ),
     path("register/polling-unit/", reg.DelimLookupView.as_view(), name="register-polling-unit"),
+    path("register/read-pvc/", reg.ReadPvcView.as_view(), name="register-read-pvc"),
     path("register/pin-code/", reg.PinCodeView.as_view(), name="register-pin-code"),
     path(
         "register/pin/",
