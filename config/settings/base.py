@@ -214,6 +214,12 @@ OTP_MAX_PER_HOUR = 5
 # --- Member registration ---------------------------------------------------------
 MEMBER_PHOTO_MAX_MB = env.int("MEMBER_PHOTO_MAX_MB", default=8)
 
+# --- Joining by USSD (see apps/membership/ussd.py) ---------------------------------
+# The provider posts to /api/v1/ussd/<USSD_CALLBACK_TOKEN>/; empty turns USSD off.
+USSD_CALLBACK_TOKEN = env("USSD_CALLBACK_TOKEN", default="")
+# The code people dial, e.g. *384*1234#. When set, other codes are refused.
+USSD_SERVICE_CODE = env("USSD_SERVICE_CODE", default="")
+
 # --- GPS ---------------------------------------------------------------------------
 PU_PROXIMITY_METERS = env.int("PU_PROXIMITY_METERS", default=300)
 GPS_MAX_ACCURACY_M = env.int("GPS_MAX_ACCURACY_M", default=150)

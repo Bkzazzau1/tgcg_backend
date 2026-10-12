@@ -284,6 +284,57 @@ def assisted_register(
     return member
 
 
+# --- self-registration by USSD ---------------------------------------------------
+
+
+def ussd_register(
+    *,
+    phone_number,
+    session_id,
+    full_name,
+    polling_unit,
+    gender,
+    pin,
+    date_of_birth=None,
+    vin=None,
+) -> Member:
+    """Register a member who dialled the USSD code (see apps.membership.ussd).
+
+    The mobile network supplied the phone number, so it needs no SMS code.
+    There is no photo of the member or the card: like everyone else, the
+    member waits for a coordinator's review.
+    """
+    phone = require_phone(phone_number)
+    client_id = f"ussd:{session_id}"[:64]
+    existing = Member.objects.filter(client_id=client_id, phone_number=phone).first()
+    if existing is not None:
+        return existing  # the provider sent the last step again
+    pin = validate_pin(pin)
+    vin = _clean_vin(vin)
+    ensure_available(phone, vin)
+
+    member = Member(
+        full_name=full_name,
+        phone_number=phone,
+        vin=vin,
+        gender=gender,
+        date_of_birth=date_of_birth,
+        registration_channel=RegistrationChannel.USSD,
+        client_id=client_id,
+        scope_level=GeographyLevel.POLLING_UNIT,
+        polling_unit=polling_unit,
+    )
+    member.full_clean(exclude=["membership_number"])
+    with transaction.atomic():
+        now = timezone.now()
+        member.phone_verified_at = now
+        member.consent_at = now
+        _save_member(member)
+        _member_account(member, pin)
+        member = identity.record_checks(member)
+    return member
+
+
 # --- member PIN (first sign-in for assisted members, or forgotten PIN) ---------
 
 

@@ -150,6 +150,7 @@ class Gender(models.TextChoices):
 class RegistrationChannel(models.TextChoices):
     SELF = "self", "Self-registration (app)"
     ASSISTED = "assisted", "Registered by a coordinator"
+    USSD = "ussd", "Self-registration by USSD"
 
 
 class VerificationStatus(models.TextChoices):

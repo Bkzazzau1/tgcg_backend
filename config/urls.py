@@ -12,6 +12,7 @@ from apps.core.views import HealthView
 from apps.field.views import EvidenceDownloadView, FieldReportViewSet, IncidentViewSet
 from apps.geography import views as geography
 from apps.membership import registration_views as reg
+from apps.membership.ussd_views import UssdCallbackView
 from apps.membership.views import (
     AgentViewSet,
     MemberViewSet,
@@ -109,6 +110,8 @@ api_v1 = [
     ),
     path("members/verify/", reg.CardVerificationView.as_view(), name="member-card-verify"),
     path("members/verify/photo/", reg.CardPhotoView.as_view(), name="member-card-photo"),
+    # Joining by USSD: the provider's callback, behind a secret token
+    path("ussd/<str:token>/", UssdCallbackView.as_view(), name="ussd-callback"),
     # Member home
     path("access/permissions/", access.PermissionRegistryView.as_view(), name="permissions"),
     path("me/access/", access.MyAccessView.as_view(), name="my-access"),

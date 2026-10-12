@@ -26,3 +26,7 @@ CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 # Phone verification must use a real SMS provider in production.
 if env("SMS_BACKEND", default="console") == "console":
     raise ImproperlyConfigured("Set SMS_BACKEND=termii (and TERMII_API_KEY) in production.")
+
+# The USSD callback URL is the provider's only credential: keep it long.
+if 0 < len(env("USSD_CALLBACK_TOKEN", default="")) < 32:
+    raise ImproperlyConfigured("USSD_CALLBACK_TOKEN must be at least 32 characters.")

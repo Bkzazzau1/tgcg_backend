@@ -13,7 +13,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.access import audit, engine
-from apps.core.choices import VerificationStatus
+from apps.core.choices import RegistrationChannel, VerificationStatus
 from apps.core.permissions import Capability
 
 from .models import Member, VerificationCheck
@@ -85,6 +85,9 @@ def _run_checks(member) -> dict[str, str]:
         _record(member, K.PVC_CAPTURED, R.PENDING, detail)
     elif member.vin:
         _record(member, K.PVC_CAPTURED, R.PENDING, "VIN recorded without a polling unit code.")
+    elif member.registration_channel == RegistrationChannel.USSD:
+        detail = "Polling unit code given by USSD, without the VIN."
+        _record(member, K.PVC_CAPTURED, R.FAILED, detail)
     else:
         _record(member, K.PVC_CAPTURED, R.FAILED, "Registered without a PVC.")
 
@@ -98,7 +101,10 @@ def _run_checks(member) -> dict[str, str]:
         detail = "Phone number and VIN are unique; nobody else has the same name and birth date."
         _record(member, K.DUPLICATES, R.PASSED, detail)
 
-    if member.phone_verified_at:
+    if member.phone_verified_at and member.registration_channel == RegistrationChannel.USSD:
+        detail = "The mobile network supplied the number when the member dialled the USSD code."
+        _record(member, K.PHONE, R.PASSED, detail)
+    elif member.phone_verified_at:
         _record(member, K.PHONE, R.PASSED, "A code sent by SMS was entered.")
     else:
         _record(member, K.PHONE, R.PENDING, "The phone number has not been confirmed by SMS.")
