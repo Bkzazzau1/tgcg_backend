@@ -50,9 +50,9 @@ Polling unit coordinates from INEC's public Polling Unit Locator, applied by
 | | |
 |---|---|
 | Source | INEC Polling Unit Locator, https://cvr.inecnigeria.org/pu. Its GET DIRECTIONS button redirects to a Google Maps link holding the unit's coordinates. |
-| Collected with | `scripts/inec_locator.py`, one request per unit, on 2026-10-11 |
+| Collected with | `scripts/inec_locator.py`, one request per unit: Kaduna on 2026-10-11, Osun on 2026-10-11 and 12 |
 | Checked with | `scripts/check_inec_locations.py`, against the register above and the Flutter app's LGA and ward boundaries |
-| Coverage | **All of Kaduna State: 23 LGAs, 8,012 units, 7,753 located (96.8%). Osun State in progress: 19 of 30 LGAs, 2,261 units, 2,105 located (93.1%).** Other states are added by collecting them and re-running the check. See **Coverage** below. |
+| Coverage | **All of Kaduna State: 23 LGAs, 8,012 units, 7,753 located (96.8%). All of Osun State: 30 LGAs, 3,763 units, 3,378 located (89.8%).** Other states are added by collecting them and re-running the check. See **Coverage** below. |
 
 Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
 `fetched_at`.
@@ -89,7 +89,7 @@ state here. Replace the rows whenever LGAs are added.
 | Zaria | 584 | 584 | 41 | 0 | 0 |
 | **Total** | **8,012** | **7,753** | **636** | **225** | **34** |
 
-**Osun State** (19 of 30 LGAs so far; collection continuing)
+**Osun State** (complete)
 
 | LGA | Units | Located | Outside own ward | No INEC location | Rejected |
 |---|---:|---:|---:|---:|---:|
@@ -112,13 +112,26 @@ state here. Replace the rows whenever LGAs are added.
 | Ila | 124 | 124 | 22 | 0 | 0 |
 | Ilesa East | 132 | 119 | 29 | 0 | 13 |
 | Ilesa West | 121 | 121 | 20 | 0 | 0 |
-| **Total so far** | **2,261** | **2,105** | **309** | **53** | **103** |
+| Irepodun | 133 | 133 | 40 | 0 | 0 |
+| Irewole | 138 | 122 | 24 | 0 | 16 |
+| Isokan | 95 | 80 | 18 | 7 | 8 |
+| Iwo | 170 | 153 | 28 | 17 | 0 |
+| Obokun | 100 | 99 | 5 | 0 | 1 |
+| Odo Otin | 121 | 115 | 14 | 6 | 0 |
+| Ola Oluwa | 62 | 55 | 2 | 4 | 3 |
+| Olorunda | 193 | 70 | 3 | 9 | 114 |
+| Oriade | 123 | 112 | 9 | 9 | 2 |
+| Orolu | 85 | 72 | 6 | 3 | 10 |
+| Osogbo | 282 | 262 | 44 | 18 | 2 |
+| **Total** | **3,763** | **3,378** | **502** | **126** | **259** |
 
-Osun's rejections (4.6%, against 0.4% in Kaduna) look like boundary detail
-rather than wrong points: 100 of the 103 fall inside a neighbouring Osun LGA,
-half of them less than 1.9 km beyond the unit's own LGA, and whole wards fall
-together (all of Iwara ward, Atakumosa East, lands 2 to 4 km inside Atakumosa
-West). The 1 km rule is unchanged; coordinators pin these units.
+Osun's rejections (6.9% of units, against 0.4% in Kaduna) look like
+boundary detail rather than wrong points: 256 of the 259 fall inside a
+neighbouring Osun LGA, half of them less than 2.1 km beyond the unit's own
+LGA, and whole wards fall together. Olorunda is most of it: 112 of its 114
+rejected points lie in Osogbo LGA as drawn in the app's boundaries, across
+almost all of wards 01 to 07, the part of Osogbo town that INEC counts in
+Olorunda. The 1 km rule is unchanged; coordinators pin these units.
 
 - **Located** units are imported. **Outside own ward** counts located units
   that fall just outside their ward on GRID3's operational ward map, whose
