@@ -6,17 +6,20 @@ exactly as the phones do, and the member checks each one. Reading a card is
 not validating it.
 
 The engine depends on configuration:
-- Google Cloud Vision, when GOOGLE_VISION_API_KEY is set. Far better on card
-  photos, including the VIN, but the photo goes to Google, so the privacy
-  notice must say so.
-- Otherwise Tesseract, when the `tesseract` program is installed. Free and on
-  this server, but it often misreads the VIN and the polling unit code,
-  printed small on the card's patterned background.
+- Google Cloud Vision first, when GOOGLE_VISION_API_KEY is set. The photo
+  goes to Google, including when the request later uses the local reader.
+- Tesseract, when installed, if Google fails or returns no text, or if no
+  Google key is configured. It runs on this server but often misreads the
+  VIN and polling unit code on the card's patterned background.
+
+One reader's text is returned; the two readings are never combined. A
+non-empty reading still needs to be checked against the card.
 
 Nothing is stored, and neither the photo nor the text is ever logged.
 """
 
 import base64
+import http.client
 import io
 import json
 import logging
@@ -65,7 +68,20 @@ def read_text(upload) -> str:
     image = Image.open(upload)
     image.load()
     image = ImageOps.exif_transpose(image)  # phones save photos sideways with a rotation tag
-    return _google(image) if chosen == "google" else _tesseract(image)
+    if chosen != "google":
+        return _tesseract(image)
+    try:
+        # Keep the upright, full-size photo for the local reader if needed.
+        text = _google(image.copy())
+    except ReadFailed:
+        if not shutil.which(settings.TESSERACT_CMD):
+            raise
+    else:
+        if text.strip():
+            return text
+        if not shutil.which(settings.TESSERACT_CMD):
+            raise ReadFailed
+    return _tesseract(image)
 
 
 def prepare_for_tesseract(image: Image.Image) -> Image.Image:
@@ -125,12 +141,21 @@ def _google(image: Image.Image) -> str:
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:  # noqa: S310
             reply = json.load(response)
-    except (urllib.error.URLError, TimeoutError, ValueError) as error:
+    except (OSError, http.client.HTTPException, ValueError) as error:
         logger.error("Reading a PVC with Google Vision failed: %s", type(error).__name__)
         raise ReadFailed from error
-    result = (reply.get("responses") or [{}])[0]
-    if "error" in result:
-        status = result["error"].get("status", "unknown")
-        logger.error("Reading a PVC with Google Vision failed: %s", status)
+    responses = reply.get("responses") if isinstance(reply, dict) else None
+    if not isinstance(responses, list) or not responses or not isinstance(responses[0], dict):
+        logger.error("Reading a PVC with Google Vision failed: invalid response")
         raise ReadFailed
-    return result.get("fullTextAnnotation", {}).get("text", "")
+    result = responses[0]
+    if "error" in result:
+        # Provider error details can contain request data; keep them out of logs.
+        logger.error("Reading a PVC with Google Vision failed: provider error")
+        raise ReadFailed
+    annotation = result.get("fullTextAnnotation", {})
+    text = annotation.get("text", "") if isinstance(annotation, dict) else None
+    if not isinstance(text, str):
+        logger.error("Reading a PVC with Google Vision failed: invalid text response")
+        raise ReadFailed
+    return text

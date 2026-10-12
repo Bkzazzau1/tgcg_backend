@@ -13,11 +13,14 @@ needs no sign-in, so it is limited to 30 photos an hour from one address
 
 ## Engines
 
-The server uses the first one available:
+Both readers can be enabled. The server tries Google Cloud Vision first when
+its key is configured. If that request fails, times out or returns only blank
+text, it tries Tesseract when installed. Without a Google key it uses
+Tesseract directly; without either reader the person types the details.
 
 | Engine | Turn on | Quality | Privacy and cost |
 |---|---|---|---|
-| Google Cloud Vision | Set `GOOGLE_VISION_API_KEY` | Reads card photos well, including the VIN | The photo goes to Google. Google charges per photo above a free monthly allowance; check current pricing. Say in the privacy notice that card photos may be sent to Google to be read. |
+| Google Cloud Vision | Set `GOOGLE_VISION_API_KEY` | Reads card photos well, including the VIN | The photo goes to Google. Google charges per photo above a free monthly allowance; check current pricing. With a key configured, the first attempt sends the photo to Google, including requests that later use Tesseract. |
 | Tesseract | Install the `tesseract` program | Usually gets the name, date of birth and gender; often misses or misreads the VIN and polling unit code, printed small on the card's patterned background | Runs on this server; free |
 | None | | The person types the details, as before | |
 
@@ -37,7 +40,9 @@ systemctl restart tgcg-api.service
 ```
 
 If `tesseract` is not on the API service's `PATH`, set `TESSERACT_CMD` to its
-full path. The server gives each photo 25 seconds.
+full path. Each reader has a 25-second timeout. A Google attempt followed by
+Tesseract can take about 50 seconds plus image processing and transfer, so
+client and proxy timeouts must allow the sequential attempts.
 
 ## Turning on Google Cloud Vision
 
@@ -45,7 +50,17 @@ full path. The server gives each photo 25 seconds.
 2. Create an API key restricted to the Cloud Vision API.
 3. Set `GOOGLE_VISION_API_KEY` in the server's environment (never in the code)
    and restart the API.
-4. Update the privacy notice.
+4. Install Tesseract as well to enable the local fallback.
 
-The key is sent in a request header, not the URL. If Google is unreachable or
-refuses a photo, the person is asked to type the details.
+The key is sent in a request header, not the URL. Google errors, quota
+refusals, malformed replies and blank text trigger Tesseract when available.
+The local attempt uses the original upright image, preserving detail that
+Google's smaller upload does not retain. If both attempts fail, or Google
+fails without Tesseract installed, the API returns 503 with guidance to type
+the details.
+
+A non-empty Google reading is returned without a second read. The server
+returns one reader's text and never combines conflicting readings or checks
+that every field was recognized. Members still check all details against
+their card. OCR uploads and extracted text are not stored or logged by the
+TGCG reader; errors log only their type, exit code or a fixed description.
