@@ -78,6 +78,7 @@ def confirm_check_in(*, actor, check_in: AgentCheckIn) -> AgentCheckIn:
             )
         unit.latitude, unit.longitude = check.latitude, check.longitude
         unit.location_source = "checkIn"
+        unit.location_note = ""
         unit.location_accuracy_m = check.gps_accuracy_m
         unit.location_confirmed_by = actor
         unit.location_confirmed_at = now
@@ -87,6 +88,7 @@ def confirm_check_in(*, actor, check_in: AgentCheckIn) -> AgentCheckIn:
                 "latitude",
                 "longitude",
                 "location_source",
+                "location_note",
                 "location_accuracy_m",
                 "location_confirmed_by",
                 "location_confirmed_at",

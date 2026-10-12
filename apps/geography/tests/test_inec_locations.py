@@ -4,7 +4,12 @@ from decimal import Decimal
 import pytest
 from django.core.management import call_command
 
-from apps.geography.inec_locations import COLUMNS, load_inec_locations, rounding_margin_m
+from apps.geography.inec_locations import (
+    COLUMNS,
+    NEIGHBOURING_LGA_NOTE,
+    load_inec_locations,
+    rounding_margin_m,
+)
 from apps.geography.models import PollingUnit
 from apps.geography.polling_units import load_polling_units
 
@@ -108,3 +113,18 @@ def test_command(tmp_path, capsys):
     path = write(tmp_path / "inec.csv", [("18-23-01-001", "11.0642", "7.716035636", "ok")])
     call_command("load_inec_locations", file=str(path))
     assert "applied to 1 polling units" in capsys.readouterr().out
+
+
+def test_a_point_just_inside_the_next_lga_is_kept_with_a_note(tmp_path):
+    path = tmp_path / "inec.csv"
+    write(path, [("18-23-01-001", "11.0642", "7.716035636", "ok_neighbouring_lga")])
+    assert load_inec_locations(path)["imported"] == 1
+    unit = PollingUnit.objects.get(code="18-23-01-001")
+    assert unit.location_note == NEIGHBOURING_LGA_NOTE
+    assert unit.location_source == "inec" and unit.mapping_status == "pinned"
+
+    # A later check that finds the point inside its own LGA clears the note.
+    write(path, [("18-23-01-001", "11.0642", "7.716035636", "ok")])
+    assert load_inec_locations(path)["updated"] == 1
+    unit.refresh_from_db()
+    assert unit.location_note == ""

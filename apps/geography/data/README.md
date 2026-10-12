@@ -52,7 +52,7 @@ Polling unit coordinates from INEC's public Polling Unit Locator, applied by
 | Source | INEC Polling Unit Locator, https://cvr.inecnigeria.org/pu. Its GET DIRECTIONS button redirects to a Google Maps link holding the unit's coordinates. |
 | Collected with | `scripts/inec_locator.py`, one request per unit: Kaduna on 2026-10-11, Osun on 2026-10-11 and 12 |
 | Checked with | `scripts/check_inec_locations.py`, against the register above and the Flutter app's LGA and ward boundaries |
-| Coverage | **All of Kaduna State: 23 LGAs, 8,012 units, 7,753 located (96.8%). All of Osun State: 30 LGAs, 3,763 units, 3,378 located (89.8%).** Other states are added by collecting them and re-running the check. See **Coverage** below. |
+| Coverage | **All of Kaduna State: 23 LGAs, 8,012 units, 7,770 located (97.0%). All of Osun State: 30 LGAs, 3,763 units, 3,612 located (96.0%).** Other states are added by collecting them and re-running the check. See **Coverage** below. |
 
 Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
 `fetched_at`.
@@ -62,84 +62,87 @@ state here. Replace the rows whenever LGAs are added.
 
 **Kaduna State** (complete)
 
-| LGA | Units | Located | Outside own ward | No INEC location | Rejected |
-|---|---:|---:|---:|---:|---:|
-| Birnin Gwari | 263 | 255 | 18 | 5 | 3 |
-| Chikun | 543 | 534 | 53 | 5 | 4 |
-| Giwa | 262 | 257 | 26 | 4 | 1 |
-| Igabi | 600 | 596 | 33 | 0 | 4 |
-| Ikara | 251 | 238 | 16 | 13 | 0 |
-| Jaba | 132 | 128 | 9 | 4 | 0 |
-| Jema'a | 325 | 318 | 14 | 6 | 1 |
-| Kachia | 317 | 300 | 3 | 5 | 12 |
-| Kaduna North | 704 | 703 | 37 | 1 | 0 |
-| Kaduna South | 796 | 793 | 182 | 0 | 3 |
-| Kagarko | 222 | 209 | 19 | 13 | 0 |
-| Kajuru | 188 | 179 | 7 | 7 | 2 |
-| Kaura | 186 | 182 | 8 | 4 | 0 |
-| Kauru | 243 | 235 | 7 | 8 | 0 |
-| Kubau | 310 | 306 | 35 | 4 | 0 |
-| Kudan | 193 | 183 | 2 | 10 | 0 |
-| Lere | 457 | 406 | 43 | 50 | 1 |
-| Makarfi | 208 | 201 | 11 | 7 | 0 |
-| Sabon Gari | 398 | 398 | 28 | 0 | 0 |
-| Sanga | 195 | 130 | 4 | 65 | 0 |
-| Soba | 298 | 287 | 4 | 11 | 0 |
-| Zangon Kataf | 337 | 331 | 36 | 3 | 3 |
-| Zaria | 584 | 584 | 41 | 0 | 0 |
-| **Total** | **8,012** | **7,753** | **636** | **225** | **34** |
+| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Birnin Gwari | 263 | 256 | 18 | 1 | 5 | 2 |
+| Chikun | 543 | 538 | 53 | 4 | 5 | 0 |
+| Giwa | 262 | 258 | 26 | 1 | 4 | 0 |
+| Igabi | 600 | 599 | 33 | 3 | 0 | 1 |
+| Ikara | 251 | 238 | 16 | 0 | 13 | 0 |
+| Jaba | 132 | 128 | 9 | 0 | 4 | 0 |
+| Jema'a | 325 | 319 | 14 | 1 | 6 | 0 |
+| Kachia | 317 | 301 | 3 | 1 | 5 | 11 |
+| Kaduna North | 704 | 703 | 37 | 0 | 1 | 0 |
+| Kaduna South | 796 | 796 | 182 | 3 | 0 | 0 |
+| Kagarko | 222 | 209 | 19 | 0 | 13 | 0 |
+| Kajuru | 188 | 180 | 7 | 1 | 7 | 1 |
+| Kaura | 186 | 182 | 8 | 0 | 4 | 0 |
+| Kauru | 243 | 235 | 7 | 0 | 8 | 0 |
+| Kubau | 310 | 306 | 35 | 0 | 4 | 0 |
+| Kudan | 193 | 183 | 2 | 0 | 10 | 0 |
+| Lere | 457 | 407 | 43 | 1 | 50 | 0 |
+| Makarfi | 208 | 201 | 11 | 0 | 7 | 0 |
+| Sabon Gari | 398 | 398 | 28 | 0 | 0 | 0 |
+| Sanga | 195 | 130 | 4 | 0 | 65 | 0 |
+| Soba | 298 | 287 | 4 | 0 | 11 | 0 |
+| Zangon Kataf | 337 | 332 | 36 | 1 | 3 | 2 |
+| Zaria | 584 | 584 | 41 | 0 | 0 | 0 |
+| **Total** | **8,012** | **7,770** | **636** | **17** | **225** | **17** |
 
 **Osun State** (complete)
 
-| LGA | Units | Located | Outside own ward | No INEC location | Rejected |
-|---|---:|---:|---:|---:|---:|
-| Atakumosa East | 77 | 45 | 2 | 14 | 18 |
-| Atakumosa West | 76 | 70 | 5 | 1 | 5 |
-| Ayedaade | 150 | 145 | 11 | 4 | 1 |
-| Ayedire | 67 | 65 | 14 | 1 | 1 |
-| Boluwaduro | 74 | 64 | 14 | 7 | 3 |
-| Boripe | 112 | 106 | 26 | 1 | 5 |
-| Ede North | 139 | 136 | 29 | 0 | 3 |
-| Ede South | 101 | 76 | 8 | 12 | 13 |
-| Egbedore | 90 | 88 | 4 | 1 | 1 |
-| Ejigbo | 133 | 130 | 6 | 0 | 3 |
-| Ife Central | 215 | 215 | 42 | 0 | 0 |
-| Ife East | 200 | 185 | 22 | 2 | 13 |
-| Ife North | 111 | 101 | 16 | 0 | 10 |
-| Ife South | 131 | 125 | 10 | 1 | 5 |
-| Ifedayo | 63 | 49 | 9 | 9 | 5 |
-| Ifelodun | 145 | 141 | 20 | 0 | 4 |
-| Ila | 124 | 124 | 22 | 0 | 0 |
-| Ilesa East | 132 | 119 | 29 | 0 | 13 |
-| Ilesa West | 121 | 121 | 20 | 0 | 0 |
-| Irepodun | 133 | 133 | 40 | 0 | 0 |
-| Irewole | 138 | 122 | 24 | 0 | 16 |
-| Isokan | 95 | 80 | 18 | 7 | 8 |
-| Iwo | 170 | 153 | 28 | 17 | 0 |
-| Obokun | 100 | 99 | 5 | 0 | 1 |
-| Odo Otin | 121 | 115 | 14 | 6 | 0 |
-| Ola Oluwa | 62 | 55 | 2 | 4 | 3 |
-| Olorunda | 193 | 70 | 3 | 9 | 114 |
-| Oriade | 123 | 112 | 9 | 9 | 2 |
-| Orolu | 85 | 72 | 6 | 3 | 10 |
-| Osogbo | 282 | 262 | 44 | 18 | 2 |
-| **Total** | **3,763** | **3,378** | **502** | **126** | **259** |
-
-Osun's rejections (6.9% of units, against 0.4% in Kaduna) look like
-boundary detail rather than wrong points: 256 of the 259 fall inside a
-neighbouring Osun LGA, half of them less than 2.1 km beyond the unit's own
-LGA, and whole wards fall together. Olorunda is most of it: 112 of its 114
-rejected points lie in Osogbo LGA as drawn in the app's boundaries, across
-almost all of wards 01 to 07, the part of Osogbo town that INEC counts in
-Olorunda. The 1 km rule is unchanged; coordinators pin these units.
+| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Atakumosa East | 77 | 58 | 2 | 13 | 14 | 5 |
+| Atakumosa West | 76 | 75 | 5 | 5 | 1 | 0 |
+| Ayedaade | 150 | 146 | 11 | 1 | 4 | 0 |
+| Ayedire | 67 | 66 | 14 | 1 | 1 | 0 |
+| Boluwaduro | 74 | 67 | 14 | 3 | 7 | 0 |
+| Boripe | 112 | 108 | 26 | 2 | 1 | 3 |
+| Ede North | 139 | 139 | 29 | 3 | 0 | 0 |
+| Ede South | 101 | 89 | 8 | 13 | 12 | 0 |
+| Egbedore | 90 | 89 | 4 | 1 | 1 | 0 |
+| Ejigbo | 133 | 133 | 6 | 3 | 0 | 0 |
+| Ife Central | 215 | 215 | 42 | 0 | 0 | 0 |
+| Ife East | 200 | 196 | 22 | 11 | 2 | 2 |
+| Ife North | 111 | 109 | 16 | 8 | 0 | 2 |
+| Ife South | 131 | 130 | 10 | 5 | 1 | 0 |
+| Ifedayo | 63 | 53 | 9 | 4 | 9 | 1 |
+| Ifelodun | 145 | 145 | 20 | 4 | 0 | 0 |
+| Ila | 124 | 124 | 22 | 0 | 0 | 0 |
+| Ilesa East | 132 | 132 | 29 | 13 | 0 | 0 |
+| Ilesa West | 121 | 121 | 20 | 0 | 0 | 0 |
+| Irepodun | 133 | 133 | 40 | 0 | 0 | 0 |
+| Irewole | 138 | 131 | 24 | 9 | 0 | 7 |
+| Isokan | 95 | 83 | 18 | 3 | 7 | 5 |
+| Iwo | 170 | 153 | 28 | 0 | 17 | 0 |
+| Obokun | 100 | 100 | 5 | 1 | 0 | 0 |
+| Odo Otin | 121 | 115 | 14 | 0 | 6 | 0 |
+| Ola Oluwa | 62 | 58 | 2 | 3 | 4 | 0 |
+| Olorunda | 193 | 184 | 3 | 114 | 9 | 0 |
+| Oriade | 123 | 114 | 9 | 2 | 9 | 0 |
+| Orolu | 85 | 82 | 6 | 10 | 3 | 0 |
+| Osogbo | 282 | 264 | 44 | 2 | 18 | 0 |
+| **Total** | **3,763** | **3,612** | **502** | **234** | **126** | **25** |
 
 - **Located** units are imported. **Outside own ward** counts located units
   that fall just outside their ward on GRID3's operational ward map, whose
   lines do not always follow INEC's. They are kept (`qa = ok_outside_ward`).
+- **In next LGA** counts located units whose point lies more than 1 km
+  outside their LGA but inside a neighbouring LGA of the same state, no more
+  than 5 km beyond their own (`qa = ok_neighbouring_lga`). Border towns are
+  often drawn on the wrong side of the line: 112 of Olorunda's 114 lie in
+  Osogbo LGA as the app's boundaries draw it, in the part of Osogbo town that
+  INEC counts in Olorunda. Half of these points are within about 2 km of
+  their own LGA. They are imported with a note (`location_note`) that the
+  app shows with the directions, asking whoever goes there to check the
+  point; a coordinator's pin clears it.
 - **No INEC location:** the locator has no coordinates for these units and
   only offers a Google Maps search by name. Coordinators pin them.
-- **Rejected:** INEC's point is more than 1 km outside the unit's LGA. These
-  units stay unmapped until a coordinator pins them.
+- **Rejected:** INEC's point is more than 1 km outside the unit's LGA and
+  not just inside a neighbouring LGA of the same state. Of the 42 (17 in
+  Kaduna, 25 in Osun), 39 are more than 5 km out and 3 fall in a neighbouring
+  state. These units stay unmapped until a coordinator pins them.
 - No spot is shared by units of three or more wards. A few pairs share a spot,
   as two units at one school would.
 - Spot check: unit `18-23-01-014` (UNG. ASKA I/ L.E.A. ANGUWAN KAHU) matches
@@ -153,7 +156,8 @@ coordinate as at least that precise, stores the margin as the unit's
 `location_accuracy_m`, and allows it to a coordinator's confirming pin.
 
 **Rejected by the check** (`qa` values that are not imported):
-`outside_lga` (more than 1 km outside the unit's LGA), `shared_spot` (one spot
+`outside_lga` (more than 1 km outside the unit's LGA, and not within 5 km
+inside a neighbouring LGA of the same state), `shared_spot` (one spot
 claimed by units of three or more wards, a placeholder rather than a
 building), `not_in_register`, `no_location` and `outside_nigeria`.
 

@@ -380,6 +380,7 @@ def test_member_home(outbox):
         "confirmed": False,
         "accuracy_m": 12.0,
         "source": "coordinator",
+        "note": "",
     }
     units.update(mapping_status="confirmed")
     assert me.get("/api/v1/me/polling-unit/").json()["polling_unit"]["navigation"]["confirmed"]

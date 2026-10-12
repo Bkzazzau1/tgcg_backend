@@ -229,11 +229,11 @@ def test_pin_photo_is_private(first, lga):
     assert lagos.get(f"/api/v1/mapping/pins/{created['id']}/photo/").status_code == 404
 
 
-def inec_location(unit, latitude, longitude, tmp_path):
+def inec_location(unit, latitude, longitude, tmp_path, qa="ok"):
     path = tmp_path / "inec.csv"
     with open(path, "w", encoding="utf-8", newline="") as handle:
         handle.write("code,latitude,longitude,qa,fetched_at\n")
-        handle.write(f"{unit},{latitude},{longitude},ok,2026-10-11T07:00:00+00:00\n")
+        handle.write(f"{unit},{latitude},{longitude},{qa},2026-10-11T07:00:00+00:00\n")
     load_inec_locations(path)
 
 
@@ -269,3 +269,29 @@ def test_far_pin_disputes_an_inec_location(first, tmp_path):
     response = pin(first, gps=fix(lat=SPOT[0] + 0.002)).json()  # about 220 m away
     assert response["status"] == "conflict"
     assert PollingUnit.objects.get(code=UNIT).mapping_status == "conflict"
+
+
+def test_a_point_in_the_next_lga_is_flagged_until_a_coordinator_checks_it(first, lga, tmp_path):
+    inec_location(UNIT, f"{SPOT[0]:.6f}", f"{SPOT[1]:.6f}", tmp_path, qa="ok_neighbouring_lga")
+    navigation = lga.get(f"/api/v1/geography/polling-units/{UNIT}/").json()["navigation"]
+    assert navigation["source"] == "inec"
+    assert "neighbouring LGA" in navigation["note"]
+    units = lga.get("/api/v1/mapping/units/").json()["results"]
+    assert "neighbouring LGA" in next(u for u in units if u["code"] == UNIT)["location_note"]
+
+    # A coordinator on site settles it.
+    assert pin(first, gps=fix(lat=SPOT[0] + 0.0002)).json()["status"] == "confirmed"
+    assert PollingUnit.objects.get(code=UNIT).location_note == ""
+    navigation = lga.get(f"/api/v1/geography/polling-units/{UNIT}/").json()["navigation"]
+    assert navigation["confirmed"] is True and navigation["note"] == ""
+
+
+def test_a_conflict_keeps_the_note_until_a_pin_is_accepted(first, second, lga, tmp_path):
+    inec_location(UNIT, f"{SPOT[0]:.6f}", f"{SPOT[1]:.6f}", tmp_path, qa="ok_neighbouring_lga")
+    far = pin(first, gps=fix(lat=SPOT[0] + 0.002)).json()  # about 220 m away
+    assert far["status"] == "conflict"
+    assert PollingUnit.objects.get(code=UNIT).location_note != ""
+
+    assert lga.post(f"/api/v1/mapping/pins/{far['id']}/accept/").status_code == 200
+    unit = PollingUnit.objects.get(code=UNIT)
+    assert unit.location_source == "coordinator" and unit.location_note == ""

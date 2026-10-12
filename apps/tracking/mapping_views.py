@@ -45,6 +45,7 @@ class MappingUnitSerializer(serializers.ModelSerializer):
             "longitude",
             "location_source",
             "location_accuracy_m",
+            "location_note",
             "pins",
         ]
 

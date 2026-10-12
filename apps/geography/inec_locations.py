@@ -26,7 +26,12 @@ from .models import PollingUnit
 DATA_FILE = Path(__file__).resolve().parent / "data" / "inec_locations.csv.gz"
 COLUMNS = ["code", "latitude", "longitude", "qa", "fetched_at"]
 # Quality checks that passed (see scripts/check_inec_locations.py).
-ACCEPTED = {"ok", "ok_outside_ward"}
+ACCEPTED = {"ok", "ok_outside_ward", "ok_neighbouring_lga"}
+# Points just inside a neighbouring LGA of the same state: usually a border
+# town drawn on the wrong side of the line, so kept, but worth a look.
+NEIGHBOURING_LGA_NOTE = (
+    "INEC's point lies just inside the neighbouring LGA on the map. Check it on arrival."
+)
 FIELD_SOURCES = {"coordinator", "checkIn"}
 SIX_PLACES = Decimal("0.000001")
 # The locator stores latitudes to 4 or 8 decimal places and drops trailing
@@ -88,7 +93,7 @@ def load_inec_locations(path=DATA_FILE) -> Counter:
     changed = []
     seen = set()
     for unit in PollingUnit.objects.only(
-        "id", "code", "latitude", "longitude", "location_source", "mapping_status"
+        "id", "code", "latitude", "longitude", "location_source", "location_note", "mapping_status"
     ).iterator(chunk_size=5000):
         row = rows.get(unit.code)
         if row is None:
@@ -104,16 +109,19 @@ def load_inec_locations(path=DATA_FILE) -> Counter:
             counts["kept_problem_report"] += 1
             continue
         latitude, longitude = _decimal(row["latitude"]), _decimal(row["longitude"])
+        note = NEIGHBOURING_LGA_NOTE if row["qa"] == "ok_neighbouring_lga" else ""
         if (
             unit.location_source == "inec"
             and unit.latitude == latitude
             and unit.longitude == longitude
+            and unit.location_note == note
         ):
             counts["unchanged"] += 1
             continue
         counts["updated" if unit.location_source == "inec" else "imported"] += 1
         unit.latitude, unit.longitude = latitude, longitude
         unit.location_source = "inec"
+        unit.location_note = note
         unit.location_accuracy_m = rounding_margin_m(row["latitude"], row["longitude"])
         unit.location_confirmed_by = None
         unit.location_confirmed_at = (
@@ -128,6 +136,7 @@ def load_inec_locations(path=DATA_FILE) -> Counter:
             "latitude",
             "longitude",
             "location_source",
+            "location_note",
             "location_accuracy_m",
             "location_confirmed_by",
             "location_confirmed_at",

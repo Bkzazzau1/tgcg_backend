@@ -104,6 +104,11 @@ class PollingUnit(models.Model):
         blank=True,
     )
     location_accuracy_m = models.FloatField(null=True, blank=True)
+    location_note = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="Something to check about the location (cleared by a coordinator's pin).",
+    )
     mapping_status = models.CharField(
         max_length=12,
         choices=[

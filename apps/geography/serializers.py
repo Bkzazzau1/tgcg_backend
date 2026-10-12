@@ -20,6 +20,7 @@ def navigation_for(unit: PollingUnit):
         "confirmed": unit.mapping_status == "confirmed",
         "accuracy_m": unit.location_accuracy_m,
         "source": unit.location_source,
+        "note": unit.location_note,
     }
 
 
@@ -30,6 +31,9 @@ class NavigationSerializer(serializers.Serializer):
     accuracy_m = serializers.FloatField(allow_null=True)
     source = serializers.CharField(
         help_text="inec, coordinator, checkIn or imported: where the location came from."
+    )
+    note = serializers.CharField(
+        allow_blank=True, help_text="Something to check about the location, if anything."
     )
 
 

@@ -44,15 +44,17 @@ def test_coverage_table():
         "18-23-01-002": {"lga": "KD-ZARIA"},
         "18-23-01-003": {"lga": "KD-ZARIA"},
         "18-08-01-001": {"lga": "KD-KACHIA"},
+        "18-08-01-002": {"lga": "KD-KACHIA"},
     }
     rows = [
         {"code": "18-23-01-001", "qa": "ok"},
         {"code": "18-23-01-002", "qa": "ok_outside_ward"},
         {"code": "18-23-01-003", "qa": "no_location"},
         {"code": "18-08-01-001", "qa": "outside_lga"},
+        {"code": "18-08-01-002", "qa": "ok_neighbouring_lga"},
     ]
     table = check.coverage_table(rows, units, {"KD-ZARIA": "Zaria", "KD-KACHIA": "Kachia"})
     lines = table.splitlines()
-    assert lines[2] == "| Kachia | 1 | 0 | 0 | 0 | 1 |"
-    assert lines[3] == "| Zaria | 3 | 2 | 1 | 1 | 0 |"
-    assert lines[4] == "| **Total** | **4** | **2** | **1** | **1** | **1** |"
+    assert lines[2] == "| Kachia | 2 | 1 | 0 | 1 | 0 | 1 |"
+    assert lines[3] == "| Zaria | 3 | 2 | 1 | 0 | 1 | 0 |"
+    assert lines[4] == "| **Total** | **5** | **3** | **1** | **1** | **1** | **1** |"

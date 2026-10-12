@@ -2,7 +2,10 @@
 
 Each polling unit's point must:
 - belong to a unit in the INEC register (data/inec_polling_units.csv.gz);
-- lie inside the unit's LGA, allowing 1 km for boundary detail;
+- lie inside the unit's LGA, allowing 1 km for boundary detail. A point
+  further out but inside a neighbouring LGA of the same state, within 5 km
+  of its own, is kept and flagged for a coordinator to check: border towns
+  are often drawn on the wrong side of the line;
 - not be one spot shared by units from three or more wards, which marks a
   town-centre placeholder rather than a building.
 
@@ -31,6 +34,9 @@ REGISTER = BACKEND / "apps" / "geography" / "data" / "inec_polling_units.csv.gz"
 OUTPUT = BACKEND / "apps" / "geography" / "data" / "inec_locations.csv.gz"
 GEOGRAPHY = BACKEND / "apps" / "geography" / "data" / "nigeria_geography.json"
 LGA_MARGIN_DEGREES = 0.009  # about 1 km
+# Further out, a point inside a neighbouring LGA of the same state is kept but
+# flagged: border towns are often drawn on the wrong side of the line.
+NEIGHBOUR_MARGIN_DEGREES = 0.045  # about 5 km
 SHARED_SPOT_WARDS = 3
 COLUMNS = ["code", "latitude", "longitude", "qa", "fetched_at"]
 
@@ -96,6 +102,16 @@ def check(locations, register, geo, complete_only=False):
             lga_shapes[lga] = shape(rings)
         return lga_shapes.get(lga)
 
+    def in_neighbouring_lga(lga, point):
+        """The point lies inside another LGA of the same state."""
+        state = lga.split("-")[0]
+        lga_shape(lga)  # loads the state's LGAs
+        return any(
+            lga_shape(code).contains(point)
+            for code in list(lga_shapes)
+            if code.split("-")[0] == state and code != lga
+        )
+
     def ward_shape(lga, ward):
         if lga not in ward_shapes:
             path = Path(geo, "ward", f"{lga}.json")
@@ -121,8 +137,13 @@ def check(locations, register, geo, complete_only=False):
         else:
             point = Point(float(row["longitude"]), float(row["latitude"]))
             lga = lga_shape(unit["lga"])
-            if lga is not None and lga.distance(point) > LGA_MARGIN_DEGREES:
-                out["qa"] = "outside_lga"
+            beyond = lga.distance(point) if lga is not None else 0
+            if beyond > LGA_MARGIN_DEGREES:
+                nearby = beyond <= NEIGHBOUR_MARGIN_DEGREES and in_neighbouring_lga(
+                    unit["lga"], point
+                )
+                out["qa"] = "ok_neighbouring_lga" if nearby else "outside_lga"
+                out["ward"] = unit["ward_inec"]
             else:
                 ward = ward_shape(unit["lga"], unit["ward_inec"])
                 out["qa"] = "ok_outside_ward" if ward and not ward.contains(point) else "ok"
@@ -150,27 +171,31 @@ def coverage_table(rows, units, names):
             totals[unit["lga"]][row["qa"]] += 1
     register = Counter(unit["lga"] for unit in units.values())
     lines = [
-        "| LGA | Units | Located | Outside own ward | No INEC location | Rejected |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     grand = Counter()
     for lga in sorted(totals, key=lambda code: names.get(code, code)):
         qa = totals[lga]
+        located = qa["ok"] + qa["ok_outside_ward"] + qa["ok_neighbouring_lga"]
         cells = {
             "units": register[lga],
-            "located": qa["ok"] + qa["ok_outside_ward"],
+            "located": located,
             "outside_ward": qa["ok_outside_ward"],
+            "next_lga": qa["ok_neighbouring_lga"],
             "missing": qa["no_location"],
-            "rejected": sum(qa.values()) - qa["ok"] - qa["ok_outside_ward"] - qa["no_location"],
+            "rejected": sum(qa.values()) - located - qa["no_location"],
         }
         grand.update(cells)
         lines.append(
             f"| {names.get(lga, lga)} | {cells['units']:,} | {cells['located']:,} | "
-            f"{cells['outside_ward']:,} | {cells['missing']:,} | {cells['rejected']:,} |"
+            f"{cells['outside_ward']:,} | {cells['next_lga']:,} | {cells['missing']:,} | "
+            f"{cells['rejected']:,} |"
         )
     lines.append(
         f"| **Total** | **{grand['units']:,}** | **{grand['located']:,}** | "
-        f"**{grand['outside_ward']:,}** | **{grand['missing']:,}** | **{grand['rejected']:,}** |"
+        f"**{grand['outside_ward']:,}** | **{grand['next_lga']:,}** | **{grand['missing']:,}** | "
+        f"**{grand['rejected']:,}** |"
     )
     return "\n".join(lines)
 

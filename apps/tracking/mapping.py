@@ -36,6 +36,7 @@ def _lock(unit):
 def _set_location(unit, pin, actor, status):
     unit.latitude, unit.longitude = pin.latitude, pin.longitude
     unit.location_source = "coordinator"
+    unit.location_note = ""
     unit.location_accuracy_m = pin.gps_accuracy_m
     unit.location_confirmed_by = actor
     unit.location_confirmed_at = timezone.now()
@@ -45,6 +46,7 @@ def _set_location(unit, pin, actor, status):
             "latitude",
             "longitude",
             "location_source",
+            "location_note",
             "location_accuracy_m",
             "location_confirmed_by",
             "location_confirmed_at",
@@ -114,7 +116,8 @@ def pin_unit(*, actor, unit, gps, photo, at_entrance, name_matches, note="") -> 
             "problem",
         ):
             unit.mapping_status = "confirmed"
-            unit.save(update_fields=["mapping_status"])
+            unit.location_note = ""  # checked on the ground
+            unit.save(update_fields=["mapping_status", "location_note"])
         return pin
 
     pin.status = Pin.Status.CONFLICT
