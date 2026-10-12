@@ -25,6 +25,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
     supervises = serializers.SerializerMethodField(
         help_text="Holds a role that other roles report to (supervision of their appointments)."
     )
+    identity_verified = serializers.SerializerMethodField(
+        help_text="The member behind this account has a verified identity. Membership needs "
+        "none; agents, observers and appointed roles act only when it is."
+    )
 
     class Meta:
         model = User
@@ -39,6 +43,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "access",
             "membership_number",
             "supervises",
+            "identity_verified",
         ]
         read_only_fields = fields
 
@@ -53,6 +58,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
         from apps.access.services import supervises_any
 
         return supervises_any(user)
+
+    def get_identity_verified(self, user) -> bool:
+        from apps.access.services import identity_verified
+
+        return identity_verified(user)
 
 
 class LoginSerializer(TokenObtainPairSerializer):

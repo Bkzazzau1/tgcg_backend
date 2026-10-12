@@ -223,15 +223,36 @@ the normal workflow.
 
 ## 8. Identity verification
 
+**Who must be verified** (decided on 12 October 2026, to keep joining
+simple for people who find forms hard):
+
+- **Members: nobody.** Every member, verified or not, has the whole member
+  app (card, polling unit and directions, news, volunteering, polling unit
+  changes), and their membership card is valid.
+- **Agents and observers: always.** A legacy agent or observer account acts
+  only for a member whose identity is verified; an account that belongs to
+  no member does nothing. Check-ins, duty and live location refuse an
+  unverified agent, coordinators cannot confirm such an agent's check-in,
+  and coverage counts only agents who can work. Approving an agent's
+  accreditation needs a verified member too.
+- **Roles: always.** Appointments and delegated authority need a verified
+  member before they are made and at every request, so a member never sees
+  or uses a role before verification, and loses it when verification is
+  withdrawn.
+
+`/auth/me/` reports `identity_verified`, so the app can tell a member listed
+as an agent that the work starts once their identity is checked; until
+then they get the member app.
+
 Checks recorded per member (`VerificationCheck`, one current result per
 check, each passed, failed, pending or unsupported):
 
 | Check | How it is decided today |
 |---|---|
-| `pvcCaptured` | Passed when the VIN and polling unit code came with a photo of the card; pending when they were typed in without one, or with a VIN only; failed without a PVC. |
+| `pvcCaptured` | Passed when the VIN and polling unit code came with a photo of the card; pending when they were typed in without one, or with a VIN only; failed without a PVC, or when a USSD registration skipped the VIN. |
 | `pvcValidated` | **Unsupported**: no authoritative INEC source is connected. Reading a PVC is not validating it. |
 | `duplicates` | Phone and VIN are unique by design; pending when someone else has the same name and date of birth (a count only, as they may be outside the reviewer's area), or when there is no date of birth to compare. |
-| `phoneVerified` | Passed when a code sent by SMS was entered. |
+| `phoneVerified` | Passed when a code sent by SMS was entered, or when the mobile network supplied the number during USSD registration. |
 | `selfieCaptured` | Passed when a selfie was captured, noted as not biometric verification; failed without one. |
 | `liveness` | **Unsupported**: no liveness detection. |
 | `faceMatch` | **Unsupported**: no trusted reference photo exists to compare with. |
@@ -297,6 +318,8 @@ A data migration creates the system role definitions from the former fixed
 roles. Existing accounts keep their legacy access; nothing is deleted or
 widened, except that legacy coordinators now hold `viewMemberSensitiveData`
 explicitly for what they already saw. Unknown roles map to no access.
+Since 12 October 2026, agent and observer accounts act only when they
+belong to a verified member (§8).
 Planned, not built yet: an administrator links a staff account to a
 verified member, converting its legacy role into a normal assignment.
 
@@ -385,6 +408,9 @@ Known limitations:
   database used in development and tests serialises writes instead.
 - Legacy agent and staff accounts not linked to a member cannot be suspended
   as members; their account must be deactivated instead.
+- An agent account must be the member's own account given the agent role,
+  which today is done in the Django admin. Planned: approving an agent's
+  accreditation gives the member's account the agent role.
 - Existing before this work: asking for a registration code
   (`POST /register/code/`) answers differently for a phone number or VIN
   that is already registered, so it reveals whether someone is a member.

@@ -7,20 +7,23 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.access.services import in_good_standing
+from apps.access.services import identity_verified, in_good_standing
 from apps.core.choices import Role
-from apps.core.permissions import Capability
+from apps.core.permissions import FIELD_ROLES, Capability
 from apps.geography.gps import LocationStatus, assess
 from apps.geography.models import PollingUnit
 from apps.geography.scope import ScopeRef, scope_contains
 
 from .models import AgentCheckIn, DutySession, LocationPing
 
-FIELD_APP_ROLES = (Role.POLLING_UNIT_AGENT, Role.OBSERVER)
+NOT_VERIFIED = (
+    "Agents and observers work only once their identity is verified. "
+    "Ask your coordinator to verify you."
+)
 
 
 def _require_field_role(user):
-    if user.role not in FIELD_APP_ROLES:
+    if user.role not in FIELD_ROLES:
         raise PermissionDenied("Only field agents and observers share location from the app.")
     _require_standing(user)
 
@@ -28,6 +31,8 @@ def _require_field_role(user):
 def _require_standing(user):
     if not in_good_standing(user):
         raise PermissionDenied("Your membership is suspended; field reporting is off.")
+    if not identity_verified(user):
+        raise PermissionDenied(NOT_VERIFIED)
 
 
 @transaction.atomic
@@ -66,6 +71,8 @@ def confirm_check_in(*, actor, check_in: AgentCheckIn) -> AgentCheckIn:
         raise ValidationError("This check-in is already confirmed.")
     if not in_good_standing(check.agent):
         raise ValidationError("This agent's membership is suspended; the check-in cannot count.")
+    if not identity_verified(check.agent):
+        raise ValidationError("This agent's identity is not verified; the check-in cannot count.")
     if check.location_status in (LocationStatus.SUSPECT, LocationStatus.NO_GPS):
         raise ValidationError("A check-in with a faked or missing location cannot be confirmed.")
 

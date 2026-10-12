@@ -63,6 +63,10 @@ class Capability(models.TextChoices):
 
 C = Capability
 
+# Agents and observers in the field. Their accounts act only for a member whose
+# identity a coordinator has verified; plain membership needs no verification.
+FIELD_ROLES = frozenset({Role.POLLING_UNIT_AGENT, Role.OBSERVER})
+
 _COMMON_DISCUSSION = {C.VIEW_DISCUSSION_ROOM, C.CREATE_DISCUSSION_THREAD, C.POST_DISCUSSION_REPLY}
 _COMMON_MEETING = {C.VIEW_MEETING_ROOM, C.START_MEETING, C.JOIN_MEETING}
 

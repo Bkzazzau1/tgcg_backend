@@ -14,7 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
-from apps.core.choices import GeographyLevel, MembershipState, Role
+from apps.core.choices import GeographyLevel, MembershipState, Role, VerificationStatus
 from apps.core.permissions import Capability, requires
 from apps.geography.gps import GpsFixSerializer, GpsReadSerializer, LocationStatus
 from apps.geography.scope import (
@@ -255,9 +255,13 @@ class CoverageView(APIView):
         tz = timezone.get_current_timezone()
         start = timezone.make_aware(datetime.combine(day, time.min), tz)
 
+        # Only agents who can work count: verified members in good standing.
         agents = (
             User.objects.filter(
-                role=Role.POLLING_UNIT_AGENT, is_active=True, polling_unit__isnull=False
+                role=Role.POLLING_UNIT_AGENT,
+                is_active=True,
+                polling_unit__isnull=False,
+                member__verification_status=VerificationStatus.VERIFIED,
             )
             .filter(within_scope_q(scope))
             .exclude(member__membership_state__in=STOPPED)

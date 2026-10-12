@@ -180,7 +180,10 @@ def test_my_membership():
     screen = dial("2", session="ATUid_2")
     assert screen.startswith("END Musa Abdullahi")
     assert "\nMember no. TGCG-" in screen
-    assert screen.endswith("\nStatus: awaiting review")
+    # Membership needs no identity check: an unchecked member is simply active.
+    assert screen.endswith("\nStatus: active member")
+    Member.objects.update(verification_status=VerificationStatus.VERIFIED)
+    assert dial("2", session="ATUid_3").endswith("\nStatus: active member, ID checked")
 
 
 def test_the_callback_is_closed_without_the_right_token(settings):

@@ -8,11 +8,12 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.core.choices import ElectionStatus, ElectionType, GeographyLevel, Role
+from apps.core.permissions import FIELD_ROLES
 from apps.geography.models import Lga, PollingUnit, State, Ward
 from apps.geography.polling_units import load_polling_units
 from apps.results.models import Election, Party
 from apps.tracking.models import DutySession, LocationPing
-from conftest import PASSWORD
+from conftest import PASSWORD, verified_member
 
 pytestmark = pytest.mark.django_db
 
@@ -32,6 +33,8 @@ def fix(lat=UNIT[0], lng=UNIT[1], accuracy=12, minutes_ago=0, mocked=False):
 
 def login(**fields):
     user = User.objects.create_user(password=PASSWORD, full_name=fields["access_id"], **fields)
+    if user.role in FIELD_ROLES:
+        verified_member(user)  # agents and observers act only once verified
     client = APIClient()
     client.force_authenticate(user)
     return client

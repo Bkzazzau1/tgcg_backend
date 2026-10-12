@@ -8,9 +8,9 @@ between steps, and typing 18*23*01*001 on one screen answers the four DELIM
 questions at once.
 
 The mobile network supplies the phone number, so no SMS code is needed. There
-is no photo of the member or the card: members who join this way wait for a
-coordinator's review like everyone else, and cannot be verified until they
-add a selfie.
+is no photo of the member or the card. That does not matter for membership,
+which needs no identity check; only to work as an agent or hold a role must
+they add a selfie and be verified.
 
 Never log a request: `text` holds the member's PIN.
 """
@@ -88,16 +88,15 @@ def _membership(phone: str) -> Screen:
     member = Member.objects.select_related("polling_unit").filter(phone_number=phone).first()
     if member is None:
         return _end("This number is not a TGCG member yet. Dial again and choose 1 to join.")
+    # Membership needs no identity check, so an unchecked member is simply active.
     if member.membership_state == MembershipState.SUSPENDED:
         status = "suspended"
     elif member.membership_state == MembershipState.DEACTIVATED:
         status = "ended"
     elif member.verification_status == VerificationStatus.VERIFIED:
-        status = "verified"
-    elif member.verification_status == VerificationStatus.REJECTED:
-        status = "identity not confirmed"
+        status = "active member, ID checked"
     else:
-        status = "awaiting review"
+        status = "active member"
     unit = member.polling_unit.name if member.polling_unit else "not set"
     return _end(
         f"{_short(member.full_name, 40)}\nMember no. {member.membership_number}\n"

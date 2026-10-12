@@ -266,6 +266,17 @@ def in_good_standing(user) -> bool:
         return True
 
 
+def identity_verified(user) -> bool:
+    """The account belongs to a member whose identity a coordinator verified.
+
+    Membership never needs it; agents, observers and appointed roles do.
+    """
+    try:
+        return user.member.verification_status == VerificationStatus.VERIFIED
+    except ObjectDoesNotExist:
+        return False
+
+
 def authority_over_member(actor, permission, member, *, area=None, what="member"):
     """The grant under which `actor` may use `permission` on `member`.
 

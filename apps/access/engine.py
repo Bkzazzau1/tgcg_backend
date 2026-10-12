@@ -4,7 +4,9 @@ An action P on a resource in area X is allowed only when one single grant
 holds P *and* covers X. A grant is an active, in-date assignment of an active
 role to a verified member with an active membership, an active delegation
 grant (its administrative powers only), or an account's legacy fixed role
-(with its single scope) during the transition. Grants are never pooled:
+(with its single scope) during the transition. A legacy agent or observer
+role counts only on a verified member's account: membership itself needs no
+verification, but working in the field does. Grants are never pooled:
 permissions from one never combine with areas from another.
 
 Everything is read from the database, cached only for the current request,
@@ -19,7 +21,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from apps.core.choices import GeographyLevel, MembershipState, Role, VerificationStatus
-from apps.core.permissions import ROLE_CAPABILITIES
+from apps.core.permissions import FIELD_ROLES, ROLE_CAPABILITIES
 from apps.geography.scope import LEVEL_FIELD
 
 from .models import (
@@ -86,8 +88,10 @@ def _compute_grants(user, now) -> tuple[Grant, ...]:
         return ()  # a suspended or deactivated membership blocks everything
 
     grants: list[Grant] = []
-    if user.role != Role.MEMBER:
-        # Legacy fixed role: unknown roles grant nothing.
+    verified = member is not None and member.verification_status == VerificationStatus.VERIFIED
+    if user.role != Role.MEMBER and (verified or user.role not in FIELD_ROLES):
+        # Legacy fixed role: unknown roles grant nothing, and agents and
+        # observers work only once their identity is verified.
         legacy = frozenset(
             code for code in ROLE_CAPABILITIES.get(user.role, ()) if code in PERMISSIONS
         )
@@ -104,7 +108,7 @@ def _compute_grants(user, now) -> tuple[Grant, ...]:
                 )
             )
 
-    if member is not None and member.verification_status == VerificationStatus.VERIFIED:
+    if verified:
         assignments = (
             RoleAssignment.objects.filter(
                 member=member,

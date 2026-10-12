@@ -29,7 +29,8 @@ Joining asks, one screen at a time:
 8. The data-use notice: "1. I agree, join TGCG" or "2. Cancel".
 
 The last screen gives the membership number. "My membership" shows the name,
-membership number, polling unit and review status for the phone dialling.
+membership number, polling unit and status for the phone dialling: "active
+member" (with "ID checked" once verified), "suspended" or "ended".
 
 A wrong answer is asked again with a short reason. A phone number or VIN that
 is already registered, or a staff account's number, cannot join again.
@@ -42,10 +43,10 @@ is already registered, or a staff account's number, cannot join again.
   depends on the callback being genuine, which is why the token below must
   stay secret.
 - **No selfie and no photo of the card.** The selfie check fails and the PVC
-  check is pending (VIN given) or failed (VIN skipped). The member waits for a
-  coordinator's review like everyone else, and cannot be verified, or hold an
-  operational role, until they add a selfie. That is the next step in
-  TheGameChangerGroup's `docs/identity-checks-plan.md`.
+  check is pending (VIN given) or failed (VIN skipped). That does not limit
+  their membership, which needs no identity check. Only to work as an agent
+  or hold a role must they add a selfie and be verified; letting them add one
+  is in TheGameChangerGroup's `docs/identity-checks-plan.md`.
 
 The session's text holds the member's PIN, so requests are never logged. If a
 request fails, only the error type and code location are logged.
