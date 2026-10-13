@@ -435,8 +435,10 @@ def ussd_complete_profile(*, member: Member, full_name, pin_hash) -> Member:
         raise ValidationError("This membership has ended.")
     name = " ".join((full_name or "").split())
     words = [word for word in name.split() if sum(letter.isalpha() for letter in word) >= 2]
-    if len(name) > 150 or len(words) < 2 or any(
-        not (letter.isalpha() or letter in " .'-") for letter in name
+    if (
+        len(name) > 150
+        or len(words) < 2
+        or any(not (letter.isalpha() or letter in " .'-") for letter in name)
     ):
         raise ValidationError({"full_name": "Enter at least two names, in letters."})
     if member.full_name and member.full_name.casefold() != name.casefold():

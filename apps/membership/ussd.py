@@ -240,7 +240,9 @@ class _Flow:
                     "1. Agree & join\n2. Change unit\n0. Cancel"
                 )
             case Draft.Step.NAME:
-                text = "Optional app profile: enter your full name as on your PVC:\n0. Cancel progress"
+                text = (
+                    "Optional app profile: enter your full name as on your PVC:\n0. Cancel progress"
+                )
             case Draft.Step.PIN:
                 text = "Choose a 6-digit PIN for signing in to the TGCG app:\n0. Cancel progress"
             case Draft.Step.PIN_CONFIRM:

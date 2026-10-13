@@ -85,8 +85,15 @@ def complete_profile(*, session="ATUid_profile", name="musa BELLO", pin=PIN):
 def progress_snapshot(phone=PHONE):
     saved = draft(phone)
     return (
-        saved.pk, saved.kind, saved.step, saved.vin, saved.polling_unit_id,
-        saved.unit_parts, saved.full_name, saved.pin_hash, saved.active_session_key,
+        saved.pk,
+        saved.kind,
+        saved.step,
+        saved.vin,
+        saved.polling_unit_id,
+        saved.unit_parts,
+        saved.full_name,
+        saved.pin_hash,
+        saved.active_session_key,
     )
 
 
@@ -289,8 +296,12 @@ def test_duplicate_vin_and_staff_phone_cannot_join():
     assert Member.objects.count() == 1
 
     User.objects.create_user(
-        "SC-KD", PASSWORD, full_name="State Coordinator", phone_number="+2348035550000",
-        role=Role.STATE_COORDINATOR, scope_level=GeographyLevel.STATE,
+        "SC-KD",
+        PASSWORD,
+        full_name="State Coordinator",
+        phone_number="+2348035550000",
+        role=Role.STATE_COORDINATOR,
+        scope_level=GeographyLevel.STATE,
         state=State.objects.get(code="KD"),
     )
     assert dial("1", phone="+2348035550000", session="staff").startswith("END ")
@@ -464,8 +475,10 @@ def test_cleanup_removes_only_stale_progress_and_preserves_accounts():
         phone_number=OTHER_PHONE, service_code=CODE, provider_session_id="stale", draft=expired
     )
     recent_session = UssdSession.objects.create(
-        phone_number=recent.phone_number, service_code=CODE,
-        provider_session_id="recent", draft=recent,
+        phone_number=recent.phone_number,
+        service_code=CODE,
+        provider_session_id="recent",
+        draft=recent,
     )
     UssdSession.objects.filter(pk=stale_session.pk).update(updated_at=old_time)
     UssdSession.objects.filter(pk=recent_session.pk).update(updated_at=recent_time)
@@ -484,9 +497,7 @@ def test_cleanup_removes_only_stale_progress_and_preserves_accounts():
 
 def test_cleanup_uses_configured_retention(settings):
     settings.USSD_DRAFT_TTL_DAYS = 7
-    saved = UssdRegistrationDraft.objects.create(
-        phone_number=PHONE, kind="join", step="vin"
-    )
+    saved = UssdRegistrationDraft.objects.create(phone_number=PHONE, kind="join", step="vin")
     UssdRegistrationDraft.objects.filter(pk=saved.pk).update(
         updated_at=timezone.now() - timedelta(days=8)
     )
@@ -591,17 +602,17 @@ def test_expired_draft_refuses_old_callback_and_starts_fresh_on_redial():
 
 def test_cleanup_uses_last_activity_and_detaches_recent_session_from_stale_draft():
     old_time = timezone.now() - timedelta(days=31)
-    active = UssdRegistrationDraft.objects.create(
-        phone_number=PHONE, kind="join", step="vin"
-    )
+    active = UssdRegistrationDraft.objects.create(phone_number=PHONE, kind="join", step="vin")
     expired = UssdRegistrationDraft.objects.create(
         phone_number=OTHER_PHONE, kind="join", step="unit", vin=OTHER_VIN
     )
     UssdRegistrationDraft.objects.filter(pk=active.pk).update(created_at=old_time)
     UssdRegistrationDraft.objects.filter(pk=expired.pk).update(updated_at=old_time)
     recent_session = UssdSession.objects.create(
-        phone_number=OTHER_PHONE, service_code=CODE,
-        provider_session_id="recent-with-old-draft", draft=expired,
+        phone_number=OTHER_PHONE,
+        service_code=CODE,
+        provider_session_id="recent-with-old-draft",
+        draft=expired,
     )
     call_command("purge_ussd_progress", stdout=io.StringIO())
     assert UssdRegistrationDraft.objects.filter(pk=active.pk).exists()
@@ -615,9 +626,7 @@ def test_cleanup_refuses_invalid_retention_without_deleting_progress(settings, d
     from django.core.management.base import CommandError
 
     settings.USSD_DRAFT_TTL_DAYS = days
-    saved = UssdRegistrationDraft.objects.create(
-        phone_number=PHONE, kind="join", step="vin"
-    )
+    saved = UssdRegistrationDraft.objects.create(phone_number=PHONE, kind="join", step="vin")
     with pytest.raises(CommandError):
         call_command("purge_ussd_progress", stdout=io.StringIO())
     assert UssdRegistrationDraft.objects.filter(pk=saved.pk).exists()

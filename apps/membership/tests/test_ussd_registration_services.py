@@ -98,7 +98,9 @@ def test_vin_already_owned_by_another_phone_is_rejected(unit):
 
 def test_staff_phone_cannot_join(unit):
     User.objects.create_user(
-        "STAFF", full_name="Staff Operator", phone_number=PHONE,
+        "STAFF",
+        full_name="Staff Operator",
+        phone_number=PHONE,
         role=Role.NATIONAL_ADMINISTRATOR,
     )
     with pytest.raises(ValidationError, match="staff account"):
@@ -142,7 +144,9 @@ def test_only_ussd_members_may_have_blank_names(unit, channel):
 
 def test_registration_and_staff_write_serializers_still_require_names():
     for serializer_type in (
-        MemberSerializer, AssistedRegistrationSerializer, SelfRegistrationSerializer,
+        MemberSerializer,
+        AssistedRegistrationSerializer,
+        SelfRegistrationSerializer,
     ):
         serializer = serializer_type()
         assert serializer.fields["full_name"].required
@@ -224,7 +228,8 @@ def test_profile_completion_rejects_other_channel_or_ended_membership(unit):
     with pytest.raises(ValidationError, match="set up in the app"):
         complete(member)
     Member.objects.filter(pk=member.pk).update(
-        registration_channel=RegistrationChannel.USSD, membership_state=MembershipState.DEACTIVATED,
+        registration_channel=RegistrationChannel.USSD,
+        membership_state=MembershipState.DEACTIVATED,
     )
     with pytest.raises(ValidationError, match="membership has ended"):
         complete(member)
@@ -234,7 +239,9 @@ def test_profile_completion_rejects_other_channel_or_ended_membership(unit):
 def test_profile_completion_rejects_existing_unlinked_account(unit):
     member = join(unit)
     User.objects.create_user(
-        "EXISTING", full_name="Existing Operator", phone_number=PHONE,
+        "EXISTING",
+        full_name="Existing Operator",
+        phone_number=PHONE,
         role=Role.NATIONAL_ADMINISTRATOR,
     )
     with pytest.raises(ValidationError, match="already has an account"):
@@ -258,8 +265,13 @@ def test_progress_has_uuid_keys_and_can_be_deleted_without_deleting_members(unit
     member = join(unit)
     draft = UssdRegistrationDraft.objects.create(phone_number=PHONE, vin=VIN, polling_unit=unit)
     session = UssdSession.objects.create(
-        phone_number=PHONE, service_code="*384*1234#", provider_session_id="provider-session",
-        draft=draft, answer_count=2, prefix_digest="a" * 64, last_response="CON Enter unit:",
+        phone_number=PHONE,
+        service_code="*384*1234#",
+        provider_session_id="provider-session",
+        draft=draft,
+        answer_count=2,
+        prefix_digest="a" * 64,
+        last_response="CON Enter unit:",
     )
     assert isinstance(draft.pk, uuid.UUID) and isinstance(session.pk, uuid.UUID)
     assert draft.created_at and draft.updated_at and session.created_at and session.updated_at
@@ -273,16 +285,24 @@ def test_progress_has_uuid_keys_and_can_be_deleted_without_deleting_members(unit
 
 def test_session_uniqueness_includes_phone_and_service_code():
     UssdSession.objects.create(
-        phone_number=PHONE, service_code="*384*1234#", provider_session_id="same-session",
+        phone_number=PHONE,
+        service_code="*384*1234#",
+        provider_session_id="same-session",
     )
     UssdSession.objects.create(
-        phone_number=OTHER_PHONE, service_code="*384*1234#", provider_session_id="same-session",
+        phone_number=OTHER_PHONE,
+        service_code="*384*1234#",
+        provider_session_id="same-session",
     )
     UssdSession.objects.create(
-        phone_number=PHONE, service_code="*384*4321#", provider_session_id="same-session",
+        phone_number=PHONE,
+        service_code="*384*4321#",
+        provider_session_id="same-session",
     )
     duplicate = UssdSession(
-        phone_number=PHONE, service_code="*384*1234#", provider_session_id="same-session",
+        phone_number=PHONE,
+        service_code="*384*1234#",
+        provider_session_id="same-session",
     )
     with pytest.raises(ValidationError, match="already exists"):
         duplicate.full_clean()
