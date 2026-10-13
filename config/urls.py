@@ -11,6 +11,7 @@ from apps.announcements.views import AnnouncementViewSet
 from apps.core.views import HealthView
 from apps.field.views import EvidenceDownloadView, FieldReportViewSet, IncidentViewSet
 from apps.geography import views as geography
+from apps.meetings.views import MeetingViewSet
 from apps.membership import registration_views as reg
 from apps.membership.ussd_views import UssdCallbackView
 from apps.membership.views import (
@@ -47,6 +48,7 @@ router.register("field-reports", FieldReportViewSet, basename="field-report")
 router.register("parties", PartyViewSet)
 router.register("elections", ElectionViewSet)
 router.register("results", ResultViewSet, basename="result")
+router.register("meetings", MeetingViewSet, basename="meeting")
 router.register("access/roles", access.RoleViewSet, basename="role")
 router.register("access/assignments", access.AssignmentViewSet, basename="role-assignment")
 router.register("access/delegations", access.DelegationViewSet, basename="delegation")

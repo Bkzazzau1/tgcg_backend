@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.results",
     "apps.announcements",
     "apps.tracking",
+    "apps.meetings",
     "apps.access",
 ]
 
@@ -178,6 +179,9 @@ SPECTACULAR_SETTINGS = {
         "IncidentCategory": "apps.core.choices.IncidentCategory",
         "ReportCategory": "apps.core.choices.ReportCategory",
         "EvidenceType": "apps.core.choices.EvidenceType",
+        "MeetingKind": "apps.meetings.models.Meeting.Kind",
+        "MeetingAudience": "apps.meetings.models.Meeting.Audience",
+        "MeetingStatus": "apps.meetings.models.Meeting.Status",
     },
 }
 
@@ -228,6 +232,12 @@ USSD_CALLBACK_TOKEN = env("USSD_CALLBACK_TOKEN", default="")
 USSD_SERVICE_CODE = env("USSD_SERVICE_CODE", default="")
 # Inactive saved USSD progress is purged daily; membership is retained.
 USSD_DRAFT_TTL_DAYS = env.int("USSD_DRAFT_TTL_DAYS", default=30)
+
+# --- Meetings (see apps/meetings/livekit.py and docs/meetings.md) -------------------
+# Calls run on LiveKit. All three empty: meetings can be planned, but not joined.
+LIVEKIT_URL = env("LIVEKIT_URL", default="")  # wss://<project>.livekit.cloud
+LIVEKIT_API_KEY = env("LIVEKIT_API_KEY", default="")
+LIVEKIT_API_SECRET = env("LIVEKIT_API_SECRET", default="")
 
 # --- GPS ---------------------------------------------------------------------------
 PU_PROXIMITY_METERS = env.int("PU_PROXIMITY_METERS", default=300)
