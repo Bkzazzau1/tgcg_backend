@@ -263,10 +263,16 @@ members registered before). A member is verified automatically only when
 every check has passed, which cannot happen today: everyone goes to
 **pendingReview**. A coordinator holding `verifyMemberIdentity` for the
 member's area reviews in person, records notes and approves (the checks are
-run again first; refused while any has failed) or rejects. Nobody reviews
-themselves, anyone their authority came from (§5), or a National
-Administrator. Rejection, like any loss of verification, stops every
-appointment at once. Changing a verified member's name or date of birth
+run again first; refused while any has failed) or rejects. State, LGA and
+ward coordinators hold `verifyMemberIdentity` for their own area (decided on
+13 October 2026), so the agents there can be verified close to home; zonal
+coordinators do not. Nobody reviews themselves, anyone their authority came
+from (§5), or a National Administrator. Rejection, like any loss of
+verification, stops every appointment at once, so the same authority must
+also cover every area where the member holds a role (appointments not
+ended, delegated authority, a staff account's area): a ward coordinator
+cannot decide the identity of an LGA role holder who lives in the ward;
+the LGA coordinator can. Changing a verified member's name or date of birth
 sends them back to review, so it needs `verifyMemberIdentity` as well as
 `manageMembership`, and a reason; a National Administrator's identity
 details are never changed through the API. Every run and decision is in the
@@ -441,6 +447,11 @@ a role does not see is also refused by the server. Since 13 October 2026:
   coordinators); Field Monitoring for those who report from the field; AI
   Verification for result verifiers and membership managers; System
   Monitoring for the administrator and Technical Support.
+- State, LGA and ward coordinators verify members' identities in their area
+  (`verifyMemberIdentity`, §8), so they see Member Review with its Identity
+  review tab. A ward coordinator's area ends at the ward, and nobody decides
+  the identity of someone whose role reaches beyond their area; zonal
+  coordinators do not verify.
 
 Not done yet:
 

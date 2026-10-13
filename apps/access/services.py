@@ -277,12 +277,13 @@ def identity_verified(user) -> bool:
         return False
 
 
-def authority_over_member(actor, permission, member, *, area=None, what="member"):
+def authority_over_member(actor, permission, member, *, area=None, also=(), what="member"):
     """The grant under which `actor` may use `permission` on `member`.
 
     One grant must hold the permission and cover `area` (the member's own
-    registration by default), and must not have come from the member: nobody
-    acts on themselves, and authority never acts on someone it came from.
+    registration by default) and every area in `also`, and must not have come
+    from the member: nobody acts on themselves, and authority never acts on
+    someone it came from.
     """
     if _is_self(actor, member):
         raise PermissionDenied("You cannot do this to yourself.")
@@ -294,6 +295,11 @@ def authority_over_member(actor, permission, member, *, area=None, what="member"
     ]
     if not covering:
         raise PermissionDenied(f"The {what} is outside your area for this.")
+    covering = [grant for grant in covering if all(grant.covers(other) for other in also)]
+    if not covering:
+        raise PermissionDenied(
+            f"The {what} holds a role outside your area; someone whose area covers it must do this."
+        )
     for grant in covering:
         source = None
         if grant.source == engine.ASSIGNMENT:

@@ -10,10 +10,17 @@ it, and a selfie alone is not biometric verification.
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.access import audit, engine
-from apps.core.choices import RegistrationChannel, VerificationStatus
+from apps.access.models import (
+    AssignmentStatus,
+    DelegationGrantArea,
+    GrantStatus,
+    RoleAssignmentArea,
+)
+from apps.core.choices import RegistrationChannel, Role, VerificationStatus
 from apps.core.permissions import Capability
 
 from .models import Member, VerificationCheck
@@ -150,12 +157,37 @@ def record_checks(member: Member, actor=None) -> Member:
     return member
 
 
+def role_areas(member) -> list:
+    """Every area where the member holds a role: appointments that have not
+    ended (suspended ones come back), delegated authority, and the area of a
+    staff account of theirs."""
+    now = timezone.now()
+    areas = [
+        *RoleAssignmentArea.objects.filter(
+            Q(assignment__ends_at__isnull=True) | Q(assignment__ends_at__gt=now),
+            assignment__member=member,
+            assignment__status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.SUSPENDED],
+        ),
+        *DelegationGrantArea.objects.filter(
+            Q(grant__ends_at__isnull=True) | Q(grant__ends_at__gt=now),
+            grant__recipient=member,
+            grant__status=GrantStatus.ACTIVE,
+        ),
+    ]
+    if member.user_id and member.user.role != Role.MEMBER:
+        areas.append(member.user)
+    return areas
+
+
 def require_reviewer(actor, member):
-    """Holds verifyMemberIdentity for the member's area under authority that did
-    not come from them; never for oneself or a National Administrator."""
+    """Holds verifyMemberIdentity for the member's area, and for every area
+    where they hold a role, under one authority that did not come from them:
+    a coordinator decides the identities of the people in their area, never of
+    someone whose role reaches beyond it. Never for oneself or a National
+    Administrator."""
     from apps.access.services import authority_over_member, is_administrator_account
 
-    authority_over_member(actor, C.VERIFY_MEMBER_IDENTITY, member)
+    authority_over_member(actor, C.VERIFY_MEMBER_IDENTITY, member, also=role_areas(member))
     if member.user_id and is_administrator_account(member.user):
         raise PermissionDenied(
             "A National Administrator's standing changes only through the "

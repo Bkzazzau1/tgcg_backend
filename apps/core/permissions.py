@@ -318,6 +318,11 @@ for _role in (
         C.CONFIRM_AGENT_LOCATION,
     }
 
+# State, LGA and ward coordinators confirm the identities of members in their
+# area, so the agents and role holders there can start (13 October 2026).
+for _role in (Role.STATE_COORDINATOR, Role.LGA_COORDINATOR, Role.WARD_COORDINATOR):
+    ROLE_CAPABILITIES[_role] = ROLE_CAPABILITIES[_role] | {C.VERIFY_MEMBER_IDENTITY}
+
 # Members use only their own member-home endpoints; they hold no staff capability.
 ROLE_CAPABILITIES[Role.MEMBER] = frozenset()
 

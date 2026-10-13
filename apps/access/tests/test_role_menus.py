@@ -46,6 +46,18 @@ def test_only_the_national_administrator_manages_geography():
     assert holders == {Role.NATIONAL_ADMINISTRATOR}
 
 
+def test_state_lga_and_ward_coordinators_verify_identities():
+    holders = {
+        role for role, codes in ROLE_CAPABILITIES.items() if C.VERIFY_MEMBER_IDENTITY in codes
+    }
+    assert holders == {
+        Role.NATIONAL_ADMINISTRATOR,
+        Role.STATE_COORDINATOR,
+        Role.LGA_COORDINATOR,
+        Role.WARD_COORDINATOR,
+    }
+
+
 def staff(access_id, role, **scope):
     user = User.objects.create_user(access_id, PASSWORD, full_name=access_id, role=role, **scope)
     client = APIClient()

@@ -191,6 +191,90 @@ def test_coordinators_review_identities_in_their_area(admin):
     assert refused.status_code == 400  # a failed check is resolved first
 
 
+def coordinator(access_id, role, **scope):
+    """A client for a coordinator's account: a fixed role over one area."""
+    user = User.objects.create_user(access_id, PASSWORD, full_name=access_id, role=role, **scope)
+    return client_for(user)
+
+
+def placed(member, unit):
+    """The member, registered at `unit` instead."""
+    member.scope_level = GeographyLevel.POLLING_UNIT
+    member.polling_unit = unit
+    member.normalize_scope()
+    member.save()
+    return member
+
+
+def test_state_lga_and_ward_coordinators_verify_identities_in_their_area(kd_units):
+    """Decided 13 October 2026, so the agents in their area can start."""
+    ward = kd_units[0].ward
+
+    def approve(client, member):
+        url = f"/api/v1/members/{member.membership_number}/verification/approve/"
+        return client.post(url, {"notes": "Saw the PVC and the person."}, format="json")
+
+    state = coordinator(
+        "SC-KD", Role.STATE_COORDINATOR, scope_level=GeographyLevel.STATE, state=ward.lga.state
+    )
+    lga = coordinator("LC-KD", Role.LGA_COORDINATOR, scope_level=GeographyLevel.LGA, lga=ward.lga)
+    ward_coordinator = coordinator(
+        "WC-KD", Role.WARD_COORDINATOR, scope_level=GeographyLevel.WARD, ward=ward
+    )
+    for n, client in enumerate((state, lga, ward_coordinator)):
+        member = placed(checked_member(f"0803333005{n}", name=f"Ward Member {n}"), kd_units[0])
+        approved = approve(client, member)
+        assert approved.status_code == 200, approved.content
+        assert approved.json()["verification_status"] == "verified"
+
+    # Each only in their own area: the ward ends at the ward, the state at Kaduna.
+    lga_level = checked_member("08033330060", name="Kaduna North Member")
+    assert approve(ward_coordinator, lga_level).status_code == 404
+    assert approve(lga, lga_level).status_code == 200
+    kano = checked_member("08033330061", lga="KN-AJINGI")
+    assert approve(state, kano).status_code == 404
+
+    zonal = coordinator(
+        "ZC-NW",
+        Role.ZONAL_COORDINATOR,
+        scope_level=GeographyLevel.GEOPOLITICAL_ZONE,
+        zone=ward.lga.state.zone,
+    )
+    waiting = placed(checked_member("08033330062", name="Ward Member 3"), kd_units[0])
+    assert approve(zonal, waiting).status_code == 403
+    waiting.refresh_from_db()
+    assert waiting.verification_status == "pendingReview"
+
+
+def test_nobody_decides_the_identity_of_someone_whose_role_reaches_beyond_them(admin, kd_units):
+    # Rejecting an identity stops every appointment at once, so a ward
+    # coordinator cannot stop an LGA role holder who happens to live in the ward.
+    ward = kd_units[0].ward
+    organiser = placed(member_account("08033330070", name="LGA Organiser"), kd_units[0])
+    role = custom_role(admin, "LGA Organiser", [C.SEND_BROADCAST], levels=("lga",))
+    lga_area = {"level": "lga", "lgaId": "KD-KADUNA-NORTH"}
+    assert appoint(admin, organiser, role, [lga_area]).status_code == 201
+
+    url = f"/api/v1/members/{organiser.membership_number}/verification/"
+    reason = {"reason": "The PVC belongs to someone else."}
+    ward_coordinator = coordinator(
+        "WC-KD", Role.WARD_COORDINATOR, scope_level=GeographyLevel.WARD, ward=ward
+    )
+    refused = ward_coordinator.post(f"{url}reject/", reason, format="json")
+    assert refused.status_code == 403
+    assert "role outside your area" in refused.json()["detail"]
+    assert ward_coordinator.get(url).status_code == 403
+    organiser.refresh_from_db()
+    assert organiser.verification_status == "verified"
+    assert C.SEND_BROADCAST in capabilities_for(fresh(organiser.user))
+
+    # Whoever covers the whole LGA decides.
+    lga = coordinator("LC-KD", Role.LGA_COORDINATOR, scope_level=GeographyLevel.LGA, lga=ward.lga)
+    rejected = lga.post(f"{url}reject/", reason, format="json")
+    assert rejected.status_code == 200, rejected.content
+    assert C.SEND_BROADCAST not in capabilities_for(fresh(organiser.user))
+
+
 def test_rejecting_an_identity_stops_its_appointments(admin):
     verifier = staff_with(admin, "08033330020", "Kaduna Verifier", [C.VERIFY_MEMBER_IDENTITY])
     holder = staff_with(admin, "08033330021", "Role Holder", [C.SEND_BROADCAST])
