@@ -159,9 +159,9 @@ def test_geographic_reach_holds_for_lists_and_records(admin):
     reporter = User.objects.create_user("REP-1", PASSWORD, full_name="Reporter")
     kano_lga = Lga.objects.filter(state__code="KN").first()
     kaduna_lga = Lga.objects.get(code="KD-KADUNA-NORTH")
-    for lga in (kano_lga, kaduna_lga):
+    for number, lga in enumerate((kano_lga, kaduna_lga), start=1):
         Incident.objects.create(
-            reference=f"INC-{lga.code}",
+            reference=f"INC-{number:06d}",
             title="Ballot snatching",
             category="violence",
             severity="high",
@@ -172,8 +172,8 @@ def test_geographic_reach_holds_for_lists_and_records(admin):
             zone=lga.state.zone,
         )
     listing = client_for(member.user).get("/api/v1/incidents/").json()
-    assert [row["reference"] for row in listing["results"]] == [f"INC-{kano_lga.code}"]
-    hidden = client_for(member.user).get("/api/v1/incidents/INC-KD-KADUNA-NORTH/")
+    assert [row["reference"] for row in listing["results"]] == ["INC-000001"]
+    hidden = client_for(member.user).get("/api/v1/incidents/INC-000002/")
     assert hidden.status_code == 404
 
 

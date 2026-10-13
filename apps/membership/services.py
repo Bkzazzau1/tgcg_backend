@@ -81,7 +81,7 @@ def update_member(*, actor, member: Member, reason: str = "", **fields) -> Membe
     from apps.access.services import authority_over_member, is_administrator_account
     from apps.geography.scope import SCOPE_FIELDS
 
-    member = Member.objects.select_for_update().select_related("user").get(pk=member.pk)
+    member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
     authority_over_member(actor, C.MANAGE_MEMBERSHIP, member)
     before = {name: getattr(member, name) for name in fields}
     where = (member.scope_level, *(getattr(member, f"{f}_id") for f in SCOPE_FIELDS))
@@ -282,7 +282,7 @@ def _lock_standing(actor, member) -> Member:
     the actor's area, and never a National Administrator."""
     from apps.access.services import authority_over_member, is_administrator_account
 
-    member = Member.objects.select_for_update().select_related("user").get(pk=member.pk)
+    member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
     authority_over_member(actor, C.SUSPEND_MEMBERS, member)
     if member.user_id and is_administrator_account(member.user):
         raise PermissionDenied(
@@ -437,7 +437,9 @@ def withdraw_polling_unit_change(*, member: Member, change) -> PollingUnitChange
 
 def _lock_change(actor, change) -> PollingUnitChangeRequest:
     change = (
-        PollingUnitChangeRequest.objects.select_for_update()
+        # Keep the member locked while deciding, without locking nullable
+        # polling-unit outer joins (unsupported by PostgreSQL).
+        PollingUnitChangeRequest.objects.select_for_update(of=("self", "member"))
         .select_related("member", "polling_unit", "from_polling_unit")
         .get(pk=change.pk)
     )

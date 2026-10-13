@@ -1429,7 +1429,7 @@ def recover_administrator(*, member, reason: str, operator: str = "") -> RoleAss
         )
     if not reason.strip():
         raise ValidationError({"reason": "Record why recovery is needed."})
-    member = Member.objects.select_for_update().select_related("user").get(pk=member.pk)
+    member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
     if member.user is None or not member.user.is_active:
         raise ValidationError({"member": "The member needs an active account."})
     if not member.can_hold_roles:
