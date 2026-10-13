@@ -59,7 +59,11 @@ PERMISSIONS: dict[str, PermissionInfo] = {
     for info in (
         _p(C.VIEW_NATIONAL_DASHBOARD, M.ANALYTICS, "view", "View the national dashboard"),
         _p(C.VIEW_SITUATION_ROOM, M.SITUATION_ROOM, "view", "View the situation room"),
+        _p(C.VIEW_LIVE_OPERATIONS, M.SITUATION_ROOM, "view", "View live operations and agents"),
+        _p(C.VIEW_ALERTS, M.SITUATION_ROOM, "view", "View the alert centre"),
+        _p(C.VIEW_ANALYTICS, M.ANALYTICS, "view", "View data analytics"),
         _p(C.VIEW_GEOGRAPHY, M.GEOGRAPHY, "view", "View geography"),
+        _p(C.MANAGE_GEOGRAPHY, M.GEOGRAPHY, "manage", "Manage geography master data"),
         _p(C.MANAGE_MEMBERSHIP, M.MEMBERSHIP, "manage", "Manage members"),
         _p(C.REGISTER_MEMBERS, M.MEMBERSHIP, "create", "Register members"),
         _p(

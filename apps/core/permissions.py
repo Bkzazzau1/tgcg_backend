@@ -11,7 +11,13 @@ from .choices import Role
 class Capability(models.TextChoices):
     VIEW_NATIONAL_DASHBOARD = "viewNationalDashboard"
     VIEW_SITUATION_ROOM = "viewSituationRoom"
+    # Screens the role grid (docs/access-control.md, "Role menus") gives to
+    # different groups, so each has its own permission.
+    VIEW_LIVE_OPERATIONS = "viewLiveOperations"
+    VIEW_ALERTS = "viewAlerts"
+    VIEW_ANALYTICS = "viewAnalytics"
     VIEW_GEOGRAPHY = "viewGeography"
+    MANAGE_GEOGRAPHY = "manageGeography"
     MANAGE_MEMBERSHIP = "manageMembership"
     REGISTER_MEMBERS = "registerMembers"
     CONFIRM_AGENT_LOCATION = "confirmAgentLocation"
@@ -76,6 +82,8 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
         {
             C.VIEW_NATIONAL_DASHBOARD,
             C.VIEW_SITUATION_ROOM,
+            C.VIEW_LIVE_OPERATIONS,
+            C.VIEW_ALERTS,
             C.VIEW_GEOGRAPHY,
             C.VIEW_INCIDENTS,
             C.VERIFY_FIELD_REPORT,
@@ -85,12 +93,10 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             C.MANAGE_COLLATION,
             C.VIEW_COMMUNICATIONS,
             C.SEND_OPERATIONAL_MESSAGE,
-            C.VIEW_MEDIA_INTELLIGENCE,
             *_COMMON_DISCUSSION,
             C.VIEW_MEETING_ROOM,
             C.JOIN_MEETING,
             C.VIEW_EVIDENCE,
-            C.VIEW_AUDIT,
             C.EXPORT_REPORTS,
         }
     ),
@@ -98,6 +104,9 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
         {
             C.VIEW_NATIONAL_DASHBOARD,
             C.VIEW_SITUATION_ROOM,
+            C.VIEW_LIVE_OPERATIONS,
+            C.VIEW_ALERTS,
+            C.VIEW_ANALYTICS,
             C.VIEW_GEOGRAPHY,
             C.VIEW_INCIDENTS,
             C.CREATE_INCIDENT,
@@ -116,13 +125,15 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             *_COMMON_MEETING,
             C.VIEW_EVIDENCE,
             C.MANAGE_EVIDENCE,
-            C.VIEW_AUDIT,
             C.EXPORT_REPORTS,
         }
     ),
     Role.ZONAL_COORDINATOR: frozenset(
         {
             C.VIEW_SITUATION_ROOM,
+            C.VIEW_LIVE_OPERATIONS,
+            C.VIEW_ALERTS,
+            C.VIEW_ANALYTICS,
             C.VIEW_GEOGRAPHY,
             C.VIEW_INCIDENTS,
             C.CREATE_INCIDENT,
@@ -145,6 +156,9 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
     Role.STATE_COORDINATOR: frozenset(
         {
             C.VIEW_SITUATION_ROOM,
+            C.VIEW_LIVE_OPERATIONS,
+            C.VIEW_ALERTS,
+            C.VIEW_ANALYTICS,
             C.VIEW_GEOGRAPHY,
             C.ACCREDIT_AGENTS,
             C.MANAGE_AGENT_ASSIGNMENTS,
@@ -170,6 +184,8 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
     Role.LGA_COORDINATOR: frozenset(
         {
             C.VIEW_SITUATION_ROOM,
+            C.VIEW_LIVE_OPERATIONS,
+            C.VIEW_ALERTS,
             C.VIEW_GEOGRAPHY,
             C.MANAGE_AGENT_ASSIGNMENTS,
             C.VIEW_INCIDENTS,
@@ -183,7 +199,6 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             C.VIEW_COLLATION,
             C.VIEW_COMMUNICATIONS,
             C.SEND_OPERATIONAL_MESSAGE,
-            C.VIEW_MEDIA_INTELLIGENCE,
             *_COMMON_DISCUSSION,
             *_COMMON_MEETING,
             C.VIEW_EVIDENCE,
@@ -192,6 +207,7 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
     Role.WARD_COORDINATOR: frozenset(
         {
             C.VIEW_SITUATION_ROOM,
+            C.VIEW_LIVE_OPERATIONS,
             C.VIEW_GEOGRAPHY,
             C.VIEW_INCIDENTS,
             C.CREATE_INCIDENT,
@@ -255,14 +271,12 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             C.EXPORT_REPORTS,
         }
     ),
+    # No election data: users, devices, sync and system health only.
     Role.TECHNICAL_SUPPORT: frozenset(
         {
-            C.VIEW_SITUATION_ROOM,
             C.VIEW_GEOGRAPHY,
-            C.VIEW_INCIDENTS,
             C.VIEW_COMMUNICATIONS,
             C.SEND_OPERATIONAL_MESSAGE,
-            C.VIEW_MEDIA_INTELLIGENCE,
             *_COMMON_DISCUSSION,
             *_COMMON_MEETING,
             C.VIEW_AUDIT,
@@ -270,19 +284,19 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             C.MANAGE_SYSTEM_SETTINGS,
         }
     ),
+    # Summaries: no raw evidence, forum or audit log.
     Role.READ_ONLY_EXECUTIVE: frozenset(
         {
             C.VIEW_NATIONAL_DASHBOARD,
             C.VIEW_SITUATION_ROOM,
+            C.VIEW_LIVE_OPERATIONS,
+            C.VIEW_ANALYTICS,
             C.VIEW_GEOGRAPHY,
             C.VIEW_INCIDENTS,
             C.VIEW_COLLATION,
             C.VIEW_MEDIA_INTELLIGENCE,
-            C.VIEW_DISCUSSION_ROOM,
             C.VIEW_MEETING_ROOM,
             C.JOIN_MEETING,
-            C.VIEW_EVIDENCE,
-            C.VIEW_AUDIT,
             C.EXPORT_REPORTS,
         }
     ),

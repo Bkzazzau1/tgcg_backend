@@ -414,3 +414,39 @@ Known limitations:
 - Existing before this work: asking for a registration code
   (`POST /register/code/`) answers differently for a phone number or VIN
   that is already registered, so it reveals whether someone is a member.
+
+## 14. Role menus
+
+The fixed roles follow the role grid agreed on 10 October 2026 (the
+"Proposed" view of https://claude.ai/artifact/1gk5S1xZuSLgbmPDMQU5yp). The
+server holds each role's permissions (`ROLE_CAPABILITIES`, copied by the
+app's `permissions.dart` for presentation mode), and the app's menu
+(`allowedModulesFor` in `session.dart`) follows the permissions, so a screen
+a role does not see is also refused by the server. Since 13 October 2026:
+
+- Four screen permissions: `viewLiveOperations` (Live Operations and Agents
+  on the Ground; the live agents and coverage endpoints require it),
+  `viewAlerts` (Alert Centre), `viewAnalytics` (AI Data Analytics) and
+  `manageGeography` (Geographic Operations, the master data: National
+  Administrator only). Custom roles show these screens only when they
+  include the new permissions.
+- Technical Support sees no election data: no situation room, incidents or
+  media intelligence. It keeps communications, the forum, meetings, System
+  Monitoring and Data & Governance.
+- The Executive Viewer sees summaries: no evidence, forum or audit log.
+- The National Collation Officer and Situation Room Director no longer read
+  the audit log; the National Collation Officer and LGA coordinators lose
+  Media Intelligence.
+- Menu rules: Member Enrolment opens for everyone who registers members (all
+  coordinators); Field Monitoring for those who report from the field; AI
+  Verification for result verifiers and membership managers; System
+  Monitoring for the administrator and Technical Support.
+
+Not done yet:
+
+- Observers have their agreed screens, but in the command centre. Moving
+  them to the phone field app waits until the field app works from server
+  data instead of local agent profiles.
+- Role Assignment for zonal and state coordinators (appointing within their
+  area) needs cascading appointments, and Technical Support's support tools
+  (unlocking accounts, resetting PINs) do not exist yet.

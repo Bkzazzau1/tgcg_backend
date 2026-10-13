@@ -203,11 +203,11 @@ STOPPED = [MembershipState.SUSPENDED, MembershipState.DEACTIVATED]
 class LiveAgentsView(APIView):
     """On-duty agents with their latest position, for the live map."""
 
-    permission_classes = [requires(C.VIEW_SITUATION_ROOM)]
+    permission_classes = [requires(C.VIEW_LIVE_OPERATIONS)]
 
     @extend_schema(parameters=AREA_PARAMS, responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
-        scope = _area(request)
+        scope = _area(request, C.VIEW_LIVE_OPERATIONS)
         latest = LocationPing.objects.filter(session=OuterRef("pk")).order_by("-gps_captured_at")
         sessions = (
             DutySession.objects.filter(ended_at__isnull=True)
@@ -239,7 +239,7 @@ class LiveAgentsView(APIView):
 class CoverageView(APIView):
     """Per-area check-in coverage of polling-unit agents for one day."""
 
-    permission_classes = [requires(C.VIEW_SITUATION_ROOM)]
+    permission_classes = [requires(C.VIEW_LIVE_OPERATIONS)]
 
     @extend_schema(
         parameters=[
@@ -249,7 +249,7 @@ class CoverageView(APIView):
         responses={200: OpenApiTypes.OBJECT},
     )
     def get(self, request):
-        scope = _area(request)
+        scope = _area(request, C.VIEW_LIVE_OPERATIONS)
         day = request.query_params.get("date")
         day = datetime.fromisoformat(day).date() if day else timezone.localdate()
         tz = timezone.get_current_timezone()
