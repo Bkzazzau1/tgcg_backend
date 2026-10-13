@@ -65,6 +65,10 @@ class MeetingSerializer(serializers.ModelSerializer):
         return livekit.configured()
 
 
+class MeetingListQuerySerializer(serializers.Serializer):
+    since = serializers.DateTimeField(required=False)
+
+
 class MeetingCreateSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=160)
     agenda = serializers.CharField(required=False, allow_blank=True, max_length=4000)

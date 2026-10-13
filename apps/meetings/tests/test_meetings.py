@@ -7,6 +7,7 @@ from datetime import timedelta
 
 import jwt
 import pytest
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -15,7 +16,7 @@ from apps.accounts.models import User
 from apps.core.choices import GeographyLevel, Role
 from apps.core.permissions import FIELD_ROLES
 from apps.geography.models import Lga, PollingUnit, State, Ward
-from apps.meetings import livekit
+from apps.meetings import livekit, services
 from apps.meetings.models import Admission, Meeting
 from conftest import PASSWORD, verified_member
 
@@ -251,3 +252,35 @@ def test_a_room_livekit_cannot_close_is_logged_not_raised(monkeypatch):
 
     monkeypatch.setattr(livekit.urllib.request, "urlopen", refuse)
     assert livekit.close_room("tgcg-never-opened") is False
+
+
+@pytest.mark.parametrize("since", ["2026-13-01T00:00:00Z", "2026-02-31T00:00:00Z", "nonsense", ""])
+def test_invalid_meeting_date_filter_is_a_validation_error(since):
+    state = kaduna_coordinator()
+    response = state.get(URL, {"since": since})
+    assert response.status_code == 400
+    assert "since" in response.json()
+
+
+def test_meeting_date_filter_honours_the_requested_start():
+    state = kaduna_coordinator()
+    current = call(state).json()["reference"]
+    planned = call(state, starts_at=later()).json()["reference"]
+    response = state.get(URL, {"since": later(hours=1)})
+    assert response.status_code == 200
+    assert [meeting["reference"] for meeting in response.json()["results"]] == [planned]
+    assert current not in [meeting["reference"] for meeting in response.json()["results"]]
+
+
+@pytest.mark.parametrize("closed_at", ["ended_at", "cancelled_at"])
+def test_a_stale_meeting_object_cannot_issue_a_pass_after_closure(closed_at, monkeypatch):
+    state = kaduna_coordinator()
+    reference = call(state).json()["reference"]
+    meeting = Meeting.objects.get(reference=reference)
+    Meeting.objects.filter(pk=meeting.pk).update(**{closed_at: timezone.now()})
+    signed = []
+    monkeypatch.setattr(livekit, "join_token", lambda **kwargs: signed.append(kwargs))
+    with pytest.raises(ValidationError):
+        services.admit(actor=meeting.host, meeting=meeting)
+    assert signed == []
+    assert not Admission.objects.exists()

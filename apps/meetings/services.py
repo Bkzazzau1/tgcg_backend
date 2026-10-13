@@ -114,6 +114,9 @@ def create_meeting(*, actor, invitees=(), **fields) -> Meeting:
 @transaction.atomic
 def admit(*, actor, meeting) -> dict:
     """A join pass for the meeting's LiveKit room, while it is open."""
+    # End/cancel take this same lock. Refresh after waiting so a pass cannot
+    # be issued from a meeting object loaded before another request closed it.
+    meeting = _lock(meeting)
     if not can_join(actor, meeting):
         raise PermissionDenied("This meeting is not open to you.")
     status = meeting.status

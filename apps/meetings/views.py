@@ -2,7 +2,6 @@ from datetime import timedelta
 
 from django.db.models import Count
 from django.utils import timezone
-from django.utils.dateparse import parse_datetime
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -18,6 +17,7 @@ from .serializers import (
     CancelSerializer,
     JoinPassSerializer,
     MeetingCreateSerializer,
+    MeetingListQuerySerializer,
     MeetingSerializer,
 )
 
@@ -52,8 +52,10 @@ class MeetingViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.
             .annotate(admitted_count=Count("admissions", distinct=True))
         )
         if self.action == "list":
-            since = parse_datetime(self.request.query_params.get("since", ""))
-            meetings = meetings.filter(starts_at__gte=since or timezone.now() - timedelta(days=1))
+            query = MeetingListQuerySerializer(data=self.request.query_params.dict())
+            query.is_valid(raise_exception=True)
+            since = query.validated_data.get("since", timezone.now() - timedelta(days=1))
+            meetings = meetings.filter(starts_at__gte=since)
         return meetings
 
     @extend_schema(
