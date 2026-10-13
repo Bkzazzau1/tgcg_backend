@@ -75,9 +75,9 @@ database migration before activating the new application code.
 
 - Registration channel `ussd`, the network-supplied phone number, required
   VIN, polling unit and the combined confirmation/data-use consent.
-- Active membership with status `pendingReview`, verification status
-  `unverified`, an empty full name and no `User` until optional profile
-  completion.
+- Active membership (`membership_state=active`) awaiting identity review
+  (`verification_status=pendingReview`), with an empty full name and no `User`
+  until optional profile completion.
 - Phone verification depends on a genuine provider callback, protected by
   the private callback token and provider IP restrictions.
 - No selfie or card photo. Reading or typing a VIN is not an identity check.
