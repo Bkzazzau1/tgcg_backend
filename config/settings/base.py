@@ -226,6 +226,8 @@ TESSERACT_CMD = env("TESSERACT_CMD", default="tesseract")
 USSD_CALLBACK_TOKEN = env("USSD_CALLBACK_TOKEN", default="")
 # The code people dial, e.g. *384*1234#. When set, other codes are refused.
 USSD_SERVICE_CODE = env("USSD_SERVICE_CODE", default="")
+# Inactive saved USSD progress is purged daily; membership is retained.
+USSD_DRAFT_TTL_DAYS = env.int("USSD_DRAFT_TTL_DAYS", default=30)
 
 # --- GPS ---------------------------------------------------------------------------
 PU_PROXIMITY_METERS = env.int("PU_PROXIMITY_METERS", default=300)

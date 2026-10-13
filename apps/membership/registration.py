@@ -8,16 +8,25 @@ apps.accounts.verification.consume_code).
 """
 
 import re
+import uuid
 
 from django.conf import settings
+from django.contrib.auth.hashers import identify_hasher, is_password_usable
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 from PIL import Image, UnidentifiedImageError
 
+from apps.access import audit, engine
 from apps.accounts.models import User
 from apps.accounts.verification import PhoneVerification, consume_code, require_phone, send_code
-from apps.core.choices import GeographyLevel, MembershipState, RegistrationChannel, Role
+from apps.core.choices import (
+    GeographyLevel,
+    MembershipState,
+    RegistrationChannel,
+    Role,
+    VerificationStatus,
+)
 from apps.core.models import Sequence
 from apps.core.permissions import Capability
 from apps.geography.models import PollingUnit
@@ -338,6 +347,147 @@ def ussd_register(
     return member
 
 
+# --- minimal USSD membership and later app account -----------------------------
+
+
+@transaction.atomic
+def ussd_register_minimal(*, phone_number, draft_id, polling_unit, vin) -> Member:
+    """Join after the USSD confirmation and data-use agreement.
+
+    The trusted callback caller obtains consent before invoking this service.
+    A name and app account can be added later; no credentials are invented.
+    A saved draft UUID identifies completion retries across provider sessions.
+    """
+    phone = require_phone(phone_number)
+    try:
+        client_id = f"ussd:{uuid.UUID(str(draft_id))}"
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValidationError("Registration progress could not be found. Dial again.") from exc
+    if existing := Member.objects.select_for_update().filter(phone_number=phone).first():
+        return existing
+    vin = _clean_vin(vin)
+    if not vin:
+        raise ValidationError({"vin": "Enter the VIN on your PVC to join."})
+    unit = (
+        PollingUnit.objects.select_related("ward__lga__state__zone")
+        .filter(pk=getattr(polling_unit, "pk", None))
+        .first()
+    )
+    if unit is None:
+        raise ValidationError({"polling_unit": "Enter a polling unit in the INEC register."})
+    member = Member(
+        full_name="",
+        phone_number=phone,
+        vin=vin,
+        registration_channel=RegistrationChannel.USSD,
+        client_id=client_id,
+        scope_level=GeographyLevel.POLLING_UNIT,
+        polling_unit=unit,
+    )
+    try:
+        # The savepoint rolls back all registration effects on a uniqueness race.
+        with transaction.atomic():
+            ensure_available(phone, vin)
+            now = timezone.now()
+            member.phone_verified_at = now
+            member.consent_at = now
+            _save_member(member)
+            return identity.record_checks(member)
+    except (IntegrityError, ValidationError):
+        if existing := Member.objects.select_for_update().filter(phone_number=phone).first():
+            return existing
+        raise
+
+
+def _validate_pin_hash(pin_hash: str) -> None:
+    """Accept a recognized Django hash, never a raw PIN or unusable password."""
+    try:
+        if not isinstance(pin_hash, str) or len(pin_hash) > 128 or not pin_hash:
+            raise ValueError
+        if not is_password_usable(pin_hash):
+            raise ValueError
+        decoded = identify_hasher(pin_hash).decode(pin_hash)
+        if not decoded.get("hash", decoded.get("checksum")):
+            raise ValueError
+        if "salt" in decoded and not decoded["salt"]:
+            raise ValueError
+        if "iterations" in decoded and decoded["iterations"] < 1:
+            raise ValueError
+    except (ValueError, TypeError, AssertionError, KeyError) as exc:
+        raise ValidationError({"pin": "Choose and confirm a new app PIN."}) from exc
+
+
+@transaction.atomic
+def ussd_complete_profile(*, member: Member, full_name, pin_hash) -> Member:
+    """Give an existing USSD member an app account, without changing credentials.
+
+    The caller validates the chosen PIN and confirms it against this hash.
+    Completion retries are read-only once the member has an account.
+    """
+    # Lock only the member row; its optional user relation would add an OUTER
+    # JOIN that PostgreSQL cannot lock on the nullable side.
+    member = Member.objects.select_for_update().get(pk=member.pk)
+    if member.registration_channel != RegistrationChannel.USSD:
+        raise ValidationError("This membership's app account must be set up in the app.")
+    if member.user_id:
+        return member
+    if member.membership_state == MembershipState.DEACTIVATED:
+        raise ValidationError("This membership has ended.")
+    name = " ".join((full_name or "").split())
+    words = [word for word in name.split() if sum(letter.isalpha() for letter in word) >= 2]
+    if len(name) > 150 or len(words) < 2 or any(
+        not (letter.isalpha() or letter in " .'-") for letter in name
+    ):
+        raise ValidationError({"full_name": "Enter at least two names, in letters."})
+    if member.full_name and member.full_name.casefold() != name.casefold():
+        raise ValidationError({"full_name": "A name is already recorded. Contact a coordinator."})
+    _validate_pin_hash(pin_hash)
+    if User.objects.filter(phone_number=member.phone_number).exists():
+        raise ValidationError("This number already has an account. Contact support.")
+    name_added = not member.full_name
+    back_to_review = name_added and member.verification_status == VerificationStatus.VERIFIED
+    if name_added:
+        member.full_name = name
+    if back_to_review:
+        member.verification_status = VerificationStatus.PENDING_REVIEW
+        member.verified_at = None
+        member.verified_by = None
+    member.full_clean()
+    user = User(
+        access_id=member.membership_number,
+        full_name=member.full_name,
+        phone_number=member.phone_number,
+        email=member.email,
+        role=Role.MEMBER,
+        scope_level=member.scope_level,
+        password=pin_hash,
+        **{field: getattr(member, field) for field in SCOPE_FIELDS},
+    )
+    user.full_clean(exclude=["password"])
+    try:
+        with transaction.atomic():
+            user.save()
+            member.user = user
+            member.save()
+    except IntegrityError as exc:
+        raise ValidationError("This number already has an account. Contact support.") from exc
+    member = identity.record_checks(member)
+    audit.record(
+        actor=user,
+        action="member.ussdProfileCompleted",
+        target_type="member",
+        target_id=member.membership_number,
+        target_label=member.full_name,
+        changes={
+            "fields": ["full_name", "app_account"] if name_added else ["app_account"],
+            "back_to_review": back_to_review,
+        },
+    )
+    if back_to_review:
+        engine.clear_cache()
+    return member
+
+
 # --- member PIN (first sign-in for assisted members, or forgotten PIN) ---------
 
 
@@ -361,6 +511,10 @@ def set_pin(*, phone_number, code, pin):
     if member.user is None and User.objects.filter(phone_number=phone).exists():
         raise ValidationError(
             {"phone_number": "This phone number belongs to a staff account. Contact support."}
+        )
+    if member.user is None and not member.full_name:
+        raise ValidationError(
+            {"full_name": "Dial TGCG USSD again to add your name and app PIN first."}
         )
 
     consume_code(phone, PURPOSE.SET_PIN, code)

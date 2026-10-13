@@ -73,7 +73,7 @@ class Member(TimeStampedModel, ScopedModel):
     """A registered TGCG member. The scope is where the member registered."""
 
     membership_number = models.CharField(max_length=16, unique=True, editable=False)
-    full_name = models.CharField(max_length=150)
+    full_name = models.CharField(max_length=150, blank=True)
     phone_number = models.CharField(max_length=16, unique=True)
     email = models.EmailField(blank=True)
 
@@ -167,7 +167,9 @@ class Member(TimeStampedModel, ScopedModel):
 
     def clean(self):
         super().clean()
-        self.full_name = " ".join(self.full_name.split())
+        self.full_name = " ".join((self.full_name or "").split())
+        if not self.full_name and self.registration_channel != RegistrationChannel.USSD:
+            raise ValidationError({"full_name": "A full name is required."})
         self.email = self.email.strip().lower()
         self.occupation = " ".join(self.occupation.split())
         _normalize_phone_field(self, "phone_number", required=True)
@@ -188,6 +190,83 @@ class Member(TimeStampedModel, ScopedModel):
             self.verification_status == VerificationStatus.VERIFIED
             and self.membership_state == MembershipState.ACTIVE
         )
+
+
+class UssdRegistrationDraft(TimeStampedModel):
+    """Validated registration progress saved across provider sessions.
+
+    No raw callback text or PIN is retained. A PIN awaiting confirmation is
+    stored only as a Django password hash.
+    """
+
+    class Kind(models.TextChoices):
+        JOIN = "join", "Join TGCG"
+        PROFILE = "profile", "Complete app sign-in"
+
+    class Step(models.TextChoices):
+        VIN = "vin", "Voter identification number"
+        UNIT = "unit", "Polling unit"
+        CONFIRM = "confirm", "Confirm membership and consent"
+        NAME = "name", "Full name"
+        PIN = "pin", "App sign-in PIN"
+        PIN_CONFIRM = "pin_confirm", "Confirm app sign-in PIN"
+
+    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    phone_number = models.CharField(max_length=16, unique=True)
+    kind = models.CharField(max_length=8, choices=Kind.choices, default=Kind.JOIN)
+    step = models.CharField(max_length=16, choices=Step.choices, default=Step.VIN)
+    vin = models.CharField(max_length=19, blank=True, validators=[VIN_VALIDATOR])
+    polling_unit = models.ForeignKey(
+        "geography.PollingUnit",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    unit_parts = models.JSONField(default=list, blank=True)
+    full_name = models.CharField(max_length=150, blank=True)
+    pin_hash = models.CharField(max_length=128, blank=True)
+    active_session_key = models.UUIDField(null=True, blank=True)
+
+    def clean(self):
+        super().clean()
+        _normalize_phone_field(self, "phone_number", required=True)
+        self.vin = "".join(self.vin.split()).upper()
+        self.full_name = " ".join(self.full_name.split())
+        if not isinstance(self.unit_parts, list):
+            raise ValidationError({"unit_parts": "Polling unit progress must be a list."})
+
+
+class UssdSession(TimeStampedModel):
+    """Callback replay metadata; callback answers are never stored."""
+
+    uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    phone_number = models.CharField(max_length=16)
+    service_code = models.CharField(max_length=64)
+    provider_session_id = models.CharField(max_length=128)
+    draft = models.ForeignKey(
+        UssdRegistrationDraft,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sessions",
+    )
+    answer_count = models.PositiveIntegerField(default=0)
+    prefix_digest = models.CharField(max_length=64, blank=True)
+    last_response = models.CharField(max_length=170, blank=True)
+    ended = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["phone_number", "service_code", "provider_session_id"],
+                name="unique_ussd_phone_service_session",
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        _normalize_phone_field(self, "phone_number", required=True)
 
 
 class AccreditedAgent(TimeStampedModel, ScopedModel):

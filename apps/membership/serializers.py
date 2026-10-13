@@ -83,6 +83,8 @@ class MemberSerializer(serializers.ModelSerializer):
     caller holds viewMemberSensitiveData for the member's area.
     """
 
+    # Minimal USSD records may have no name; staff writes still require a real name.
+    full_name = serializers.CharField(max_length=150)
     id = serializers.UUIDField(source="uuid", read_only=True)
     scope = ScopeField(required=False)
     phone_number = serializers.CharField(read_only=True, allow_null=True)
