@@ -18,6 +18,7 @@ from apps.membership.views import (
     AgentViewSet,
     MemberViewSet,
     PollingUnitChangeViewSet,
+    PvcUpdateViewSet,
     VolunteerViewSet,
 )
 from apps.results.views import CollationView, ElectionViewSet, PartyViewSet, ResultViewSet
@@ -41,6 +42,7 @@ router.register("members", MemberViewSet, basename="member")
 router.register("agents", AgentViewSet, basename="agent")
 router.register("volunteers", VolunteerViewSet, basename="volunteer")
 router.register("polling-unit-changes", PollingUnitChangeViewSet, basename="polling-unit-change")
+router.register("pvc-updates", PvcUpdateViewSet, basename="pvc-update")
 router.register("announcements", AnnouncementViewSet, basename="announcement")
 router.register("tracking/check-ins", CheckInViewSet, basename="check-in")
 router.register("incidents", IncidentViewSet, basename="incident")
@@ -130,7 +132,12 @@ api_v1 = [
     path("me/access/", access.MyAccessView.as_view(), name="my-access"),
     path("me/member/", reg.MyMemberView.as_view(), name="my-member"),
     path("me/member/photo/", reg.MyMemberPhotoView.as_view(), name="my-member-photo"),
-    path("me/member/card-photo/", reg.MyCardPhotoView.as_view(), name="my-member-card-photo"),
+    path("me/member/pvc-scan/", reg.MyPvcScanView.as_view(), name="my-pvc-scan"),
+    path(
+        "me/member/pvc-scan/<uuid:uuid>/withdraw/",
+        reg.MyPvcScanWithdrawView.as_view(),
+        name="my-pvc-scan-withdraw",
+    ),
     path("me/polling-unit/", reg.MyPollingUnitView.as_view(), name="my-polling-unit"),
     path(
         "me/polling-unit/changes/",

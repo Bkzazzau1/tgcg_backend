@@ -22,6 +22,7 @@ from .models import (
     AccreditedAgent,
     Member,
     PollingUnitChangeRequest,
+    PvcUpdate,
     VerificationCheck,
     VolunteerApplication,
 )
@@ -32,6 +33,7 @@ from .serializers import (
     DecisionSerializer,
     MemberSerializer,
     PollingUnitChangeSerializer,
+    PvcUpdateSerializer,
     ReadinessSerializer,
     StandingChangeSerializer,
     StatusChangeSerializer,
@@ -418,4 +420,65 @@ class PollingUnitChangeViewSet(
     @action(detail=True, methods=["get"])
     def card(self, request, uuid=None):
         """The photo of the updated voter card, the evidence for this decision."""
+        return image_response(self.get_object().pvc_image)
+
+
+class PvcUpdateViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Members' PVC scans waiting for a second check, for the coordinators who
+    may check identities in the member's area.
+
+    Only members whose identity is already checked need one: other scans apply
+    at once and are not listed. Approving replaces the member's details with
+    the card's; the identity stays checked.
+    """
+
+    serializer_class = PvcUpdateSerializer
+    permission_classes = [requires(C.VERIFY_MEMBER_IDENTITY)]
+    lookup_field = "uuid"
+    filterset_fields = {"status": ["exact"]}
+    search_fields = ["member__full_name", "member__membership_number"]
+    ordering_fields = ["created_at"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return PvcUpdate.objects.none()
+        return (
+            PvcUpdate.objects.filter(
+                within_scope_q(
+                    self.request.user, prefix="member__", permission=C.VERIFY_MEMBER_IDENTITY
+                )
+            )
+            .exclude(status=PvcUpdate.Status.APPLIED)
+            .select_related("member__polling_unit", "polling_unit", "decided_by")
+        )
+
+    def _decide(self, request, decide):
+        data = DecisionSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        update = decide(
+            actor=request.user,
+            update=self.get_object(),
+            reason=data.validated_data.get("reason", ""),
+        )
+        return Response(
+            PvcUpdateSerializer(
+                self.get_queryset().get(pk=update.pk), context={"request": request}
+            ).data
+        )
+
+    @extend_schema(request=DecisionSerializer, responses=PvcUpdateSerializer)
+    @action(detail=True, methods=["post"])
+    def approve(self, request, uuid=None):
+        """The card shows these details and belongs to the member: they replace theirs."""
+        return self._decide(request, services.approve_pvc_update)
+
+    @extend_schema(request=DecisionSerializer, responses=PvcUpdateSerializer)
+    @action(detail=True, methods=["post"])
+    def reject(self, request, uuid=None):
+        return self._decide(request, services.reject_pvc_update)
+
+    @extend_schema(responses={(200, "image/jpeg"): bytes})
+    @action(detail=True, methods=["get"])
+    def card(self, request, uuid=None):
+        """The photo of the scanned voter card, the evidence for this decision."""
         return image_response(self.get_object().pvc_image)

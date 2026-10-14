@@ -13,7 +13,7 @@ from apps.accounts.verification import PhoneVerification
 from apps.core.choices import GeographyLevel, Role
 from apps.geography.models import Lga, PollingUnit, State
 from apps.geography.polling_units import load_polling_units
-from apps.membership.models import AccreditedAgent, Member
+from apps.membership.models import AccreditedAgent, Member, PvcUpdate
 from conftest import PASSWORD
 
 # Code-checking views run outside the request transaction (so failed attempts
@@ -362,57 +362,176 @@ def joined_without_photos(settings):
     return client
 
 
-def add(client, kind, field, upload=None):
+def add_selfie(client, upload=None):
     upload = upload or image()
-    return client.post(f"/api/v1/me/member/{kind}/", {field: upload}, format="multipart")
+    return client.post("/api/v1/me/member/photo/", {"photo": upload}, format="multipart")
 
 
-def test_a_member_adds_the_photos_they_left_out_when_joining(outbox, settings):
+def test_a_member_adds_the_selfie_they_left_out_when_joining(outbox, settings):
     client = joined_without_photos(settings)
-    card = client.get("/api/v1/me/member/").json()
-    assert card["photo_url"] is None and card["has_card_photo"] is False
+    assert client.get("/api/v1/me/member/").json()["photo_url"] is None
 
-    selfie = add(client, "photo", "photo")
+    selfie = add_selfie(client)
     assert selfie.status_code == 200, selfie.content
     assert selfie.json()["photo_url"] and client.get("/api/v1/me/member/photo/").status_code == 200
-    pvc = add(client, "card-photo", "pvc_image", image("PNG", "pvc.png"))
-    assert pvc.status_code == 200 and pvc.json()["has_card_photo"] is True
 
     member = Member.objects.get()
     results = dict(member.verification_checks.values_list("kind", "result"))
-    assert results["selfieCaptured"] == results["pvcCaptured"] == "passed"
+    assert results["selfieCaptured"] == "passed"
     # Photos are something to review, never a verification by themselves.
     assert member.verification_status == "pendingReview"
-    added = AuditEvent.objects.filter(
-        action="member.photoAdded", target_id=member.membership_number
-    )
-    assert sorted(event.changes["kind"] for event in added) == ["PVC photo", "selfie"]
+    added = AuditEvent.objects.get(action="member.photoAdded", target_id=member.membership_number)
+    assert added.changes == {"kind": "selfie"}
 
 
-def test_once_the_identity_is_checked_only_a_coordinator_changes_a_photo(outbox, settings):
+def test_once_the_identity_is_checked_only_a_coordinator_changes_the_selfie(outbox, settings):
     client = joined_without_photos(settings)
-    assert add(client, "photo", "photo").status_code == 200
+    assert add_selfie(client).status_code == 200
     # Until the check, a clearer photo may replace the first.
-    assert add(client, "photo", "photo").status_code == 200
+    assert add_selfie(client).status_code == 200
     assert AuditEvent.objects.filter(action="member.photoReplaced").count() == 1
 
     Member.objects.update(verification_status="verified")
-    again = add(client, "photo", "photo")
+    again = add_selfie(client)
     assert again.status_code == 400 and "photo" in again.json()
-    # A photo that is still missing can be added.
-    assert add(client, "card-photo", "pvc_image").status_code == 200
     assert Member.objects.get().verification_status == "verified"
 
 
-def test_own_photos_must_be_images_and_only_members_add_them(outbox, settings):
+def test_own_selfies_must_be_images_and_only_members_add_them(outbox, settings):
     client = joined_without_photos(settings)
     missing = client.post("/api/v1/me/member/photo/", {}, format="multipart")
     assert missing.status_code == 400 and "photo" in missing.json()
     not_image = io.BytesIO(b"not an image")
     not_image.name = "selfie.jpg"
-    assert add(client, "photo", "photo", not_image).status_code == 400
+    assert add_selfie(client, not_image).status_code == 400
     assert not Member.objects.get().photo
-    assert add(kd_coordinator(), "photo", "photo").status_code == 403
+    assert add_selfie(kd_coordinator()).status_code == 403
+
+
+# --- the one PVC scan after joining ------------------------------------------------------
+
+
+def scan(client, **overrides):
+    data = {
+        "pvc_image": image("PNG", "pvc.png"),
+        "full_name": "Musa Ibrahim Bello",
+        "vin": VIN,
+        "delim": "18/23/01/014",
+        "gender": "male",
+        "date_of_birth": "1990-05-14",
+        "occupation": "Trader",
+        **overrides,
+    }
+    return client.post("/api/v1/me/member/pvc-scan/", data, format="multipart")
+
+
+def test_details_typed_when_joining_are_replaced_by_one_pvc_scan(outbox, settings):
+    client = joined_without_photos(settings)
+    assert client.get("/api/v1/me/member/pvc-scan/").json() == {"can_scan": True, "latest": None}
+
+    response = scan(client)
+    assert response.status_code == 201, response.content
+    assert response.json()["status"] == "applied"
+    member = Member.objects.select_related("polling_unit", "user").get()
+    assert member.full_name == member.user.full_name == "Musa Ibrahim Bello"
+    assert member.gender == "male" and str(member.date_of_birth) == "1990-05-14"
+    assert member.occupation == "Trader" and member.polling_unit.code == "18-23-01-014"
+    assert member.pvc_image and not member.polling_unit_from_list
+    checks = dict(member.verification_checks.values_list("kind", "result"))
+    assert checks["pvcCaptured"] == "passed"
+    event = AuditEvent.objects.get(action="member.pvcUpdateApplied")
+    assert event.changes["fields"] == [
+        "full_name",
+        "gender",
+        "date_of_birth",
+        "occupation",
+        "polling_unit",
+    ]
+
+    # One scan per member.
+    state = client.get("/api/v1/me/member/pvc-scan/").json()
+    assert state["can_scan"] is False and state["latest"]["status"] == "applied"
+    assert scan(client).status_code == 400
+
+
+def test_a_card_scanned_or_uploaded_when_joining_is_not_scanned_again(outbox):
+    client, _ = member_client(outbox)  # joined with a photo of the PVC
+    assert client.get("/api/v1/me/member/pvc-scan/").json()["can_scan"] is False
+    assert scan(client).status_code == 400
+    assert not PvcUpdate.objects.exists()
+
+
+def test_a_checked_members_scan_waits_for_a_second_check(outbox, settings):
+    client = joined_without_photos(settings)
+    Member.objects.update(verification_status="verified")
+    waiting = scan(client)
+    assert waiting.status_code == 201 and waiting.json()["status"] == "pending"
+    member = Member.objects.get()
+    assert member.full_name == "Musa Bello" and not member.pvc_image  # nothing changes yet
+    assert client.get("/api/v1/me/member/pvc-scan/").json()["can_scan"] is False
+
+    reviewer = kd_coordinator()
+    listed = reviewer.get("/api/v1/pvc-updates/", {"status": "pending"}).json()
+    assert listed["count"] == 1
+    update = listed["results"][0]
+    changes = {change["field"]: change for change in update["changes"]}
+    assert changes["full_name"]["from"] == "Musa Bello"
+    assert changes["full_name"]["to"] == "Musa Ibrahim Bello"
+    assert changes["polling_unit"]["to"].startswith("18-23-01-014 ")
+    url = f"/api/v1/pvc-updates/{update['id']}/"
+    assert reviewer.get(f"{url}card/").status_code == 200
+
+    assert reviewer.post(f"{url}reject/", {}, format="json").status_code == 400  # say why
+    rejected = reviewer.post(f"{url}reject/", {"reason": "The photo is blurred."}, format="json")
+    assert rejected.json()["status"] == "rejected"
+    # A rejected scan does not count: the member may scan again.
+    state = client.get("/api/v1/me/member/pvc-scan/").json()
+    assert state["can_scan"] is True
+    assert state["latest"]["decision_reason"] == "The photo is blurred."
+
+    again = scan(client).json()
+    approved = reviewer.post(
+        f"/api/v1/pvc-updates/{again['id']}/approve/", {"reason": "Card matches."}, format="json"
+    )
+    assert approved.status_code == 200, approved.content
+    assert approved.json()["status"] == "approved"
+    member = Member.objects.select_related("polling_unit", "verified_by").get()
+    assert member.full_name == "Musa Ibrahim Bello" and member.polling_unit.code == "18-23-01-014"
+    # The second check keeps the identity checked, now on this reviewer's word.
+    assert member.verification_status == "verified" and member.verified_by.access_id == "SC-KD"
+    assert AuditEvent.objects.filter(action="member.pvcUpdateApproved").count() == 1
+
+
+def test_a_scan_cannot_take_another_members_pvc(outbox, settings):
+    client = joined_without_photos(settings)
+    member_client(outbox, phone="08039990000", vin="90F5B0E8D0295847264")
+    taken = scan(client, vin="90F5B0E8D0295847264")
+    assert taken.status_code == 400 and "vin" in taken.json()
+
+
+def test_a_waiting_scan_can_be_withdrawn(outbox, settings):
+    client = joined_without_photos(settings)
+    Member.objects.update(verification_status="verified")
+    waiting = scan(client).json()
+    withdrawn = client.post(f"/api/v1/me/member/pvc-scan/{waiting['id']}/withdraw/")
+    assert withdrawn.status_code == 200 and withdrawn.json()["status"] == "withdrawn"
+    assert client.get("/api/v1/me/member/pvc-scan/").json()["can_scan"] is True
+
+
+def test_only_coordinators_over_the_member_check_their_scan(outbox, settings):
+    client = joined_without_photos(settings)
+    Member.objects.update(verification_status="verified")
+    waiting = scan(client).json()
+    kano = staff(
+        "SC-KN",
+        role=Role.STATE_COORDINATOR,
+        scope_level=GeographyLevel.STATE,
+        state=State.objects.get(code="KN"),
+    )
+    assert kano.get("/api/v1/pvc-updates/").json()["count"] == 0
+    approve = kano.post(f"/api/v1/pvc-updates/{waiting['id']}/approve/", {}, format="json")
+    assert approve.status_code == 404
+    assert PvcUpdate.objects.get().status == "pending"
 
 
 def test_a_member_adds_the_gender_and_birth_date_left_out_when_joining(outbox, settings):

@@ -512,3 +512,58 @@ class PollingUnitChangeRequest(TimeStampedModel, ScopedModel):
 
     def __str__(self):
         return f"{self.member.membership_number} to {self.polling_unit_id} ({self.status})"
+
+
+class PvcUpdate(TimeStampedModel, ScopedModel):
+    """A member's one PVC scan after joining: the details read off the card,
+    which replace the ones they typed.
+
+    A member who scanned or uploaded their card when joining has it on record
+    and cannot scan again. The update applies at once unless the member's
+    identity is checked; then a coordinator who may check identities compares
+    it with the card first (a second check). Its scope is the polling unit
+    on the card.
+    """
+
+    class Status(models.TextChoices):
+        APPLIED = "applied", "Applied"
+        PENDING = "pending", "Awaiting review"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        WITHDRAWN = "withdrawn", "Withdrawn"
+
+    member = models.ForeignKey(Member, on_delete=models.CASCADE, related_name="pvc_updates")
+    pvc_image = models.ImageField(upload_to=member_pvc_path)
+    full_name = models.CharField(max_length=150)
+    vin = models.CharField(max_length=19, validators=[VIN_VALIDATOR])
+    gender = models.CharField(max_length=8, choices=Gender.choices, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    occupation = models.CharField(max_length=100, blank=True)
+    # Which of the member's details the scan changed when sent (names only).
+    changed_fields = models.JSONField(default=list, blank=True)
+    status = models.CharField(
+        max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True
+    )
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    decision_reason = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["member"],
+                condition=Q(status="pending"),
+                name="one_pending_pvc_update_per_member",
+                violation_error_message="Your PVC scan is already waiting for a coordinator.",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.member.membership_number} PVC update ({self.status})"

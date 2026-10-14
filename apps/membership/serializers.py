@@ -2,7 +2,7 @@ from django.core import signing
 from django.urls import reverse
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema_field
+from drf_spectacular.utils import extend_schema_field, inline_serializer
 from rest_framework import serializers
 
 from apps.core.choices import AccreditationStatus, Gender
@@ -16,6 +16,7 @@ from .models import (
     AccreditedAgent,
     Member,
     PollingUnitChangeRequest,
+    PvcUpdate,
     VerificationCheck,
     VolunteerApplication,
 )
@@ -596,3 +597,105 @@ class PollingUnitChangeRequestSerializer(serializers.Serializer):
     delim = serializers.CharField(max_length=32)
     pvc_image = serializers.ImageField()
     reason = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+
+
+class PvcScanSerializer(serializers.Serializer):
+    """What a member sends from their one PVC scan: the card's photo and the
+    details read off it, which they checked. A detail the card did not show
+    may be left blank; the member's own then stays."""
+
+    pvc_image = serializers.ImageField()
+    full_name = serializers.CharField(max_length=150)
+    vin = serializers.CharField(max_length=25)
+    delim = serializers.CharField(max_length=32, help_text="The polling unit code on the card.")
+    gender = serializers.ChoiceField(choices=Gender.choices, required=False, allow_blank=True)
+    date_of_birth = serializers.DateField(required=False, allow_null=True)
+    occupation = serializers.CharField(max_length=100, required=False, allow_blank=True)
+
+    def validate_date_of_birth(self, value):
+        if value and value > timezone.localdate():
+            raise serializers.ValidationError("A date of birth cannot be in the future.")
+        return value
+
+
+class MyPvcUpdateSerializer(serializers.ModelSerializer):
+    """How the member's own PVC scan went."""
+
+    id = serializers.UUIDField(source="uuid", read_only=True)
+
+    class Meta:
+        model = PvcUpdate
+        fields = ["id", "status", "decision_reason", "created_at", "decided_at"]
+        read_only_fields = fields
+
+
+def _pvc_detail(record, name, sensitive):
+    """A PVC detail as a reviewer may see it: the VIN's last 4 characters, and a
+    date of birth only with viewMemberSensitiveData (the card photo shows it)."""
+    value = getattr(record, name)
+    if value in ("", None):
+        return None
+    if name == "vin":
+        return f"{'*' * 15}{value[-4:]}"
+    if name == "date_of_birth":
+        return value.isoformat() if sensitive else "withheld"
+    if name == "polling_unit":
+        return f"{value.code} {value.name}"
+    return value
+
+
+PVC_CHANGE = inline_serializer(
+    "PvcChange",
+    {
+        "field": serializers.CharField(),
+        "label": serializers.CharField(),
+        "from": serializers.CharField(allow_null=True, help_text="Only while it waits."),
+        "to": serializers.CharField(allow_null=True),
+    },
+    many=True,
+)
+
+
+class PvcUpdateSerializer(serializers.ModelSerializer):
+    """A member's PVC scan for a coordinator's second check: what it changes,
+    against the member's details while it waits."""
+
+    id = serializers.UUIDField(source="uuid", read_only=True)
+    member = serializers.CharField(source="member.membership_number", read_only=True)
+    member_name = serializers.CharField(source="member.full_name", read_only=True)
+    changes = serializers.SerializerMethodField()
+    decided_by = serializers.CharField(source="decided_by.access_id", default=None, read_only=True)
+
+    class Meta:
+        model = PvcUpdate
+        fields = [
+            "id",
+            "member",
+            "member_name",
+            "status",
+            "changes",
+            "decided_by",
+            "decided_at",
+            "decision_reason",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    @extend_schema_field(PVC_CHANGE)
+    def get_changes(self, update) -> list:
+        from .services import PV, PVC_FIELDS, pvc_changes
+
+        member = update.member
+        waiting = update.status == PV.PENDING
+        sensitive = may_see_sensitive(self, member)
+        names = pvc_changes(member, update) if waiting else update.changed_fields
+        return [
+            {
+                "field": name,
+                "label": PVC_FIELDS[name],
+                "from": _pvc_detail(member, name, sensitive) if waiting else None,
+                "to": _pvc_detail(update, name, sensitive),
+            }
+            for name in names
+            if name in PVC_FIELDS
+        ]

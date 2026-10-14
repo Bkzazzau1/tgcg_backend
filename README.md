@@ -66,7 +66,9 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | GET | `/api/v1/members/{membership_number}/photo/` | Member photo (scope-checked) |
 | GET | `/api/v1/members/verify/?token=` | Staff scan a membership card QR code |
 | GET, PATCH | `/api/v1/me/member/` | Member home: own card and profile. Email and occupation are editable; gender and date of birth can be added, and changed until the identity is checked (audited by field name, identity checks rerun) |
-| POST | `/api/v1/me/member/photo/` (`photo`), `/api/v1/me/member/card-photo/` (`pvc_image`) | Multipart. The member adds a selfie or PVC photo left out when joining; replacing one is refused once their identity is checked (a coordinator does it). Audited, and the identity checks rerun |
+| POST | `/api/v1/me/member/photo/` (`photo`) | Multipart. The member adds the selfie left out when joining; replacing it is refused once their identity is checked (a coordinator does it). Audited, and the identity checks rerun |
+| GET, POST | `/api/v1/me/member/pvc-scan/` | The member's one PVC scan. GET: `{"can_scan", "latest"}`. POST (multipart: `pvc_image`, `full_name`, `vin`, `delim`, optional `gender`, `date_of_birth`, `occupation`): the card's details replace the typed ones, at once, or after a coordinator's second check when the identity is checked. Refused once a card is on record (from joining or an earlier scan) or while one waits; `.../<id>/withdraw/` takes a waiting scan back |
+| GET, POST | `/api/v1/pvc-updates/` | `verifyMemberIdentity` for the member's area (and the unit on the card): scans awaiting a second check, with what they change; `<id>/card/`, `<id>/approve/`, `<id>/reject/` (reason required). Approving keeps the identity checked, by the approver |
 | GET | `/api/v1/me/member/photo/`, `/api/v1/me/polling-unit/`, `/api/v1/me/announcements/` | Member home |
 | GET, POST | `/api/v1/me/volunteer/` | Apply to serve as a polling-unit agent |
 | GET | `/api/v1/volunteers/` | Coordinators' queue; `POST .../{id}/accept/` or `.../{id}/decline/` |

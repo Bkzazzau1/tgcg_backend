@@ -11,6 +11,7 @@ from apps.core.choices import (
     AccreditationStatus,
     GeographyLevel,
     MembershipState,
+    Role,
     VerificationStatus,
 )
 from apps.core.models import Sequence
@@ -22,6 +23,7 @@ from .models import (
     AccreditedAgent,
     Member,
     PollingUnitChangeRequest,
+    PvcUpdate,
     VolunteerApplication,
 )
 
@@ -158,31 +160,28 @@ def update_own_details(*, member: Member, **fields) -> Member:
     return member
 
 
-# The photos a member may add themselves after joining.
-OWN_PHOTOS = {"photo": "selfie", "pvc_image": "PVC photo"}
-
-
 @transaction.atomic
-def set_own_photo(*, member: Member, field: str, upload) -> Member:
-    """A member adds the selfie or PVC photo they did not give when joining, or
-    replaces one before their identity is checked. After that only a
-    coordinator changes it, so what a reviewer approved stays on record."""
+def set_own_selfie(*, member: Member, upload) -> Member:
+    """A member adds the selfie they did not take when joining, or replaces it
+    before their identity is checked. After that only a coordinator changes
+    it, so what a reviewer approved stays on record. (The PVC photo comes
+    with the member's one PVC scan: see scan_own_pvc.)"""
     from . import identity, registration
 
-    registration.validate_image(upload, field, required=True)
+    registration.validate_image(upload, "photo", required=True)
     member = Member.objects.select_for_update().select_related("user").get(pk=member.pk)
-    replacing = bool(getattr(member, field))
+    replacing = bool(member.photo)
     if replacing and member.verification_status == VerificationStatus.VERIFIED:
         raise ValidationError(
-            {field: "Your identity has been checked, so only a coordinator can change this photo."}
+            {"photo": "Your identity has been checked, so only a coordinator can change it."}
         )
-    setattr(member, field, upload)
-    member.save(update_fields=[field, "updated_at"])
+    member.photo = upload
+    member.save(update_fields=["photo", "updated_at"])
     _audit(
         member.user,
         "member.photoReplaced" if replacing else "member.photoAdded",
         member,
-        changes={"kind": OWN_PHOTOS[field]},  # which photo, never the image itself
+        changes={"kind": "selfie"},  # which photo, never the image itself
     )
     return identity.record_checks(member, actor=member.user)
 
@@ -579,3 +578,218 @@ def reject_polling_unit_change(*, actor, change, reason: str) -> PollingUnitChan
         changes={"to": change.polling_unit.code, "request": str(change.uuid)},
     )
     return change
+
+
+# --- the member's one PVC scan after joining -------------------------------------------
+
+PV = PvcUpdate.Status
+
+# What a PVC scan can replace, with the labels a reviewer sees.
+PVC_FIELDS = {
+    "full_name": "Name",
+    "vin": "VIN",
+    "gender": "Gender",
+    "date_of_birth": "Date of birth",
+    "occupation": "Occupation",
+    "polling_unit": "Polling unit",
+}
+# A detail the card did not show (left blank) keeps the member's own.
+PVC_OPTIONAL = ("gender", "date_of_birth", "occupation")
+
+
+def _pvc_value(record, name):
+    return getattr(record, "polling_unit_id" if name == "polling_unit" else name)
+
+
+def pvc_changes(member: Member, update: PvcUpdate) -> list[str]:
+    """The member's details the update would change, in PVC_FIELDS order."""
+    return [
+        name
+        for name in PVC_FIELDS
+        if _pvc_value(update, name) not in ("", None)
+        and _pvc_value(update, name) != _pvc_value(member, name)
+    ]
+
+
+def can_scan_pvc(member: Member) -> bool:
+    """One PVC scan per member: none once their card is on record (scanned or
+    uploaded when joining, or an earlier scan), nor while one waits."""
+    return not member.pvc_image and not member.pvc_updates.filter(status=PV.PENDING).exists()
+
+
+def _apply_pvc_update(member: Member, update: PvcUpdate) -> None:
+    from apps.geography.scope import SCOPE_FIELDS
+
+    member.full_name = update.full_name
+    member.vin = update.vin
+    for name in PVC_OPTIONAL:
+        if getattr(update, name) not in ("", None):
+            setattr(member, name, getattr(update, name))
+    member.pvc_image = update.pvc_image
+    member.scope_level = GeographyLevel.POLLING_UNIT
+    member.polling_unit = update.polling_unit
+    member.normalize_scope()
+    member.polling_unit_from_list = False  # the unit now comes from the card
+    member.full_clean(exclude=["membership_number"])
+    member.save(
+        update_fields=[
+            "full_name",
+            "vin",
+            *PVC_OPTIONAL,
+            "pvc_image",
+            "scope_level",
+            *SCOPE_FIELDS,
+            "polling_unit_from_list",
+            "updated_at",
+        ]
+    )
+    if member.user_id and member.user.role == Role.MEMBER:
+        # A member's own sign-in shows the name from their card too.
+        member.user.full_name = member.full_name
+        member.user.save(update_fields=["full_name"])
+
+
+@transaction.atomic
+def scan_own_pvc(
+    *,
+    member: Member,
+    pvc_image,
+    full_name: str,
+    vin: str,
+    delim: str,
+    gender: str = "",
+    date_of_birth=None,
+    occupation: str = "",
+) -> PvcUpdate:
+    """The member's one PVC scan after joining: the details read off the card,
+    which they checked, replace the ones they typed. They apply at once unless
+    the identity is checked; then they wait for a coordinator's second check."""
+    from . import identity, registration
+
+    member = Member.objects.select_for_update().select_related("user").get(pk=member.pk)
+    if member.membership_state != MS.ACTIVE:
+        raise ValidationError("Your membership is not active.")
+    if member.pvc_image:
+        raise ValidationError(
+            "Your PVC is already on record, and a card is scanned only once. Ask a "
+            "coordinator if its details need correcting."
+        )
+    if member.pvc_updates.filter(status=PV.PENDING).exists():
+        raise ValidationError("Your PVC scan is already waiting for a coordinator.")
+    registration.validate_image(pvc_image, "pvc_image", required=True)
+    vin = "".join((vin or "").split()).upper()
+    if Member.objects.filter(vin=vin).exclude(pk=member.pk).exists():
+        raise ValidationError({"vin": "This PVC is registered to another member."})
+    verified = member.verification_status == VerificationStatus.VERIFIED
+    update = PvcUpdate(
+        member=member,
+        pvc_image=pvc_image,
+        full_name=" ".join((full_name or "").split()),
+        vin=vin,
+        gender=gender or "",
+        date_of_birth=date_of_birth,
+        occupation=(occupation or "").strip(),
+        status=PV.PENDING if verified else PV.APPLIED,
+        scope_level=GeographyLevel.POLLING_UNIT,
+        polling_unit=registration.polling_unit_from_delim(delim),
+    )
+    update.normalize_scope()
+    update.full_clean()
+    update.changed_fields = pvc_changes(member, update)
+    update.save()
+    changes = {"request": str(update.uuid), "fields": update.changed_fields}
+    if verified:
+        _audit(member.user, "member.pvcUpdateRequested", member, changes=changes)
+        return update
+    _apply_pvc_update(member, update)
+    _audit(member.user, "member.pvcUpdateApplied", member, changes=changes)
+    identity.record_checks(member, actor=member.user)
+    return update
+
+
+@transaction.atomic
+def withdraw_pvc_update(*, member: Member, update) -> PvcUpdate:
+    update = PvcUpdate.objects.select_for_update().get(pk=update.pk)
+    if update.member_id != member.pk:
+        raise PermissionDenied("This scan belongs to another member.")
+    if update.status != PV.PENDING:
+        raise ValidationError(f"This scan is already {update.status}.")
+    update.status = PV.WITHDRAWN
+    update.save(update_fields=["status", "updated_at"])
+    _audit(member.user, "member.pvcUpdateWithdrawn", member, changes={"request": str(update.uuid)})
+    return update
+
+
+def _lock_pvc_update(actor, update) -> PvcUpdate:
+    """Whoever may check this member's identity decides; when the card moves
+    them, the same authority must reach the polling unit on it."""
+    from apps.access.services import authority_over_member
+
+    from . import identity
+
+    update = (
+        PvcUpdate.objects.select_for_update(of=("self", "member"))
+        .select_related("member__user", "polling_unit")
+        .get(pk=update.pk)
+    )
+    member = update.member
+    identity.require_reviewer(actor, member)
+    if update.polling_unit_id != member.polling_unit_id:
+        authority_over_member(
+            actor,
+            C.VERIFY_MEMBER_IDENTITY,
+            member,
+            area=update,
+            also=[member, *identity.role_areas(member)],
+            what="polling unit on the card",
+        )
+    if update.status != PV.PENDING:
+        raise ValidationError(f"This update is already {update.status}.")
+    return update
+
+
+@transaction.atomic
+def approve_pvc_update(*, actor, update, reason: str = "") -> PvcUpdate:
+    """The second check: the new details match the card, so they replace the
+    member's. A checked identity stays checked, now on this reviewer's word."""
+    from . import identity
+
+    update = _lock_pvc_update(actor, update)
+    member = Member.objects.select_for_update().select_related("user").get(pk=update.member_id)
+    if member.membership_state != MS.ACTIVE:
+        raise ValidationError("This membership is not active.")
+    if Member.objects.filter(vin=update.vin).exclude(pk=member.pk).exists():
+        raise ValidationError({"vin": "This PVC is now registered to another member."})
+    fields = pvc_changes(member, update)
+    _apply_pvc_update(member, update)
+    if member.verification_status == VerificationStatus.VERIFIED:
+        member.verified_at = timezone.now()
+        member.verified_by = actor
+        member.save(update_fields=["verified_at", "verified_by", "updated_at"])
+    _decide(update, actor, PV.APPROVED, reason.strip())
+    _audit(
+        actor,
+        "member.pvcUpdateApproved",
+        member,
+        reason.strip(),
+        changes={"request": str(update.uuid), "fields": fields},
+    )
+    identity.record_checks(member, actor=actor)
+    engine.clear_cache()
+    return update
+
+
+@transaction.atomic
+def reject_pvc_update(*, actor, update, reason: str) -> PvcUpdate:
+    update = _lock_pvc_update(actor, update)
+    if not reason.strip():
+        raise ValidationError({"reason": "Tell the member why the new details were not accepted."})
+    _decide(update, actor, PV.REJECTED, reason.strip())
+    _audit(
+        actor,
+        "member.pvcUpdateRejected",
+        update.member,
+        reason.strip(),
+        changes={"request": str(update.uuid)},
+    )
+    return update

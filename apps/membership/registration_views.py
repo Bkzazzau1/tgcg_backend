@@ -36,10 +36,12 @@ from .serializers import (
     MemberCardSerializer,
     MemberSelfUpdateSerializer,
     MemberSerializer,
+    MyPvcUpdateSerializer,
     PinCodeSerializer,
     PollingUnitChangeRequestSerializer,
     PollingUnitChangeSerializer,
     PollingUnitSummarySerializer,
+    PvcScanSerializer,
     RegistrationCodeSerializer,
     SelfRegistrationSerializer,
     SetPinSerializer,
@@ -348,22 +350,17 @@ def _photo_response(member):
     return image_response(member.photo)
 
 
-class _OwnPhotoView(MemberHomeMixin, APIView):
-    """Adds a photo the member did not give when joining; it can be replaced
-    until their identity is checked."""
+class MyMemberPhotoView(MemberHomeMixin, APIView):
+    """The member's selfie: see it, or add the one not taken when joining
+    (replaceable until their identity is checked)."""
 
     parser_classes = [MultiPartParser, FormParser]
-    field = ""
 
-    def post(self, request):
-        services.set_own_photo(
-            member=request.user.member, field=self.field, upload=request.FILES.get(self.field)
-        )
-        return Response(MemberCardSerializer(self.member(), context={"request": request}).data)
+    @extend_schema(responses={(200, "image/jpeg"): bytes})
+    def get(self, request):
+        return _photo_response(self.member())
 
-
-@extend_schema_view(
-    post=extend_schema(
+    @extend_schema(
         request={
             "multipart/form-data": inline_serializer(
                 "OwnSelfie", {"photo": serializers.FileField()}
@@ -371,31 +368,61 @@ class _OwnPhotoView(MemberHomeMixin, APIView):
         },
         responses={200: MemberCardSerializer},
     )
+    def post(self, request):
+        services.set_own_selfie(member=request.user.member, upload=request.FILES.get("photo"))
+        return Response(MemberCardSerializer(self.member(), context={"request": request}).data)
+
+
+MY_PVC_SCAN = inline_serializer(
+    "MyPvcScan",
+    {
+        "can_scan": serializers.BooleanField(help_text="One scan per member, ever."),
+        "latest": MyPvcUpdateSerializer(allow_null=True),
+    },
 )
-class MyMemberPhotoView(_OwnPhotoView):
-    """The member's selfie: see it, or add it."""
 
-    field = "photo"
 
-    @extend_schema(responses={(200, "image/jpeg"): bytes})
+class MyPvcScanView(MemberHomeMixin, APIView):
+    """The member's one PVC scan after joining. GET says whether they may scan
+    and how their latest scan went; POST (multipart) sends the card's photo
+    with the details read off it, which replace the ones they typed: at once,
+    or after a coordinator's second check once their identity is checked."""
+
+    parser_classes = [MultiPartParser, FormParser]
+
+    @extend_schema(responses=MY_PVC_SCAN)
     def get(self, request):
-        return _photo_response(self.member())
+        member = self.member()
+        latest = member.pvc_updates.first()
+        return Response(
+            {
+                "can_scan": services.can_scan_pvc(member),
+                "latest": MyPvcUpdateSerializer(latest).data if latest else None,
+            }
+        )
 
-
-@extend_schema_view(
-    post=extend_schema(
-        request={
-            "multipart/form-data": inline_serializer(
-                "OwnPvcPhoto", {"pvc_image": serializers.FileField()}
-            )
-        },
-        responses={200: MemberCardSerializer},
+    @extend_schema(
+        request={"multipart/form-data": PvcScanSerializer},
+        responses={201: MyPvcUpdateSerializer},
     )
-)
-class MyCardPhotoView(_OwnPhotoView):
-    """Adds a photo of the front of the member's PVC."""
+    def post(self, request):
+        serializer = PvcScanSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        update = services.scan_own_pvc(member=request.user.member, **serializer.validated_data)
+        return Response(MyPvcUpdateSerializer(update).data, status=status.HTTP_201_CREATED)
 
-    field = "pvc_image"
+
+class MyPvcScanWithdrawView(MemberHomeMixin, APIView):
+    """Take back a scan still waiting for a coordinator; the member may scan again."""
+
+    @extend_schema(request=None, responses=MyPvcUpdateSerializer)
+    def post(self, request, uuid):
+        member = self.member()
+        update = member.pvc_updates.filter(uuid=uuid).first()
+        if update is None:
+            raise Http404
+        update = services.withdraw_pvc_update(member=member, update=update)
+        return Response(MyPvcUpdateSerializer(update).data)
 
 
 class MyPollingUnitView(MemberHomeMixin, APIView):
