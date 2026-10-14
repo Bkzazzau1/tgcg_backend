@@ -140,7 +140,7 @@ def update_own_details(*, member: Member, **fields) -> Member:
     meanwhile is never written back over."""
     from . import identity
 
-    member = Member.objects.select_for_update().select_related("user").get(pk=member.pk)
+    member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
     verified = member.verification_status == VerificationStatus.VERIFIED
     for name in OWN_PVC_DETAILS:
         if name in fields and verified and getattr(member, name) not in ("", None):
@@ -169,7 +169,7 @@ def set_own_selfie(*, member: Member, upload) -> Member:
     from . import identity, registration
 
     registration.validate_image(upload, "photo", required=True)
-    member = Member.objects.select_for_update().select_related("user").get(pk=member.pk)
+    member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
     replacing = bool(member.photo)
     if replacing and member.verification_status == VerificationStatus.VERIFIED:
         raise ValidationError(
@@ -666,7 +666,7 @@ def scan_own_pvc(
     the identity is checked; then they wait for a coordinator's second check."""
     from . import identity, registration
 
-    member = Member.objects.select_for_update().select_related("user").get(pk=member.pk)
+    member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
     if member.membership_state != MS.ACTIVE:
         raise ValidationError("Your membership is not active.")
     if member.pvc_image:
@@ -755,7 +755,11 @@ def approve_pvc_update(*, actor, update, reason: str = "") -> PvcUpdate:
     from . import identity
 
     update = _lock_pvc_update(actor, update)
-    member = Member.objects.select_for_update().select_related("user").get(pk=update.member_id)
+    member = (
+        Member.objects.select_for_update(of=("self",))
+        .select_related("user")
+        .get(pk=update.member_id)
+    )
     if member.membership_state != MS.ACTIVE:
         raise ValidationError("This membership is not active.")
     if Member.objects.filter(vin=update.vin).exclude(pk=member.pk).exists():
