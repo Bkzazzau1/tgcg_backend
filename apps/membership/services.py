@@ -125,6 +125,39 @@ def update_member(*, actor, member: Member, reason: str = "", **fields) -> Membe
     return member
 
 
+# Details from the PVC a member may add themselves after joining.
+OWN_PVC_DETAILS = ("gender", "date_of_birth")
+
+
+@transaction.atomic
+def update_own_details(*, member: Member, **fields) -> Member:
+    """A member edits their email and occupation, and adds the gender and date
+    of birth left out when joining. Like the photos, those two can be changed
+    until the identity is checked; after that only a coordinator changes them.
+    Only the edited fields are saved, so a suspension or review decided
+    meanwhile is never written back over."""
+    from . import identity
+
+    member = Member.objects.select_for_update().select_related("user").get(pk=member.pk)
+    verified = member.verification_status == VerificationStatus.VERIFIED
+    for name in OWN_PVC_DETAILS:
+        if name in fields and verified and getattr(member, name) not in ("", None):
+            if fields[name] != getattr(member, name):
+                raise ValidationError(
+                    {name: "Your identity has been checked, so only a coordinator can change this."}
+                )
+    changed = sorted(name for name, value in fields.items() if getattr(member, name) != value)
+    for name, value in fields.items():
+        setattr(member, name, value)
+    member.full_clean()
+    member.save(update_fields=[*fields, "updated_at"])
+    if details := [name for name in changed if name in OWN_PVC_DETAILS]:
+        # Field names only: the values are personal data.
+        _audit(member.user, "member.detailsChanged", member, changes={"fields": details})
+        member = identity.record_checks(member, actor=member.user)
+    return member
+
+
 # The photos a member may add themselves after joining.
 OWN_PHOTOS = {"photo": "selfie", "pvc_image": "PVC photo"}
 

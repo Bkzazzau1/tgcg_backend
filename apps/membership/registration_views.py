@@ -7,7 +7,6 @@ in config/urls.py so failed code attempts are recorded.
 import mimetypes
 
 from django.conf import settings
-from django.db import transaction
 from django.http import FileResponse, Http404
 from drf_spectacular.utils import (
     OpenApiParameter,
@@ -331,14 +330,7 @@ class MyMemberView(MemberHomeMixin, generics.RetrieveUpdateAPIView):
     def patch(self, request, *args, **kwargs):
         serializer = MemberSelfUpdateSerializer(data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        with transaction.atomic():
-            # Lock and save only the edited fields, so a suspension or review
-            # decided meanwhile is never written back over.
-            member = Member.objects.select_for_update().get(pk=request.user.member.pk)
-            for name, value in serializer.validated_data.items():
-                setattr(member, name, value)
-            member.full_clean()
-            member.save(update_fields=[*serializer.validated_data, "updated_at"])
+        services.update_own_details(member=request.user.member, **serializer.validated_data)
         return Response(MemberCardSerializer(self.member(), context={"request": request}).data)
 
 

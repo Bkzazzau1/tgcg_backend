@@ -415,6 +415,45 @@ def test_own_photos_must_be_images_and_only_members_add_them(outbox, settings):
     assert add(kd_coordinator(), "photo", "photo").status_code == 403
 
 
+def test_a_member_adds_the_gender_and_birth_date_left_out_when_joining(outbox, settings):
+    client = joined_without_photos(settings)
+    member = Member.objects.get()
+    checks = dict(member.verification_checks.values_list("kind", "result"))
+    assert checks["duplicates"] == "pending"  # no birth date to compare yet
+
+    response = client.patch(
+        "/api/v1/me/member/", {"gender": "female", "date_of_birth": "1992-03-08"}, format="json"
+    )
+    assert response.status_code == 200, response.content
+    card = response.json()
+    assert card["gender"] == "female" and card["date_of_birth"] == "1992-03-08"
+    checks = dict(member.verification_checks.values_list("kind", "result"))
+    assert checks["duplicates"] == "passed"
+    # Which details changed, never their values.
+    event = AuditEvent.objects.get(action="member.detailsChanged")
+    assert event.changes == {"fields": ["date_of_birth", "gender"]}
+
+
+def test_once_the_identity_is_checked_gender_and_birth_date_are_for_a_coordinator(outbox, settings):
+    client = joined_without_photos(settings)
+    assert client.patch("/api/v1/me/member/", {"gender": "male"}, format="json").status_code == 200
+    Member.objects.update(verification_status="verified")
+    changed = client.patch("/api/v1/me/member/", {"gender": "female"}, format="json")
+    assert changed.status_code == 400 and "gender" in changed.json()
+    # The same value again, or a detail still missing, is fine.
+    assert client.patch("/api/v1/me/member/", {"gender": "male"}, format="json").status_code == 200
+    added = client.patch("/api/v1/me/member/", {"date_of_birth": "1992-03-08"}, format="json")
+    assert added.status_code == 200
+    member = Member.objects.get()
+    assert member.gender == "male" and member.verification_status == "verified"
+
+
+def test_a_birth_date_cannot_be_in_the_future(outbox, settings):
+    client = joined_without_photos(settings)
+    response = client.patch("/api/v1/me/member/", {"date_of_birth": "2999-01-01"}, format="json")
+    assert response.status_code == 400 and "date_of_birth" in response.json()
+
+
 def test_a_member_changes_their_occupation(outbox, settings):
     client = joined_without_photos(settings)
     response = client.patch("/api/v1/me/member/", {"occupation": "Trader"}, format="json")

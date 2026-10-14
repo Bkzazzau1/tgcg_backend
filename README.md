@@ -65,7 +65,7 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | GET, PATCH | `/api/v1/members/{membership_number}/` | e.g. `TGCG-000001` |
 | GET | `/api/v1/members/{membership_number}/photo/` | Member photo (scope-checked) |
 | GET | `/api/v1/members/verify/?token=` | Staff scan a membership card QR code |
-| GET, PATCH | `/api/v1/me/member/` | Member home: own card and profile (email and occupation are editable) |
+| GET, PATCH | `/api/v1/me/member/` | Member home: own card and profile. Email and occupation are editable; gender and date of birth can be added, and changed until the identity is checked (audited by field name, identity checks rerun) |
 | POST | `/api/v1/me/member/photo/` (`photo`), `/api/v1/me/member/card-photo/` (`pvc_image`) | Multipart. The member adds a selfie or PVC photo left out when joining; replacing one is refused once their identity is checked (a coordinator does it). Audited, and the identity checks rerun |
 | GET | `/api/v1/me/member/photo/`, `/api/v1/me/polling-unit/`, `/api/v1/me/announcements/` | Member home |
 | GET, POST | `/api/v1/me/volunteer/` | Apply to serve as a polling-unit agent |

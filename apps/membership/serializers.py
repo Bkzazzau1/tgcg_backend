@@ -1,5 +1,6 @@
 from django.core import signing
 from django.urls import reverse
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -357,9 +358,17 @@ class MemberCardSerializer(serializers.ModelSerializer):
 
 
 class MemberSelfUpdateSerializer(serializers.ModelSerializer):
+    """What a member edits themselves. Gender and date of birth come from the
+    PVC: they can be added, and changed until the identity is checked."""
+
     class Meta:
         model = Member
-        fields = ["email", "occupation"]
+        fields = ["email", "occupation", "gender", "date_of_birth"]
+
+    def validate_date_of_birth(self, value):
+        if value and value > timezone.localdate():
+            raise serializers.ValidationError("A date of birth cannot be in the future.")
+        return value
 
 
 class CardVerificationSerializer(serializers.ModelSerializer):
