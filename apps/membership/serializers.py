@@ -303,6 +303,7 @@ class MemberCardSerializer(serializers.ModelSerializer):
     scope = ScopeField(read_only=True)
     vin = serializers.SerializerMethodField()
     has_pvc = serializers.BooleanField(read_only=True)
+    has_card_photo = serializers.SerializerMethodField()
     polling_unit = PollingUnitSummarySerializer(read_only=True)
     member_since = serializers.DateTimeField(source="created_at", read_only=True)
     photo_url = serializers.SerializerMethodField()
@@ -318,6 +319,7 @@ class MemberCardSerializer(serializers.ModelSerializer):
             "email",
             "vin",
             "has_pvc",
+            "has_card_photo",
             "gender",
             "date_of_birth",
             "occupation",
@@ -343,6 +345,9 @@ class MemberCardSerializer(serializers.ModelSerializer):
 
     def get_vin(self, member) -> str | None:
         return masked_vin(member)
+
+    def get_has_card_photo(self, member) -> bool:
+        return bool(member.pvc_image)
 
     def get_photo_url(self, member) -> str | None:
         return _absolute(self, reverse("my-member-photo")) if member.photo else None

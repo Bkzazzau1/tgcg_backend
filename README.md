@@ -66,6 +66,7 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | GET | `/api/v1/members/{membership_number}/photo/` | Member photo (scope-checked) |
 | GET | `/api/v1/members/verify/?token=` | Staff scan a membership card QR code |
 | GET, PATCH | `/api/v1/me/member/` | Member home: own card and profile (email and occupation are editable) |
+| POST | `/api/v1/me/member/photo/` (`photo`), `/api/v1/me/member/card-photo/` (`pvc_image`) | Multipart. The member adds a selfie or PVC photo left out when joining; replacing one is refused once their identity is checked (a coordinator does it). Audited, and the identity checks rerun |
 | GET | `/api/v1/me/member/photo/`, `/api/v1/me/polling-unit/`, `/api/v1/me/announcements/` | Member home |
 | GET, POST | `/api/v1/me/volunteer/` | Apply to serve as a polling-unit agent |
 | GET | `/api/v1/volunteers/` | Coordinators' queue; `POST .../{id}/accept/` or `.../{id}/decline/` |

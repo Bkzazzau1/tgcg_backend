@@ -356,10 +356,54 @@ def _photo_response(member):
     return image_response(member.photo)
 
 
-class MyMemberPhotoView(MemberHomeMixin, APIView):
+class _OwnPhotoView(MemberHomeMixin, APIView):
+    """Adds a photo the member did not give when joining; it can be replaced
+    until their identity is checked."""
+
+    parser_classes = [MultiPartParser, FormParser]
+    field = ""
+
+    def post(self, request):
+        services.set_own_photo(
+            member=request.user.member, field=self.field, upload=request.FILES.get(self.field)
+        )
+        return Response(MemberCardSerializer(self.member(), context={"request": request}).data)
+
+
+@extend_schema_view(
+    post=extend_schema(
+        request={
+            "multipart/form-data": inline_serializer(
+                "OwnSelfie", {"photo": serializers.FileField()}
+            )
+        },
+        responses={200: MemberCardSerializer},
+    )
+)
+class MyMemberPhotoView(_OwnPhotoView):
+    """The member's selfie: see it, or add it."""
+
+    field = "photo"
+
     @extend_schema(responses={(200, "image/jpeg"): bytes})
     def get(self, request):
         return _photo_response(self.member())
+
+
+@extend_schema_view(
+    post=extend_schema(
+        request={
+            "multipart/form-data": inline_serializer(
+                "OwnPvcPhoto", {"pvc_image": serializers.FileField()}
+            )
+        },
+        responses={200: MemberCardSerializer},
+    )
+)
+class MyCardPhotoView(_OwnPhotoView):
+    """Adds a photo of the front of the member's PVC."""
+
+    field = "pvc_image"
 
 
 class MyPollingUnitView(MemberHomeMixin, APIView):

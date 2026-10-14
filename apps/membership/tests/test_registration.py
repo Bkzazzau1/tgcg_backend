@@ -7,6 +7,7 @@ import pytest
 from PIL import Image
 from rest_framework.test import APIClient
 
+from apps.access.models import AuditEvent
 from apps.accounts.models import User
 from apps.accounts.verification import PhoneVerification
 from apps.core.choices import GeographyLevel, Role
@@ -350,6 +351,74 @@ def test_a_unit_found_by_name_is_marked_for_a_coordinator_to_check(outbox, setti
     assert member.polling_unit_from_list
     check = member.verification_checks.get(kind="pvcCaptured")
     assert check.result == "pending" and "chosen from the list" in check.detail
+
+
+def joined_without_photos(settings):
+    settings.REGISTRATION_PHONE_CODE_REQUIRED = False
+    response = join(APIClient())
+    assert response.status_code == 201, response.content
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.json()['access']}")
+    return client
+
+
+def add(client, kind, field, upload=None):
+    upload = upload or image()
+    return client.post(f"/api/v1/me/member/{kind}/", {field: upload}, format="multipart")
+
+
+def test_a_member_adds_the_photos_they_left_out_when_joining(outbox, settings):
+    client = joined_without_photos(settings)
+    card = client.get("/api/v1/me/member/").json()
+    assert card["photo_url"] is None and card["has_card_photo"] is False
+
+    selfie = add(client, "photo", "photo")
+    assert selfie.status_code == 200, selfie.content
+    assert selfie.json()["photo_url"] and client.get("/api/v1/me/member/photo/").status_code == 200
+    pvc = add(client, "card-photo", "pvc_image", image("PNG", "pvc.png"))
+    assert pvc.status_code == 200 and pvc.json()["has_card_photo"] is True
+
+    member = Member.objects.get()
+    results = dict(member.verification_checks.values_list("kind", "result"))
+    assert results["selfieCaptured"] == results["pvcCaptured"] == "passed"
+    # Photos are something to review, never a verification by themselves.
+    assert member.verification_status == "pendingReview"
+    added = AuditEvent.objects.filter(
+        action="member.photoAdded", target_id=member.membership_number
+    )
+    assert sorted(event.changes["kind"] for event in added) == ["PVC photo", "selfie"]
+
+
+def test_once_the_identity_is_checked_only_a_coordinator_changes_a_photo(outbox, settings):
+    client = joined_without_photos(settings)
+    assert add(client, "photo", "photo").status_code == 200
+    # Until the check, a clearer photo may replace the first.
+    assert add(client, "photo", "photo").status_code == 200
+    assert AuditEvent.objects.filter(action="member.photoReplaced").count() == 1
+
+    Member.objects.update(verification_status="verified")
+    again = add(client, "photo", "photo")
+    assert again.status_code == 400 and "photo" in again.json()
+    # A photo that is still missing can be added.
+    assert add(client, "card-photo", "pvc_image").status_code == 200
+    assert Member.objects.get().verification_status == "verified"
+
+
+def test_own_photos_must_be_images_and_only_members_add_them(outbox, settings):
+    client = joined_without_photos(settings)
+    missing = client.post("/api/v1/me/member/photo/", {}, format="multipart")
+    assert missing.status_code == 400 and "photo" in missing.json()
+    not_image = io.BytesIO(b"not an image")
+    not_image.name = "selfie.jpg"
+    assert add(client, "photo", "photo", not_image).status_code == 400
+    assert not Member.objects.get().photo
+    assert add(kd_coordinator(), "photo", "photo").status_code == 403
+
+
+def test_a_member_changes_their_occupation(outbox, settings):
+    client = joined_without_photos(settings)
+    response = client.patch("/api/v1/me/member/", {"occupation": "Trader"}, format="json")
+    assert response.status_code == 200 and response.json()["occupation"] == "Trader"
 
 
 def test_joining_needs_the_unit_code_or_a_unit_found_by_name(outbox, settings):

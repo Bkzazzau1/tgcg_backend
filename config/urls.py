@@ -130,6 +130,7 @@ api_v1 = [
     path("me/access/", access.MyAccessView.as_view(), name="my-access"),
     path("me/member/", reg.MyMemberView.as_view(), name="my-member"),
     path("me/member/photo/", reg.MyMemberPhotoView.as_view(), name="my-member-photo"),
+    path("me/member/card-photo/", reg.MyCardPhotoView.as_view(), name="my-member-card-photo"),
     path("me/polling-unit/", reg.MyPollingUnitView.as_view(), name="my-polling-unit"),
     path(
         "me/polling-unit/changes/",

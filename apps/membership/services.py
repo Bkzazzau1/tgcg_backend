@@ -125,6 +125,35 @@ def update_member(*, actor, member: Member, reason: str = "", **fields) -> Membe
     return member
 
 
+# The photos a member may add themselves after joining.
+OWN_PHOTOS = {"photo": "selfie", "pvc_image": "PVC photo"}
+
+
+@transaction.atomic
+def set_own_photo(*, member: Member, field: str, upload) -> Member:
+    """A member adds the selfie or PVC photo they did not give when joining, or
+    replaces one before their identity is checked. After that only a
+    coordinator changes it, so what a reviewer approved stays on record."""
+    from . import identity, registration
+
+    registration.validate_image(upload, field, required=True)
+    member = Member.objects.select_for_update().select_related("user").get(pk=member.pk)
+    replacing = bool(getattr(member, field))
+    if replacing and member.verification_status == VerificationStatus.VERIFIED:
+        raise ValidationError(
+            {field: "Your identity has been checked, so only a coordinator can change this photo."}
+        )
+    setattr(member, field, upload)
+    member.save(update_fields=[field, "updated_at"])
+    _audit(
+        member.user,
+        "member.photoReplaced" if replacing else "member.photoAdded",
+        member,
+        changes={"kind": OWN_PHOTOS[field]},  # which photo, never the image itself
+    )
+    return identity.record_checks(member, actor=member.user)
+
+
 @transaction.atomic
 def accredit(*, actor, member: Member, **fields) -> AccreditedAgent:
     client_id = fields.get("client_id")
