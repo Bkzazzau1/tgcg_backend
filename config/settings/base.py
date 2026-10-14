@@ -214,6 +214,14 @@ TERMII_BASE_URL = env("TERMII_BASE_URL", default="https://api.ng.termii.com")
 OTP_TTL_MINUTES = env.int("OTP_TTL_MINUTES", default=10)
 OTP_MAX_ATTEMPTS = 5
 OTP_RESEND_SECONDS = 60
+# Joining in the app proves the phone with an SMS code only while SMS can be
+# sent ("console" in development, or Termii with a key). Without SMS, members
+# join at once, as on USSD, and the number stays unconfirmed (no
+# phone_verified_at) until a code confirms it later, e.g. on a PIN reset.
+REGISTRATION_PHONE_CODE_REQUIRED = env.bool(
+    "REGISTRATION_PHONE_CODE_REQUIRED",
+    default=SMS_BACKEND == "console" or bool(TERMII_API_KEY),
+)
 OTP_MAX_PER_HOUR = 5
 
 # --- Member registration ---------------------------------------------------------

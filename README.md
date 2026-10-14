@@ -55,8 +55,9 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | POST | `/api/v1/auth/logout/` | `{"refresh": ...}` revokes it |
 | GET | `/api/v1/auth/me/` | Current user, with `scope` shaped like the client's `GeographicScope` |
 | GET | `/api/v1/geography/{zones,states,senatorial-districts,lgas,wards,polling-units}/` | Read-only reference data; filter with e.g. `?state__code=LA` |
+| GET | `/api/v1/register/options/` | Public. `{"phone_code_required"}`: whether joining in the app needs an SMS code |
 | POST | `/api/v1/register/code/` | Public. `{"phone_number", "vin"}` checks both are free and sends an SMS code |
-| POST | `/api/v1/register/` | Public, multipart. Self-registration from a scanned PVC; returns a signed-in member session |
+| POST | `/api/v1/register/` | Public, multipart. Self-registration (phone, VIN, polling unit code, name, PIN); returns a signed-in member session |
 | POST | `/api/v1/register/pin-code/`, `/api/v1/register/pin/` | Public. Set or reset a member's PIN by SMS code |
 | POST | `/api/v1/members/register/` | Coordinator registers someone in person (multipart, PVC optional) |
 | GET | `/api/v1/members/` | Members in your scope; filter `status`, `registration_channel`, `gender`, scope codes; search name, phone, number |
@@ -188,18 +189,24 @@ state coordinator only sees Kaduna members and agents.
 
 ## Member registration
 
-**Self-registration in the app.** The PVC is required.
+**Self-registration in the app.** As on USSD, joining needs the phone, the
+PVC's VIN and polling unit code, plus a name and PIN for the app account.
 
-1. The app scans the PVC and reads the name, VIN, gender, date of birth and
-   DELIM code. The member confirms the details and takes a selfie.
-2. `POST /register/code/` with the phone and VIN. It rejects a phone or PVC
-   that is already registered, then sends a 6-digit SMS code.
-3. `POST /register/` (multipart) with: `phone_number`, `code`, `vin`,
-   `delim`, `full_name`, `gender`, `date_of_birth`, `occupation`, `email`,
-   `pin`, `consent=true`, `photo` (the selfie) and `pvc_image`.
+1. `GET /register/options/` says whether the phone needs an SMS code. It
+   does while `REGISTRATION_PHONE_CODE_REQUIRED` is on, which by default
+   means whenever SMS can be sent.
+2. If it does, `POST /register/code/` with the phone and VIN. It rejects a
+   phone or PVC that is already registered, then sends a 6-digit SMS code.
+3. `POST /register/` (multipart) with: `phone_number`, `vin`, `delim`,
+   `full_name`, `pin`, `consent=true`, and `code` when one is needed.
+   Optional: `gender`, `date_of_birth`, `occupation`, `email`, `photo` (a
+   selfie) and `pvc_image` (the app can also read the card to fill the form).
    - The DELIM code (e.g. `18/23/01/001`) places the member at that INEC
      polling unit.
    - The member is active immediately and receives a sign-in session.
+   - A code that is given is always checked. Without one, the phone stays
+     unconfirmed (no `phone_verified_at`; its identity check stays pending)
+     until an SMS code confirms it, for example on a PIN reset.
 
 **Assisted registration.** A coordinator with `registerMembers` (zonal,
 state, LGA or ward coordinators) or `manageMembership` uses

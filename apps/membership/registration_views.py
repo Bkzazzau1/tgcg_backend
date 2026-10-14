@@ -6,6 +6,7 @@ in config/urls.py so failed code attempts are recorded.
 
 import mimetypes
 
+from django.conf import settings
 from django.db import transaction
 from django.http import FileResponse, Http404
 from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
@@ -45,6 +46,9 @@ from .serializers import (
 
 C = Capability
 CODE_SENT = inline_serializer("CodeSent", {"expires_in": serializers.IntegerField()})
+REGISTRATION_OPTIONS = inline_serializer(
+    "RegistrationOptions", {"phone_code_required": serializers.BooleanField()}
+)
 MEMBER_SESSION = inline_serializer(
     "MemberSession",
     {
@@ -76,6 +80,21 @@ class PublicRegistrationView(APIView):
     authentication_classes = []
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "registration"
+
+
+class RegistrationOptionsView(APIView):
+    """What joining in the app asks for: whether the phone needs an SMS code.
+
+    It says nothing about any phone or PVC, so it shares the anonymous rate
+    limit instead of the registration one.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @extend_schema(responses={200: REGISTRATION_OPTIONS})
+    def get(self, request):
+        return Response({"phone_code_required": settings.REGISTRATION_PHONE_CODE_REQUIRED})
 
 
 class RegistrationCodeView(PublicRegistrationView):

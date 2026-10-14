@@ -92,6 +92,7 @@ api_v1 = [
     path("mapping/progress/", mapping.MappingProgressView.as_view(), name="mapping-progress"),
     # Registration. Views that check SMS codes must not run in the request
     # transaction, so failed code attempts are recorded.
+    path("register/options/", reg.RegistrationOptionsView.as_view(), name="register-options"),
     path("register/code/", reg.RegistrationCodeView.as_view(), name="register-code"),
     path(
         "register/",

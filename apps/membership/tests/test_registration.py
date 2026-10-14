@@ -243,6 +243,76 @@ def test_one_member_per_pvc_and_phone(outbox):
     assert same_phone.status_code == 400 and "phone_number" in same_phone.json()
 
 
+# --- joining without SMS ----------------------------------------------------------
+
+
+def join(client, **overrides):
+    """Joining in the app with what USSD asks for, plus the account's name and PIN."""
+    data = {
+        "phone_number": PHONE,
+        "vin": VIN,
+        "delim": "18/23/01/001",
+        "full_name": "Musa Bello",
+        "pin": PIN,
+        "consent": True,
+        **overrides,
+    }
+    return client.post("/api/v1/register/", data, format="multipart")
+
+
+def test_options_say_whether_joining_needs_an_sms_code(settings):
+    client = APIClient()
+    settings.REGISTRATION_PHONE_CODE_REQUIRED = True
+    assert client.get("/api/v1/register/options/").json() == {"phone_code_required": True}
+    settings.REGISTRATION_PHONE_CODE_REQUIRED = False
+    assert client.get("/api/v1/register/options/").json() == {"phone_code_required": False}
+
+
+def test_without_sms_members_join_with_what_ussd_asks(outbox, settings):
+    settings.REGISTRATION_PHONE_CODE_REQUIRED = False
+    response = join(APIClient())
+    assert response.status_code == 201, response.content
+    assert outbox == []
+    member = Member.objects.get()
+    # Nothing proved the number, so it is not recorded as confirmed.
+    assert member.phone_verified_at is None and member.consent_at
+    assert not member.photo and not member.pvc_image and member.gender == ""
+    assert member.user.role == Role.MEMBER
+    assert response.json()["member"]["verification_status"] == "pendingReview"
+    results = dict(member.verification_checks.values_list("kind", "result"))
+    assert results["phoneVerified"] == results["pvcCaptured"] == "pending"
+    assert results["selfieCaptured"] == "failed"
+
+
+def test_without_sms_a_code_given_is_still_checked(outbox, settings):
+    settings.REGISTRATION_PHONE_CODE_REQUIRED = False
+    client = APIClient()
+    wrong = register_with_code(client, outbox, "000000")
+    assert wrong.status_code == 400 and "code" in wrong.json()
+    assert not Member.objects.exists()
+    right = register_with_code(client, outbox, last_code(outbox), request_code=False)
+    assert right.status_code == 201, right.content
+    assert Member.objects.get().phone_verified_at
+
+
+def test_while_sms_works_joining_needs_the_code(outbox, settings):
+    settings.REGISTRATION_PHONE_CODE_REQUIRED = True
+    response = join(APIClient())
+    assert response.status_code == 400 and "code" in response.json()
+    assert not Member.objects.exists()
+
+
+def test_without_sms_still_one_member_per_pvc_and_phone(outbox, settings):
+    settings.REGISTRATION_PHONE_CODE_REQUIRED = False
+    client = APIClient()
+    assert join(client).status_code == 201
+    same_vin = join(client, phone_number="08039990000")
+    assert same_vin.status_code == 400 and "vin" in same_vin.json()
+    same_phone = join(client, vin="90F5B0E8D0295847264")
+    assert same_phone.status_code == 400 and "phone_number" in same_phone.json()
+    assert Member.objects.count() == 1
+
+
 def test_pin_lockout_after_five_failures(outbox, settings):
     client = APIClient()
     register(client, outbox)

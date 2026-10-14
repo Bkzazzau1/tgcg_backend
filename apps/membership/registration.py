@@ -168,29 +168,39 @@ def request_registration_code(*, phone_number: str, vin: str | None = None) -> i
 def self_register(
     *,
     phone_number,
-    code,
     vin,
     delim,
     full_name,
-    gender,
+    pin,
+    consent,
+    code="",
+    gender="",
     date_of_birth=None,
     occupation="",
     email="",
-    pin,
-    consent,
-    photo,
-    pvc_image,
+    photo=None,
+    pvc_image=None,
 ):
-    """Register a member from their scanned PVC. Returns (member, user)."""
+    """Register a member in the app. Returns (member, user).
+
+    As on USSD, joining needs the phone, the PVC's VIN and polling unit code,
+    plus the name and PIN of the app account; a selfie, a card photo and the
+    other details are optional. A given SMS code is checked and confirms the
+    phone. Without SMS (REGISTRATION_PHONE_CODE_REQUIRED off) the member joins
+    with no code and the phone stays unconfirmed, as its check records.
+    """
     _require_consent(consent)
     phone = require_phone(phone_number)
     vin = _clean_vin(vin)
     if not vin:
-        raise ValidationError({"vin": "Scan your PVC to register."})
+        raise ValidationError({"vin": "Enter the VIN from your PVC."})
+    code = (code or "").strip()
+    if not code and settings.REGISTRATION_PHONE_CODE_REQUIRED:
+        raise ValidationError({"code": "Enter the 6-digit code sent to your phone."})
     pin = validate_pin(pin)
     polling_unit = polling_unit_from_delim(delim)
-    validate_image(photo, "photo", required=True)
-    validate_image(pvc_image, "pvc_image", required=True)
+    validate_image(photo, "photo", required=False)
+    validate_image(pvc_image, "pvc_image", required=False)
     ensure_available(phone, vin)
 
     member = Member(
@@ -198,7 +208,7 @@ def self_register(
         phone_number=phone,
         email=email or "",
         vin=vin,
-        gender=gender,
+        gender=gender or "",
         date_of_birth=date_of_birth,
         occupation=occupation or "",
         photo=photo,
@@ -209,10 +219,12 @@ def self_register(
     )
     member.full_clean(exclude=["membership_number"])
 
-    consume_code(phone, PURPOSE.REGISTER, code)
+    if code:
+        consume_code(phone, PURPOSE.REGISTER, code)
     with transaction.atomic():
         now = timezone.now()
-        member.phone_verified_at = now
+        if code:
+            member.phone_verified_at = now
         member.consent_at = now
         _save_member(member)
         user = _member_account(member, pin)

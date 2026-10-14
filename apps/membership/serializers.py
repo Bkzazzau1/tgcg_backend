@@ -225,21 +225,32 @@ class AssistedRegistrationSerializer(serializers.Serializer):
 
 
 class SelfRegistrationSerializer(serializers.Serializer):
-    """A member registers themselves in the app from their scanned PVC."""
+    """A member registers themselves in the app. As on USSD, joining needs the
+    phone, the PVC's VIN and polling unit code, a name and a PIN; the rest is
+    optional."""
 
     phone_number = serializers.CharField(max_length=20)
-    code = serializers.CharField(max_length=6)
+    code = serializers.CharField(
+        max_length=6,
+        required=False,
+        allow_blank=True,
+        help_text="SMS code. Needed only while `register/options/` says phone_code_required.",
+    )
     vin = serializers.CharField(max_length=25)
     delim = serializers.CharField(max_length=20, help_text="PVC DELIM, e.g. 18/23/01/001")
     full_name = serializers.CharField(max_length=150)
-    gender = serializers.ChoiceField(choices=Gender.choices)
+    gender = serializers.ChoiceField(choices=Gender.choices, required=False, allow_blank=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
     occupation = serializers.CharField(max_length=100, required=False, allow_blank=True)
     email = serializers.EmailField(required=False, allow_blank=True)
     pin = serializers.CharField(max_length=6, min_length=6, write_only=True)
     consent = serializers.BooleanField()
-    photo = serializers.FileField(help_text="Selfie taken in the app.")
-    pvc_image = serializers.FileField(help_text="Photo of the front of the PVC.")
+    photo = serializers.FileField(
+        required=False, allow_null=True, help_text="Optional selfie taken in the app."
+    )
+    pvc_image = serializers.FileField(
+        required=False, allow_null=True, help_text="Optional photo of the front of the PVC."
+    )
 
 
 class RegistrationCodeSerializer(serializers.Serializer):
