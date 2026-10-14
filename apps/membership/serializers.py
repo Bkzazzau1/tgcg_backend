@@ -237,7 +237,18 @@ class SelfRegistrationSerializer(serializers.Serializer):
         help_text="SMS code. Needed only while `register/options/` says phone_code_required.",
     )
     vin = serializers.CharField(max_length=25)
-    delim = serializers.CharField(max_length=20, help_text="PVC DELIM, e.g. 18/23/01/001")
+    delim = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True,
+        help_text="Polling unit code (DELIM) from the PVC, e.g. 18/23/01/001.",
+    )
+    polling_unit = serializers.CharField(
+        max_length=20,
+        required=False,
+        allow_blank=True,
+        help_text="Instead of `delim`: the code of a unit found by name in `register/places/`.",
+    )
     full_name = serializers.CharField(max_length=150)
     gender = serializers.ChoiceField(choices=Gender.choices, required=False, allow_blank=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)

@@ -277,6 +277,7 @@ def test_without_sms_members_join_with_what_ussd_asks(outbox, settings):
     # Nothing proved the number, so it is not recorded as confirmed.
     assert member.phone_verified_at is None and member.consent_at
     assert not member.photo and not member.pvc_image and member.gender == ""
+    assert not member.polling_unit_from_list  # the code from the card
     assert member.user.role == Role.MEMBER
     assert response.json()["member"]["verification_status"] == "pendingReview"
     results = dict(member.verification_checks.values_list("kind", "result"))
@@ -311,6 +312,53 @@ def test_without_sms_still_one_member_per_pvc_and_phone(outbox, settings):
     same_phone = join(client, vin="90F5B0E8D0295847264")
     assert same_phone.status_code == 400 and "phone_number" in same_phone.json()
     assert Member.objects.count() == 1
+
+
+# --- finding a polling unit by name --------------------------------------------------
+
+
+def test_places_lead_from_the_state_to_the_polling_unit_without_map_positions():
+    client = APIClient()
+    states = client.get("/api/v1/register/places/states/").json()
+    assert {"code": "KD", "name": State.objects.get(code="KD").name} in states
+    lgas = client.get("/api/v1/register/places/lgas/", {"state": "KD"}).json()
+    assert {"code": "KD-ZARIA", "name": Lga.objects.get(code="KD-ZARIA").name} in lgas
+    ward = PollingUnit.objects.select_related("ward").get(code="18-23-01-001").ward
+    wards = client.get("/api/v1/register/places/wards/", {"lga": "KD-ZARIA"}).json()
+    assert {"code": ward.code, "name": ward.name} in wards
+
+    units = client.get("/api/v1/register/places/polling-units/", {"ward": ward.code}).json()
+    assert len(units) == PollingUnit.objects.filter(ward=ward).count()
+    unit = next(u for u in units if u["code"] == "18-23-01-001")
+    assert unit["name"] == "KWARBAI I/ PRI. SCH. MADARKACI"
+    assert set(unit) == {"code", "name", "location"}  # no coordinates
+
+
+def test_places_need_the_area_to_list():
+    client = APIClient()
+    missing = client.get("/api/v1/register/places/wards/")
+    assert missing.status_code == 400 and "lga" in missing.json()
+    assert client.get("/api/v1/register/places/lgas/", {"state": "XX"}).json() == []
+
+
+def test_a_unit_found_by_name_is_marked_for_a_coordinator_to_check(outbox, settings):
+    settings.REGISTRATION_PHONE_CODE_REQUIRED = False
+    response = join(APIClient(), delim="", polling_unit="18-23-01-001")
+    assert response.status_code == 201, response.content
+    assert response.json()["member"]["polling_unit"]["code"] == "18-23-01-001"
+    member = Member.objects.get()
+    assert member.polling_unit_from_list
+    check = member.verification_checks.get(kind="pvcCaptured")
+    assert check.result == "pending" and "chosen from the list" in check.detail
+
+
+def test_joining_needs_the_unit_code_or_a_unit_found_by_name(outbox, settings):
+    settings.REGISTRATION_PHONE_CODE_REQUIRED = False
+    missing = join(APIClient(), delim="")
+    assert missing.status_code == 400 and "delim" in missing.json()
+    unknown = join(APIClient(), delim="", polling_unit="18-23-99-999")
+    assert unknown.status_code == 400 and "polling_unit" in unknown.json()
+    assert not Member.objects.exists()
 
 
 def test_pin_lockout_after_five_failures(outbox, settings):

@@ -96,6 +96,9 @@ class Member(TimeStampedModel, ScopedModel):
     registration_channel = models.CharField(
         max_length=8, choices=RegistrationChannel.choices, default=RegistrationChannel.ASSISTED
     )
+    # The member picked the polling unit from the lists instead of giving the
+    # code on their PVC, so it may not be where INEC registered them.
+    polling_unit_from_list = models.BooleanField(default=False)
     phone_verified_at = models.DateTimeField(null=True, blank=True)
     consent_at = models.DateTimeField(
         null=True, blank=True, help_text="When the member accepted the data-use notice."

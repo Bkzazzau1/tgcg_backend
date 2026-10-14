@@ -56,6 +56,7 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | GET | `/api/v1/auth/me/` | Current user, with `scope` shaped like the client's `GeographicScope` |
 | GET | `/api/v1/geography/{zones,states,senatorial-districts,lgas,wards,polling-units}/` | Read-only reference data; filter with e.g. `?state__code=LA` |
 | GET | `/api/v1/register/options/` | Public. `{"phone_code_required"}`: whether joining in the app needs an SMS code |
+| GET | `/api/v1/register/places/{states,lgas,wards,polling-units}/` | Public. Lists to find a polling unit by name (`?state=`, `?lga=`, `?ward=`): INEC names and codes, no map positions |
 | POST | `/api/v1/register/code/` | Public. `{"phone_number", "vin"}` checks both are free and sends an SMS code |
 | POST | `/api/v1/register/` | Public, multipart. Self-registration (phone, VIN, polling unit code, name, PIN); returns a signed-in member session |
 | POST | `/api/v1/register/pin-code/`, `/api/v1/register/pin/` | Public. Set or reset a member's PIN by SMS code |
@@ -202,7 +203,11 @@ PVC's VIN and polling unit code, plus a name and PIN for the app account.
    Optional: `gender`, `date_of_birth`, `occupation`, `email`, `photo` (a
    selfie) and `pvc_image` (the app can also read the card to fill the form).
    - The DELIM code (e.g. `18/23/01/001`) places the member at that INEC
-     polling unit.
+     polling unit. Someone who cannot read it sends `polling_unit` instead:
+     the code of a unit found by name through `register/places/` (state,
+     LGA, ward, then unit). That is recorded (`polling_unit_from_list`) and
+     the PVC check stays pending, since it may not be where INEC registered
+     them; an approved polling unit change from an updated card clears it.
    - The member is active immediately and receives a sign-in session.
    - A code that is given is always checked. Without one, the phone stays
      unconfirmed (no `phone_verified_at`; its identity check stays pending)

@@ -66,6 +66,22 @@ def polling_unit_from_delim(delim: str) -> PollingUnit:
     return polling_unit
 
 
+def _registration_unit(delim, chosen) -> tuple[PollingUnit, bool]:
+    """The unit from the PVC's code or, failing that, one found by name in the
+    lists; True when it came from the lists."""
+    if (delim or "").strip():
+        return polling_unit_from_delim(delim), False
+    chosen = (chosen or "").strip()
+    if not chosen:
+        raise ValidationError(
+            {"delim": "Enter the polling unit code from your PVC, or find your polling unit."}
+        )
+    unit = PollingUnit.objects.select_related("ward__lga__state__zone").filter(code=chosen).first()
+    if unit is None:
+        raise ValidationError({"polling_unit": "That polling unit was not found. Find it again."})
+    return unit, True
+
+
 def validate_pin(pin: str) -> str:
     pin = (pin or "").strip()
     if not re.fullmatch(r"\d{6}", pin):
@@ -169,10 +185,11 @@ def self_register(
     *,
     phone_number,
     vin,
-    delim,
     full_name,
     pin,
     consent,
+    delim="",
+    polling_unit="",
     code="",
     gender="",
     date_of_birth=None,
@@ -185,9 +202,11 @@ def self_register(
 
     As on USSD, joining needs the phone, the PVC's VIN and polling unit code,
     plus the name and PIN of the app account; a selfie, a card photo and the
-    other details are optional. A given SMS code is checked and confirms the
-    phone. Without SMS (REGISTRATION_PHONE_CODE_REQUIRED off) the member joins
-    with no code and the phone stays unconfirmed, as its check records.
+    other details are optional. Someone who cannot read the code may give a
+    `polling_unit` found by name instead; that is recorded, because it may not
+    be where INEC registered them. A given SMS code is checked and confirms
+    the phone. Without SMS (REGISTRATION_PHONE_CODE_REQUIRED off) the member
+    joins with no code and the phone stays unconfirmed, as its check records.
     """
     _require_consent(consent)
     phone = require_phone(phone_number)
@@ -198,7 +217,7 @@ def self_register(
     if not code and settings.REGISTRATION_PHONE_CODE_REQUIRED:
         raise ValidationError({"code": "Enter the 6-digit code sent to your phone."})
     pin = validate_pin(pin)
-    polling_unit = polling_unit_from_delim(delim)
+    unit, from_list = _registration_unit(delim, polling_unit)
     validate_image(photo, "photo", required=False)
     validate_image(pvc_image, "pvc_image", required=False)
     ensure_available(phone, vin)
@@ -215,7 +234,8 @@ def self_register(
         pvc_image=pvc_image,
         registration_channel=RegistrationChannel.SELF,
         scope_level=GeographyLevel.POLLING_UNIT,
-        polling_unit=polling_unit,
+        polling_unit=unit,
+        polling_unit_from_list=from_list,
     )
     member.full_clean(exclude=["membership_number"])
 

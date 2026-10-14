@@ -9,7 +9,12 @@ import mimetypes
 from django.conf import settings
 from django.db import transaction
 from django.http import FileResponse, Http404
-from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    extend_schema,
+    extend_schema_view,
+    inline_serializer,
+)
 from rest_framework import generics, serializers, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -22,7 +27,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.announcements.serializers import AnnouncementSerializer
 from apps.announcements.views import announcements_for
 from apps.core.permissions import Capability, has_capability, is_staff_operator
-from apps.geography.models import PollingUnit
+from apps.geography.models import Lga, PollingUnit, State, Ward
 
 from . import pvc_reading, registration, services
 from .models import Member, PollingUnitChangeRequest
@@ -95,6 +100,84 @@ class RegistrationOptionsView(APIView):
     @extend_schema(responses={200: REGISTRATION_OPTIONS})
     def get(self, request):
         return Response({"phone_code_required": settings.REGISTRATION_PHONE_CODE_REQUIRED})
+
+
+PLACE_FIELDS = {"code": serializers.CharField(), "name": serializers.CharField()}
+PLACES = inline_serializer("RegistrationPlace", PLACE_FIELDS, many=True)
+UNIT_PLACES = inline_serializer(
+    "RegistrationPollingUnitPlace",
+    {**PLACE_FIELDS, "location": serializers.CharField(help_text="INEC's location note.")},
+    many=True,
+)
+
+
+def _within(name, example):
+    return OpenApiParameter(name, str, required=True, description=f"e.g. {example}")
+
+
+class _PlacesView(APIView):
+    """A list for finding a polling unit by name while registering: public INEC
+    names and codes, sorted by name. Like the code lookup, no map positions."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "registration_places"
+    within = ""  # the query parameter naming the area to list, if any
+
+    def places(self, code):
+        raise NotImplementedError
+
+    def get(self, request):
+        code = request.query_params.get(self.within, "").strip() if self.within else ""
+        if self.within and not code:
+            raise serializers.ValidationError({self.within: "Choose one first."})
+        return Response(list(self.places(code)))
+
+
+@extend_schema_view(get=extend_schema(responses={200: PLACES}))
+class RegistrationStatesView(_PlacesView):
+    """The states, to find a polling unit by name while registering."""
+
+    def places(self, code):
+        return State.objects.order_by("name", "code").values("code", "name")
+
+
+@extend_schema_view(get=extend_schema(parameters=[_within("state", "KD")], responses={200: PLACES}))
+class RegistrationLgasView(_PlacesView):
+    """The LGAs of a state."""
+
+    within = "state"
+
+    def places(self, code):
+        lgas = Lga.objects.filter(state__code=code).order_by("name", "code")
+        return lgas.values("code", "name")
+
+
+@extend_schema_view(
+    get=extend_schema(parameters=[_within("lga", "KD-ZARIA")], responses={200: PLACES})
+)
+class RegistrationWardsView(_PlacesView):
+    """The wards of an LGA."""
+
+    within = "lga"
+
+    def places(self, code):
+        wards = Ward.objects.filter(lga__code=code).order_by("name", "code")
+        return wards.values("code", "name")
+
+
+@extend_schema_view(
+    get=extend_schema(parameters=[_within("ward", "18-23-01")], responses={200: UNIT_PLACES})
+)
+class RegistrationPollingUnitsView(_PlacesView):
+    """The polling units of a ward, with INEC's location note."""
+
+    within = "ward"
+
+    def places(self, code):
+        units = PollingUnit.objects.filter(ward__code=code).order_by("name", "code")
+        return units.values("code", "name", "location")
 
 
 class RegistrationCodeView(PublicRegistrationView):

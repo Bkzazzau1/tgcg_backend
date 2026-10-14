@@ -85,7 +85,10 @@ def _audit(actor, action, member, reason="", changes=None):
 
 def _run_checks(member) -> dict[str, str]:
     """Record the result of every check, as it stands now."""
-    if member.vin and member.polling_unit_id and member.pvc_image:
+    if member.vin and member.polling_unit_id and member.polling_unit_from_list:
+        detail = "VIN entered; the polling unit was chosen from the list, not the code on the PVC."
+        _record(member, K.PVC_CAPTURED, R.PENDING, detail)
+    elif member.vin and member.polling_unit_id and member.pvc_image:
         _record(member, K.PVC_CAPTURED, R.PASSED, "VIN and polling unit code read from the card.")
     elif member.vin and member.polling_unit_id:
         detail = "VIN and polling unit code entered without a photo of the card."

@@ -389,6 +389,7 @@ def test_polling_unit_changes_are_reviewed_at_the_new_unit(admin, kd_units):
     member = member_account("08033330060", name="Moving Member")
     member.scope_level = GeographyLevel.POLLING_UNIT
     member.polling_unit = kd_units[0]
+    member.polling_unit_from_list = True  # found by name when joining
     member.normalize_scope()
     member.save()
     held = custom_role(admin, "Kaduna Media", [C.SEND_BROADCAST])
@@ -421,6 +422,7 @@ def test_polling_unit_changes_are_reviewed_at_the_new_unit(admin, kd_units):
     assert approved.status_code == 200 and approved.json()["status"] == "approved"
     member.refresh_from_db()
     assert member.polling_unit_id == kd_units[1].pk
+    assert not member.polling_unit_from_list  # it now comes from the updated card
     # The registered polling unit moved; the appointment did not.
     assert RoleAssignment.objects.get(member=member).status == "active"
     assert engine.allows(member.user, C.SEND_BROADCAST, ScopeRef.resolve("state", "KD"))

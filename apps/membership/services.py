@@ -482,7 +482,16 @@ def approve_polling_unit_change(*, actor, change, reason: str = "") -> PollingUn
     member.polling_unit = change.polling_unit
     member.normalize_scope()
     member.pvc_image = change.pvc_image
-    member.save(update_fields=["scope_level", *SCOPE_FIELDS, "pvc_image", "updated_at"])
+    member.polling_unit_from_list = False  # it now comes from the updated card
+    member.save(
+        update_fields=[
+            "scope_level",
+            *SCOPE_FIELDS,
+            "pvc_image",
+            "polling_unit_from_list",
+            "updated_at",
+        ]
+    )
     _decide(change, actor, PU.APPROVED, reason.strip())
     _audit(
         actor,

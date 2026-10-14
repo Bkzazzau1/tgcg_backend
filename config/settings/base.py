@@ -141,6 +141,8 @@ REST_FRAMEWORK = {
         "registration": env("API_THROTTLE_REGISTRATION", default="30/hour"),
         "delim_lookup": env("API_THROTTLE_DELIM_LOOKUP", default="120/hour"),
         "pvc_reading": env("API_THROTTLE_PVC_READING", default="30/hour"),
+        # Public INEC lists for finding a polling unit by name; several per sign-up.
+        "registration_places": env("API_THROTTLE_REGISTRATION_PLACES", default="600/hour"),
     },
 }
 

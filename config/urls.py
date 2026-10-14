@@ -93,6 +93,15 @@ api_v1 = [
     # Registration. Views that check SMS codes must not run in the request
     # transaction, so failed code attempts are recorded.
     path("register/options/", reg.RegistrationOptionsView.as_view(), name="register-options"),
+    # Finding a polling unit by name: states, then LGAs, wards and units.
+    path("register/places/states/", reg.RegistrationStatesView.as_view(), name="register-states"),
+    path("register/places/lgas/", reg.RegistrationLgasView.as_view(), name="register-lgas"),
+    path("register/places/wards/", reg.RegistrationWardsView.as_view(), name="register-wards"),
+    path(
+        "register/places/polling-units/",
+        reg.RegistrationPollingUnitsView.as_view(),
+        name="register-polling-units",
+    ),
     path("register/code/", reg.RegistrationCodeView.as_view(), name="register-code"),
     path(
         "register/",
