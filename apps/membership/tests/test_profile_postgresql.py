@@ -43,13 +43,17 @@ def member(request):
             scope_level=GeographyLevel.POLLING_UNIT,
             polling_unit=unit,
         )
-    return make_member(
+    person = make_member(
         full_name="Typed Member",
         registration_channel=RegistrationChannel.USSD,
-        scope_level=GeographyLevel.POLLING_UNIT,
-        polling_unit=unit,
         user=account,
     )
+    person.scope_level = GeographyLevel.POLLING_UNIT
+    person.polling_unit = unit
+    person.normalize_scope()
+    person.full_clean()
+    person.save()
+    return person
 
 
 def picture(name):
