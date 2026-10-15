@@ -9,7 +9,12 @@ from apps.access import views as access
 from apps.accounts.views import LoginView, LogoutView, MeView, PasswordChangeView
 from apps.announcements.views import AnnouncementViewSet
 from apps.core.views import HealthView
-from apps.field.views import EvidenceDownloadView, FieldReportViewSet, IncidentViewSet
+from apps.field.views import (
+    EvidenceDownloadView,
+    FieldReportViewSet,
+    IncidentViewSet,
+    LiveKitWebhookView,
+)
 from apps.forum import views as forum
 from apps.geography import views as geography
 from apps.meetings.views import MeetingViewSet
@@ -76,6 +81,7 @@ api_v1 = [
         name="evidence-download",
     ),
     path("collation/", CollationView.as_view(), name="collation"),
+    path("livekit/webhook/", LiveKitWebhookView.as_view(), name="livekit-webhook"),
     path(
         "forum/attachments/<uuid:uuid>/",
         forum.AttachmentView.as_view(),

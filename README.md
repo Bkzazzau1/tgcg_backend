@@ -86,6 +86,8 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | POST | `/api/v1/incidents/{reference}/assign/` | `{"team": ..., "note": ...}` |
 | GET | `/api/v1/incidents/{reference}/events/` | Incident audit trail |
 | GET, POST | `/api/v1/incidents/{reference}/evidence/` | Multipart upload: `file`, `type`, `caption`, `latitude`, `longitude`, `captured_at`, `content_hash`, `client_id` |
+| POST | `/api/v1/incidents/{reference}/live/start/`, `watch/`, `end/` | Live video of an incident: a LiveKit pass to broadcast (its reporter) or watch (whoever sees it); `end` for the broadcaster or a coordinator over it |
+| POST | `/api/v1/livekit/webhook/` | Events LiveKit posts, signed with the API key: rooms closing, recordings ending |
 | GET, POST | `/api/v1/field-reports/` | Optional `incident` reference |
 | POST | `/api/v1/field-reports/{reference}/review/` | `{"accepted": bool, "reason": ...}` |
 | GET, POST | `/api/v1/field-reports/{reference}/evidence/` | As for incidents |
@@ -356,6 +358,31 @@ writes codes to the server log, and production refuses to start with it.
 - Files are stored under random names and never served from `/media/`.
   Downloads go through `/evidence/{id}/download/`, which checks scope and
   `viewEvidence`. In production, use private object storage.
+
+## Live incident video
+
+An incident's reporter can broadcast live video of it from the phone
+(`live/start/`), and whoever can see the incident watches it
+(`live/watch/`), unseen and without broadcasting. The video runs on
+LiveKit (set up for meetings, docs/meetings.md); the server only signs
+passes. Each incident shows its latest stream under `live`.
+
+- **Recording:** with a bucket set, LiveKit records the stream to it as an
+  MP4, and `manage.py collect_recordings` copies the finished recording
+  onto the incident as video evidence, then deletes it from the bucket.
+  Without a bucket the video is watched live but not kept (`recording`
+  is `off`). Settings: `LIVE_RECORDING_S3_ENDPOINT`,
+  `LIVE_RECORDING_S3_BUCKET`, `LIVE_RECORDING_S3_ACCESS_KEY`,
+  `LIVE_RECORDING_S3_SECRET`, optionally `LIVE_RECORDING_S3_REGION`
+  (`us-east-1`) and `LIVE_RECORDING_S3_FORCE_PATH_STYLE` (true, for MinIO).
+  Any S3-compatible store works; LiveKit must be able to reach it.
+- **Run `uv run python manage.py collect_recordings` every minute** (cron).
+  It also ends streams still open after `LIVE_STREAM_MAX_MINUTES` (120).
+- **Webhook:** set `https://<api host>/api/v1/livekit/webhook/` as the
+  LiveKit project's webhook URL. A closed room then ends its stream at
+  once, and a failed recording says so; unsigned events are refused.
+- Recording costs LiveKit egress minutes, and each recording is stored
+  with the incident's other evidence.
 
 ## Results and collation
 

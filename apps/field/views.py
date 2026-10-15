@@ -1,6 +1,9 @@
 from django.db.models import Q
-from django.http import FileResponse
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 from django_filters import rest_framework as filters
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
@@ -21,9 +24,10 @@ from apps.geography.scope import (
     within_scope_any_q,
     within_scope_q,
 )
+from apps.meetings import livekit
 from apps.membership.serializers import flatten_scope
 
-from . import services
+from . import live, services
 from .models import OPEN_INCIDENT_STATUSES, Evidence, FieldReport, Incident
 from .serializers import (
     EvidenceSerializer,
@@ -33,6 +37,7 @@ from .serializers import (
     IncidentEventSerializer,
     IncidentSerializer,
     IncidentStatusSerializer,
+    LivePassSerializer,
     ReportReviewSerializer,
 )
 
@@ -154,7 +159,7 @@ class IncidentViewSet(
         return (
             visible_incidents(self.request.user)
             .select_related("reporter", *SCOPE_FIELDS)
-            .prefetch_related("evidence__uploader")
+            .prefetch_related("evidence__uploader", "live_streams__started_by")
         )
 
     def perform_create(self, serializer):
@@ -191,6 +196,27 @@ class IncidentViewSet(
         incident = self.get_object()
         events = incident.events.select_related("actor")
         return Response(IncidentEventSerializer(events, many=True).data)
+
+    @extend_schema(request=None, responses=LivePassSerializer)
+    @action(detail=True, methods=["post"], url_path="live/start")
+    def go_live(self, request, reference=None):
+        """Its reporter broadcasts live video of it from the phone (LiveKit)."""
+        joining = live.go_live(actor=request.user, incident=self.get_object())
+        return Response(LivePassSerializer(joining).data)
+
+    @extend_schema(request=None, responses=LivePassSerializer)
+    @action(detail=True, methods=["post"], url_path="live/watch")
+    def watch_live(self, request, reference=None):
+        """A pass to watch its live video, for whoever can see the incident."""
+        joining = live.watch(actor=request.user, incident=self.get_object())
+        return Response(LivePassSerializer(joining).data)
+
+    @extend_schema(request=None, responses=IncidentSerializer)
+    @action(detail=True, methods=["post"], url_path="live/end")
+    def end_live(self, request, reference=None):
+        incident = self.get_object()
+        live.end_live(actor=request.user, incident=incident)
+        return self._respond(self.get_queryset().get(pk=incident.pk))
 
 
 class FieldReportViewSet(
@@ -281,3 +307,17 @@ class EvidenceDownloadView(APIView):
         response["X-Content-SHA256"] = evidence.content_hash
         response["Cache-Control"] = "private, no-store"
         return response
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class LiveKitWebhookView(View):
+    """Events LiveKit posts (a room closed, a recording ended), signed with
+    this server's LiveKit API key. Set it as the project's webhook URL."""
+
+    def post(self, request):
+        try:
+            event = livekit.read_webhook(request.body, request.headers.get("Authorization", ""))
+        except (livekit.LiveKitError, livekit.NotConfigured):
+            return HttpResponse(status=401)
+        live.handle_event(event)
+        return HttpResponse(status=204)

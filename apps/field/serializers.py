@@ -1,11 +1,36 @@
 from django.urls import reverse
+from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.choices import EvidenceType, IncidentSeverity, IncidentStatus
 from apps.geography.gps import GpsFixSerializer, GpsReadSerializer
 from apps.geography.scope import ScopeField
 
-from .models import Evidence, FieldReport, Incident, IncidentEvent
+from . import live
+from .models import Evidence, FieldReport, Incident, IncidentEvent, LiveStream
+
+
+class LiveStreamSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(source="uuid", read_only=True)
+    is_live = serializers.SerializerMethodField(help_text="Broadcasting now.")
+    started_by = serializers.SlugRelatedField(slug_field="access_id", read_only=True)
+
+    class Meta:
+        model = LiveStream
+        fields = ["id", "is_live", "started_by", "started_at", "ended_at", "recording"]
+        read_only_fields = fields
+
+    def get_is_live(self, stream) -> bool:
+        return stream.is_live_at(timezone.now())
+
+
+class LivePassSerializer(serializers.Serializer):
+    stream = LiveStreamSerializer()
+    url = serializers.CharField(help_text="The LiveKit server to connect to.")
+    token = serializers.CharField(help_text="The pass; connect within 30 minutes.")
+    room = serializers.CharField()
+    expires_at = serializers.DateTimeField()
 
 
 class EvidenceSerializer(serializers.ModelSerializer):
@@ -72,6 +97,7 @@ class IncidentSerializer(serializers.ModelSerializer):
         write_only=True, required=False, allow_null=True, help_text="Phone GPS reading."
     )
     location = GpsReadSerializer(source="*", read_only=True)
+    live = serializers.SerializerMethodField(help_text="Its latest live video, if any.")
 
     class Meta:
         model = Incident
@@ -98,6 +124,7 @@ class IncidentSerializer(serializers.ModelSerializer):
             "origin",
             "client_id",
             "evidence",
+            "live",
             "created_at",
             "updated_at",
         ]
@@ -113,6 +140,11 @@ class IncidentSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {"client_id": {"validators": []}}
         validators = []
+
+    @extend_schema_field(LiveStreamSerializer(allow_null=True))
+    def get_live(self, incident):
+        stream = live.latest_stream(incident)
+        return LiveStreamSerializer(stream).data if stream else None
 
 
 class IncidentStatusSerializer(serializers.Serializer):

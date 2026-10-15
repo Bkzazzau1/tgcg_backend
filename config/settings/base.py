@@ -261,6 +261,17 @@ LIVEKIT_URL = env("LIVEKIT_URL", default="")  # wss://<project>.livekit.cloud
 LIVEKIT_API_KEY = env("LIVEKIT_API_KEY", default="")
 LIVEKIT_API_SECRET = env("LIVEKIT_API_SECRET", default="")
 
+# Live incident video: a stream counts as live for at most this long, unless
+# ended sooner. Recordings go to an S3-compatible bucket (LiveKit uploads
+# there), and the server copies each onto its incident as evidence.
+LIVE_STREAM_MAX_MINUTES = env.int("LIVE_STREAM_MAX_MINUTES", default=120)
+LIVE_RECORDING_S3_ENDPOINT = env("LIVE_RECORDING_S3_ENDPOINT", default="")
+LIVE_RECORDING_S3_BUCKET = env("LIVE_RECORDING_S3_BUCKET", default="")
+LIVE_RECORDING_S3_REGION = env("LIVE_RECORDING_S3_REGION", default="us-east-1")
+LIVE_RECORDING_S3_ACCESS_KEY = env("LIVE_RECORDING_S3_ACCESS_KEY", default="")
+LIVE_RECORDING_S3_SECRET = env("LIVE_RECORDING_S3_SECRET", default="")
+LIVE_RECORDING_S3_FORCE_PATH_STYLE = env.bool("LIVE_RECORDING_S3_FORCE_PATH_STYLE", default=True)
+
 # --- GPS ---------------------------------------------------------------------------
 PU_PROXIMITY_METERS = env.int("PU_PROXIMITY_METERS", default=300)
 GPS_MAX_ACCURACY_M = env.int("GPS_MAX_ACCURACY_M", default=150)

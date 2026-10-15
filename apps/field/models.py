@@ -4,6 +4,7 @@ Mirrors FieldIncident / FieldReport / EvidenceAttachment in the Flutter client.
 """
 
 import uuid
+from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
@@ -143,6 +144,7 @@ class IncidentEvent(models.Model):
         STATUS_CHANGED = "statusChanged", "Status changed"
         ASSIGNED = "assigned", "Assigned"
         EVIDENCE_ADDED = "evidenceAdded", "Evidence added"
+        LIVE_VIDEO = "liveVideo", "Live video"
 
     incident = models.ForeignKey(Incident, on_delete=models.CASCADE, related_name="events")
     action = models.CharField(max_length=16, choices=Action.choices)
@@ -254,3 +256,54 @@ class Evidence(TimeStampedModel):
     @property
     def parent(self):
         return self.incident or self.report or self.result
+
+
+class LiveStream(TimeStampedModel):
+    """Live video of an incident, broadcast from its reporter's phone through
+    LiveKit and watched by those who can see the incident. When recording is
+    set up, LiveKit records it to a bucket and the server copies the video
+    onto the incident as evidence."""
+
+    class Recording(models.TextChoices):
+        OFF = "off", "Not recorded"
+        RECORDING = "recording", "Recording"
+        SAVED = "saved", "Saved to the incident"
+        FAILED = "failed", "Recording failed"
+
+    incident = models.ForeignKey(Incident, on_delete=models.PROTECT, related_name="live_streams")
+    started_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    started_at = models.DateTimeField(default=timezone.now)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    ended_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    egress_id = models.CharField(max_length=64, blank=True, db_index=True)
+    recording = models.CharField(max_length=12, choices=Recording.choices, default=Recording.OFF)
+    recording_key = models.CharField(
+        max_length=300, blank=True, help_text="Where the recording is kept in the bucket."
+    )
+    recording_error = models.CharField(max_length=300, blank=True)
+    evidence = models.OneToOneField(
+        Evidence, on_delete=models.SET_NULL, null=True, blank=True, related_name="live_stream"
+    )
+
+    class Meta:
+        ordering = ["-started_at"]
+
+    def __str__(self):
+        return f"Live video of {self.incident_id} from {self.started_at:%Y-%m-%d %H:%M}"
+
+    @property
+    def room_name(self) -> str:
+        """The LiveKit room: not guessable from the incident reference."""
+        return f"tgcg-live-{self.uuid}"
+
+    def is_live_at(self, now) -> bool:
+        limit = timedelta(minutes=settings.LIVE_STREAM_MAX_MINUTES)
+        return self.ended_at is None and now - self.started_at < limit

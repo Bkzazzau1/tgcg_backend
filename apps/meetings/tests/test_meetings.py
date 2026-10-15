@@ -1,6 +1,7 @@
 """Meetings: who may call, see, join and end them, and the LiveKit passes."""
 
 import contextlib
+import io
 import json
 import urllib.error
 from datetime import timedelta
@@ -48,7 +49,7 @@ def sent(monkeypatch):
 
     def urlopen(request, timeout):
         requests.append(request)
-        return contextlib.nullcontext()
+        return contextlib.nullcontext(io.BytesIO(b"{}"))  # LiveKit answers with JSON
 
     monkeypatch.setattr(livekit.urllib.request, "urlopen", urlopen)
     return requests
