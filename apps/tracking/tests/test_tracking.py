@@ -227,9 +227,10 @@ def test_incident_location_is_judged(agent):
         "/api/v1/incidents/", {**payload, "gps": fix(mocked=True)}, format="json"
     ).json()
     assert with_fake["location"]["status"] == "suspect"
+    # From a polling unit, a report needs GPS (15 October 2026).
     without = agent.post("/api/v1/incidents/", payload, format="json")
-    assert without.status_code == 201
-    assert without.json()["location"]["status"] == "noGps"
+    assert without.status_code == 400
+    assert "gps" in without.json()
 
 
 # --- duty, live map, coverage --------------------------------------------------------

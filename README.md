@@ -414,8 +414,13 @@ and gives it one of these statuses:
 | `noGps` | No fix |
 
 - **Check-in and app results require GPS.** Results sent by SMS, USSD or
-  manual entry cannot carry GPS and are not flagged for it. Incidents never
-  require GPS, so someone in danger is never blocked, but they show `noGps`.
+  manual entry cannot carry GPS and are not flagged for it.
+- **Incidents from a polling unit require GPS** (since 15 October 2026): when
+  every area where someone reports incidents is a polling unit (agents and
+  polling unit executives), a report without a fix is refused. Each report
+  is judged against its unit: `location.status` and `distance_to_pu_m`.
+  Coordinators may still report without GPS, for example from a computer;
+  theirs show `noGps`.
 - **Learning polling unit locations.** INEC publishes no coordinates. When a
   ward, LGA, state or zonal coordinator confirms a check-in
   (`confirmAgentLocation`), a unit with no location takes that check-in's

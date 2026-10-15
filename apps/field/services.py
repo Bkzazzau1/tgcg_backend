@@ -9,7 +9,8 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.core.choices import EvidenceType, IncidentStatus, RecordStatus
+from apps.access import engine
+from apps.core.choices import EvidenceType, GeographyLevel, IncidentStatus, RecordStatus
 from apps.core.models import Sequence
 from apps.core.permissions import Capability, has_capability
 from apps.core.uploads import PHOTO_EXTENSIONS, VIDEO_EXTENSIONS, matches_signature
@@ -68,6 +69,13 @@ def _save(instance, exclude=None):
         raise ValidationError("This record conflicts with an existing one.") from exc
 
 
+def reports_only_at_polling_units(actor) -> bool:
+    """Agents and polling unit executives: every area where they report
+    incidents is a polling unit."""
+    areas = engine.areas_for(actor, C.CREATE_INCIDENT)
+    return bool(areas) and all(area.scope_level == GeographyLevel.POLLING_UNIT for area in areas)
+
+
 @transaction.atomic
 def report_incident(*, actor, **fields) -> Incident:
     client_id = fields.get("client_id")
@@ -80,6 +88,12 @@ def report_incident(*, actor, **fields) -> Incident:
     if gps is None and fields.get("latitude") is not None:
         # Older clients send bare coordinates without accuracy.
         gps = {"latitude": fields["latitude"], "longitude": fields.get("longitude")}
+    # Reports from a polling unit say where they were made: how far from the
+    # unit. Coordinators may still report from an office computer.
+    if gps is None and reports_only_at_polling_units(actor):
+        raise ValidationError(
+            {"gps": "Turn on location: a report from your polling unit needs GPS."}
+        )
     incident = Incident(reporter=actor, status=I.REPORTED, **fields)
     incident.normalize_scope()
     incident.apply_fix(gps, incident.polling_unit)

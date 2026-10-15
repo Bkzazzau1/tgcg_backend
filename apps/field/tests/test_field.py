@@ -2,6 +2,7 @@ import hashlib
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
@@ -100,6 +101,15 @@ def report(client, **extra):
         "summary": "Armed group at the unit.",
         **extra,
     }
+    if "latitude" not in extra and "gps" not in extra:
+        # The app sends a GPS fix; from a polling unit it must.
+        payload["gps"] = {
+            "latitude": "10.523000",
+            "longitude": "7.438000",
+            "accuracy_m": 12,
+            "captured_at": timezone.now().isoformat(),
+            "is_mocked": False,
+        }
     return client.post(INCIDENTS, payload, format="json")
 
 
@@ -123,6 +133,15 @@ def test_agent_reports_incident_at_own_polling_unit(agent):
     assert body["scope"]["pollingUnitId"] == "KD-KN-W01-PU001"
     assert body["scope"]["lgaId"] == "KD-KADUNA-NORTH"
     assert IncidentEvent.objects.filter(action="reported").count() == 1
+
+
+def test_reports_from_a_polling_unit_need_gps(agent, coordinator):
+    payload = {"title": "No lights", "category": "Materials / logistics", "severity": "low"}
+    refused = agent.post(INCIDENTS, payload, format="json")
+    assert refused.status_code == 400
+    assert "gps" in refused.json()
+    # A coordinator may still report from an office computer.
+    assert coordinator.post(INCIDENTS, payload, format="json").status_code == 201
 
 
 def test_agent_cannot_report_outside_scope(agent):
