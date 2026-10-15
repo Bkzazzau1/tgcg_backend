@@ -63,6 +63,7 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | POST | `/api/v1/register/pin-code/`, `/api/v1/register/pin/` | Public. Set or reset a member's PIN by SMS code |
 | POST | `/api/v1/members/register/` | Coordinator registers someone in person (multipart, PVC optional) |
 | GET | `/api/v1/members/` | Members in your scope; filter `status`, `registration_channel`, `gender`, scope codes; search name, phone, number |
+| GET | `/api/v1/members/counts/?level=&code=&by=` | Members registered in each smaller area (`by`, e.g. `ward`) of an area wholly within your reach: `{"total", "counts": {code: n}}` |
 | GET, PATCH | `/api/v1/members/{membership_number}/` | e.g. `TGCG-000001` |
 | GET | `/api/v1/members/{membership_number}/photo/` | Member photo (scope-checked) |
 | GET | `/api/v1/members/verify/?token=` | Staff scan a membership card QR code |
@@ -249,9 +250,20 @@ uv run python manage.py import_executives list.csv --ward 18-23-05 \
   Coordinator, PU Youth Leader, Assistant PU Youth Leader, PU Women
   Coordinator, PU Organising Officer) report to the Ward Coordinator and are
   created when missing. They can join meetings, report incidents and field
-  reports, submit results, see incidents and the situation room, check
-  identities and take part in discussions at their unit. Administrators
-  change this in Role Management.
+  reports, submit results, see their unit's incidents, check identities and
+  take part in discussions at their unit. Administrators change this in Role
+  Management. The roles imported before 15 October 2026 also had the
+  Situation Room, which is national; remove it with:
+
+  ```bash
+  uv run python manage.py remove_role_permission viewSituationRoom --by <NA access ID> \
+      --role "PU Coordinator" --role "Assistant PU Coordinator" \
+      --role "PU Youth Leader" --role "Assistant PU Youth Leader" \
+      --role "PU Women Coordinator" --role "PU Organising Officer"
+  ```
+
+  It is a dry run until `--commit` is added, changes custom roles only, and
+  writes each change to the audit log as the administrator's.
 - The first password is the phone number as written (`080...`). Members
   change it to a PIN at `/auth/password/`.
 - The chapter checked these people and holds their consent, so the import

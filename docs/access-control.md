@@ -453,6 +453,20 @@ a role does not see is also refused by the server. Since 13 October 2026:
   the identity of someone whose role reaches beyond their area; zonal
   coordinators do not verify.
 
+Since 15 October 2026 the Situation Room is national. The National
+Administrator, Situation Room Director, National Collation Officer, Legal
+Officer and Executive Viewer hold `viewSituationRoom`, and anyone else gets
+it only from a role an administrator gives them. Zonal, state, LGA and ward
+coordinators lost it; they keep their area's incidents in Field Monitoring,
+and Agents on the Ground through `viewLiveOperations` (the agent check-in
+list also accepts `confirmAgentLocation`, which they hold). The polling unit
+executive roles imported that day lost it too (`remove_role_permission`).
+
+Registered members per area (`GET /members/counts/`) are for whoever may
+find members (`MEMBER_READERS`: the administrator, coordinators, and those
+who verify identities), and only for an area wholly within their reach, so a
+count is never a partial one.
+
 Not done yet:
 
 - Observers have their agreed screens, but in the command centre. Moving

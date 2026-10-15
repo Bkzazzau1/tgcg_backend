@@ -1,5 +1,6 @@
-from django.core.exceptions import PermissionDenied
-from django.db.models import Prefetch
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Count, Prefetch
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
@@ -8,11 +9,15 @@ from rest_framework.response import Response
 from apps.access.models import AssignmentStatus, AuditEvent, RoleAssignment
 from apps.access.serializers import AuditEventSerializer
 from apps.accounts.phone import normalize_ng_phone
+from apps.core.choices import GeographyLevel
 from apps.core.permissions import Capability, requires
 from apps.geography.scope import (
+    LEVEL_FIELD,
     SCOPE_FIELDS,
+    ScopeRef,
     scope_contains,
     scope_contains_any,
+    scope_payload,
     within_scope_any_q,
     within_scope_q,
 )
@@ -62,6 +67,8 @@ STANDING_ACTIONS = ("suspend", "deactivate", "restore")
 # The record of standing and identity decisions: for those who make them.
 HISTORY_READERS = (C.VERIFY_MEMBER_IDENTITY, C.SUSPEND_MEMBERS)
 VERIFICATION_ACTIONS = ("verification", "run_checks", "verify", "reject_identity")
+# How deep each level lies below Nigeria (the country is 0).
+DEPTH = {level: depth for depth, level in enumerate(LEVEL_FIELD, start=1)}
 
 SCOPE_FILTERS = {
     "scope_level": ["exact"],
@@ -151,6 +158,59 @@ class MemberViewSet(
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "level",
+                str,
+                enum=GeographyLevel.values,
+                description="The area; defaults to Nigeria",
+            ),
+            OpenApiParameter("code", str, description="The area's code"),
+            OpenApiParameter(
+                "by",
+                str,
+                enum=[*LEVEL_FIELD],
+                required=True,
+                description="The smaller areas to count, e.g. ward",
+            ),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    @action(detail=False, methods=["get"])
+    def counts(self, request):
+        """How many members are registered in each smaller area of an area.
+
+        Only an area wholly within the caller's reach is counted, so no count is
+        partial. Members registered above the `by` level (for example only at
+        their LGA) are in `total` but in no part.
+        """
+        level = request.query_params.get("level") or GeographyLevel.COUNTRY
+        scope = ScopeRef.resolve(level, request.query_params.get("code"))
+        if not scope_contains_any(request.user, scope, MEMBER_READERS):
+            raise PermissionDenied("This area is outside your access.")
+        by = request.query_params.get("by")
+        if DEPTH.get(by, 0) <= DEPTH.get(scope.scope_level, 0):
+            raise ValidationError({"by": "Choose a level smaller than the area."})
+        members = Member.objects.filter(within_scope_q(scope)).filter(
+            within_scope_any_q(request.user, MEMBER_READERS)
+        )
+        field = LEVEL_FIELD[by]
+        parts = (
+            members.exclude(**{f"{field}__isnull": True})
+            .values_list(f"{field}__code")
+            .annotate(n=Count("pk"))
+            .order_by()
+        )
+        return Response(
+            {
+                "scope": scope_payload(scope),
+                "by": by,
+                "total": members.count(),
+                "counts": dict(parts),
+            }
+        )
 
     @extend_schema(responses={(200, "image/jpeg"): bytes})
     @action(detail=True, methods=["get"])

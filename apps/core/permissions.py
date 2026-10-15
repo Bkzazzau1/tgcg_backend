@@ -128,9 +128,10 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             C.EXPORT_REPORTS,
         }
     ),
+    # Coordinators see no Situation Room: it is national (15 October 2026), for
+    # the national roles and whoever an administrator gives it through a role.
     Role.ZONAL_COORDINATOR: frozenset(
         {
-            C.VIEW_SITUATION_ROOM,
             C.VIEW_LIVE_OPERATIONS,
             C.VIEW_ALERTS,
             C.VIEW_ANALYTICS,
@@ -155,7 +156,6 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
     ),
     Role.STATE_COORDINATOR: frozenset(
         {
-            C.VIEW_SITUATION_ROOM,
             C.VIEW_LIVE_OPERATIONS,
             C.VIEW_ALERTS,
             C.VIEW_ANALYTICS,
@@ -183,7 +183,6 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
     ),
     Role.LGA_COORDINATOR: frozenset(
         {
-            C.VIEW_SITUATION_ROOM,
             C.VIEW_LIVE_OPERATIONS,
             C.VIEW_ALERTS,
             C.VIEW_GEOGRAPHY,
@@ -206,7 +205,6 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
     ),
     Role.WARD_COORDINATOR: frozenset(
         {
-            C.VIEW_SITUATION_ROOM,
             C.VIEW_LIVE_OPERATIONS,
             C.VIEW_GEOGRAPHY,
             C.VIEW_INCIDENTS,

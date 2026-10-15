@@ -45,7 +45,8 @@ PU_ROLES = (
     "PU Organising Officer",
 )
 # What they may do at their polling unit, as agreed with the user on
-# 15 October 2026. Administrators change a role later in Role Management.
+# 15 October 2026: their unit's incidents, but no Situation Room, which is
+# national. Administrators change a role later in Role Management.
 PU_PERMISSIONS = sorted(
     {
         C.VIEW_MEETING_ROOM,
@@ -54,7 +55,6 @@ PU_PERMISSIONS = sorted(
         C.SUBMIT_FIELD_REPORT,
         C.SUBMIT_ELECTION_RESULT,
         C.VIEW_INCIDENTS,
-        C.VIEW_SITUATION_ROOM,
         C.VERIFY_MEMBER_IDENTITY,
         C.VIEW_DISCUSSION_ROOM,
         C.CREATE_DISCUSSION_THREAD,
