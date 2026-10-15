@@ -133,6 +133,12 @@ PERMISSIONS: dict[str, PermissionInfo] = {
         _p(C.VIEW_DISCUSSION_ROOM, M.DISCUSSION_ROOMS, "view", "View discussion rooms"),
         _p(C.CREATE_DISCUSSION_THREAD, M.DISCUSSION_ROOMS, "create", "Start discussions"),
         _p(C.POST_DISCUSSION_REPLY, M.DISCUSSION_ROOMS, "create", "Reply in discussions"),
+        _p(
+            C.MODERATE_DISCUSSION,
+            M.DISCUSSION_ROOMS,
+            "approve",
+            "Approve and hide discussion posts",
+        ),
         _p(C.VIEW_MEETING_ROOM, M.MEETINGS, "view", "View meetings"),
         _p(C.START_MEETING, M.MEETINGS, "create", "Start meetings"),
         _p(C.JOIN_MEETING, M.MEETINGS, "view", "Join meetings"),

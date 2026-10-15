@@ -462,6 +462,13 @@ and Agents on the Ground through `viewLiveOperations` (the agent check-in
 list also accepts `confirmAgentLocation`, which they hold). The polling unit
 executive roles imported that day lost it too (`remove_role_permission`).
 
+The forum (15 October 2026) is for everyone with a role. Agents and
+observers now start discussions too (`createDiscussionThread`), since
+anyone with a role at a polling unit may post. A post made at a polling unit
+waits for the ward coordinator, who holds the new `moderateDiscussion` for
+their ward (approve, refuse, hide), while the forum's one approval switch is
+on; only a National Administrator changes it.
+
 Registered members per area (`GET /members/counts/`) are for whoever may
 find members (`MEMBER_READERS`: the administrator, coordinators, and those
 who verify identities), and only for an area wholly within their reach, so a

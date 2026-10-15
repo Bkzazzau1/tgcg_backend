@@ -10,6 +10,7 @@ from apps.accounts.views import LoginView, LogoutView, MeView, PasswordChangeVie
 from apps.announcements.views import AnnouncementViewSet
 from apps.core.views import HealthView
 from apps.field.views import EvidenceDownloadView, FieldReportViewSet, IncidentViewSet
+from apps.forum import views as forum
 from apps.geography import views as geography
 from apps.meetings.views import MeetingViewSet
 from apps.membership import registration_views as reg
@@ -51,6 +52,8 @@ router.register("parties", PartyViewSet)
 router.register("elections", ElectionViewSet)
 router.register("results", ResultViewSet, basename="result")
 router.register("meetings", MeetingViewSet, basename="meeting")
+router.register("forum/posts", forum.PostViewSet, basename="forum-post")
+router.register("forum/replies", forum.ReplyViewSet, basename="forum-reply")
 router.register("access/roles", access.RoleViewSet, basename="role")
 router.register("access/assignments", access.AssignmentViewSet, basename="role-assignment")
 router.register("access/delegations", access.DelegationViewSet, basename="delegation")
@@ -73,6 +76,13 @@ api_v1 = [
         name="evidence-download",
     ),
     path("collation/", CollationView.as_view(), name="collation"),
+    path(
+        "forum/attachments/<uuid:uuid>/",
+        forum.AttachmentView.as_view(),
+        name="forum-attachment",
+    ),
+    path("forum/settings/", forum.ForumSettingsView.as_view(), name="forum-settings"),
+    path("forum/assignments/", forum.AssignmentTagsView.as_view(), name="forum-assignments"),
     path("tracking/duty/", DutyView.as_view(), name="tracking-duty"),
     path("tracking/pings/", PingsView.as_view(), name="tracking-pings"),
     path("tracking/live/", LiveAgentsView.as_view(), name="tracking-live"),

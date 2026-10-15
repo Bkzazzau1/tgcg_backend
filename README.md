@@ -447,6 +447,40 @@ pin each unit on site before election day:
 - **Progress:** `/mapping/progress/` reports what share of each area is
   mapped.
 
+## Forum
+
+The discussion forum is for everyone with a role (`viewDiscussionRoom`),
+never ordinary members. Published posts are seen across Nigeria.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/v1/forum/posts/` | The feed, newest first. `?show=mine` (own posts, any status), `?show=review` (posts waiting for you), `?assignment=` or `?assignments=true`, scope codes |
+| POST | `/api/v1/forum/posts/` | Multipart: `body`, `assignment` (a tag), `files` (repeat for each picture or video), optional `level`/`code`, `client_id` |
+| DELETE | `/api/v1/forum/posts/{id}/` | Its author deletes it: words and files go |
+| POST | `/api/v1/forum/posts/{id}/approve/`, `reject/`, `hide/` | Moderators (`moderateDiscussion`) of the post's area; `reject` and `hide` need a `reason` |
+| GET, POST | `/api/v1/forum/posts/{id}/replies/` | Replies, oldest first; a new one appears at once |
+| POST, DELETE | `/api/v1/forum/replies/{id}/hide/`, `/api/v1/forum/replies/{id}/` | A moderator hides a reply (with a reason); its author deletes it |
+| GET | `/api/v1/forum/attachments/{id}/` | A picture or video, for whoever sees its post |
+| GET, PATCH | `/api/v1/forum/settings/` | `approval_required`; only a National Administrator changes it |
+| GET | `/api/v1/forum/assignments/` | Assignment tags on published posts, most recent first |
+
+- **Approval:** while `approval_required` is on (the default), a post made at
+  a polling unit waits for the coordinator of that ward. Ward coordinators
+  hold `moderateDiscussion` for their ward, and the National Administrator
+  holds every permission. Posts made at a ward or above, and every reply,
+  appear at once. Waiting posts stay waiting when approval is switched off.
+- **Assignments:** a post may name the job it shows ("Market rally"); posts
+  with the same tag, in any case, are listed together.
+- **Files:** pictures (`.jpg`, `.jpeg`, `.png`, `.webp`, `.heic`) up to
+  `FORUM_MAX_PHOTO_MB` (15) and videos (`.mp4`, `.mov`, `.3gp`, `.webm`) up to
+  `FORUM_MAX_VIDEO_MB` (50), at most `FORUM_MAX_ATTACHMENTS` (10) and
+  `FORUM_MAX_POST_MB` (100) together per post. Their content must match
+  their type. They are stored under `forum/` in private storage and served
+  only through the attachment endpoint. Nginx's `client_max_body_size` must
+  allow a whole post (for example `110m` at the defaults).
+- **Record:** approvals, refusals, hidden posts and replies, deleted posts
+  and settings changes are in the audit log.
+
 ## Quality checks
 
 ```bash

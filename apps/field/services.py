@@ -12,6 +12,7 @@ from django.utils import timezone
 from apps.core.choices import EvidenceType, IncidentStatus, RecordStatus
 from apps.core.models import Sequence
 from apps.core.permissions import Capability, has_capability
+from apps.core.uploads import PHOTO_EXTENSIONS, VIDEO_EXTENSIONS, matches_signature
 from apps.geography.scope import default_to_actor_scope, scope_contains
 
 from .models import Evidence, FieldReport, Incident, IncidentEvent
@@ -210,32 +211,12 @@ def review_report(*, actor, report, accepted: bool, reason="") -> FieldReport:
 # --- evidence ----------------------------------------------------------------
 
 ALLOWED_EXTENSIONS = {
-    EvidenceType.PHOTO: {".jpg", ".jpeg", ".png", ".webp", ".heic"},
-    EvidenceType.VIDEO: {".mp4", ".mov", ".3gp", ".webm"},
+    EvidenceType.PHOTO: PHOTO_EXTENSIONS,
+    EvidenceType.VIDEO: VIDEO_EXTENSIONS,
     EvidenceType.AUDIO: {".m4a", ".aac", ".mp3", ".wav", ".ogg", ".amr"},
     EvidenceType.DOCUMENT: {".pdf"},
-    EvidenceType.RESULT_FORM: {".jpg", ".jpeg", ".png", ".webp", ".heic", ".pdf"},
+    EvidenceType.RESULT_FORM: PHOTO_EXTENSIONS | {".pdf"},
 }
-
-# Leading bytes for formats we can recognise cheaply. A file claiming one of
-# these extensions must start with a matching signature.
-_SIGNATURES = {
-    ".jpg": (b"\xff\xd8\xff",),
-    ".jpeg": (b"\xff\xd8\xff",),
-    ".png": (b"\x89PNG\r\n\x1a\n",),
-    ".pdf": (b"%PDF-",),
-}
-_ISO_MEDIA = {".mp4", ".mov", ".3gp", ".heic", ".m4a"}  # "ftyp" box at offset 4
-
-
-def _check_signature(extension, head: bytes):
-    if extension in _SIGNATURES:
-        return head.startswith(_SIGNATURES[extension])
-    if extension == ".webp":
-        return head[:4] == b"RIFF" and head[8:12] == b"WEBP"
-    if extension in _ISO_MEDIA:
-        return head[4:8] == b"ftyp"
-    return True
 
 
 def _max_bytes(evidence_type):
@@ -301,7 +282,7 @@ def add_evidence(
     upload.seek(0)
     sha256 = digest.hexdigest()
 
-    if not _check_signature(extension, head):
+    if not matches_signature(extension, head):
         raise ValidationError({"file": "The file content does not match its type."})
     if content_hash and content_hash.lower() != sha256:
         raise ValidationError(

@@ -42,6 +42,7 @@ class Capability(models.TextChoices):
     VIEW_DISCUSSION_ROOM = "viewDiscussionRoom"
     CREATE_DISCUSSION_THREAD = "createDiscussionThread"
     POST_DISCUSSION_REPLY = "postDiscussionReply"
+    MODERATE_DISCUSSION = "moderateDiscussion"
     VIEW_MEETING_ROOM = "viewMeetingRoom"
     START_MEETING = "startMeeting"
     JOIN_MEETING = "joinMeeting"
@@ -216,6 +217,8 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             C.VIEW_COMMUNICATIONS,
             C.SEND_OPERATIONAL_MESSAGE,
             *_COMMON_DISCUSSION,
+            # Posts from the ward's polling units wait for this approval.
+            C.MODERATE_DISCUSSION,
             *_COMMON_MEETING,
             C.VIEW_EVIDENCE,
         }
@@ -229,6 +232,7 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             C.VIEW_COMMUNICATIONS,
             C.SEND_OPERATIONAL_MESSAGE,
             C.VIEW_DISCUSSION_ROOM,
+            C.CREATE_DISCUSSION_THREAD,
             C.POST_DISCUSSION_REPLY,
             C.VIEW_MEETING_ROOM,
             C.JOIN_MEETING,
@@ -243,6 +247,7 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             C.VIEW_COMMUNICATIONS,
             C.SEND_OPERATIONAL_MESSAGE,
             C.VIEW_DISCUSSION_ROOM,
+            C.CREATE_DISCUSSION_THREAD,
             C.POST_DISCUSSION_REPLY,
             C.VIEW_MEETING_ROOM,
             C.JOIN_MEETING,

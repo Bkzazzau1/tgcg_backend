@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "apps.announcements",
     "apps.tracking",
     "apps.meetings",
+    "apps.forum",
     "apps.access",
 ]
 
@@ -184,6 +185,9 @@ SPECTACULAR_SETTINGS = {
         "MeetingKind": "apps.meetings.models.Meeting.Kind",
         "MeetingAudience": "apps.meetings.models.Meeting.Audience",
         "MeetingStatus": "apps.meetings.models.Meeting.Status",
+        "ForumPostStatus": "apps.forum.models.Post.Status",
+        "ForumReplyStatus": "apps.forum.models.Reply.Status",
+        "ForumAttachmentKind": "apps.forum.models.Attachment.Kind",
     },
 }
 
@@ -202,6 +206,14 @@ LOGGING = {
 EVIDENCE_MAX_UPLOAD_MB = env.int("EVIDENCE_MAX_UPLOAD_MB", default=25)
 EVIDENCE_MAX_VIDEO_MB = env.int("EVIDENCE_MAX_VIDEO_MB", default=150)
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+
+# --- Forum ---------------------------------------------------------------------
+# Pictures and videos in posts, served only through the forum's own endpoint.
+FORUM_MAX_PHOTO_MB = env.int("FORUM_MAX_PHOTO_MB", default=15)
+FORUM_MAX_VIDEO_MB = env.int("FORUM_MAX_VIDEO_MB", default=50)
+FORUM_MAX_ATTACHMENTS = env.int("FORUM_MAX_ATTACHMENTS", default=10)
+# All of a post's files together; Nginx's client_max_body_size must allow it.
+FORUM_MAX_POST_MB = env.int("FORUM_MAX_POST_MB", default=100)
 
 # --- Login protection ----------------------------------------------------------
 LOGIN_MAX_FAILED_ATTEMPTS = env.int("LOGIN_MAX_FAILED_ATTEMPTS", default=5)
