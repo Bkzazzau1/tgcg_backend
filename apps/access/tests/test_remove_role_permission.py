@@ -90,3 +90,20 @@ def test_only_a_national_administrator_may(executive_role):
         run("--commit", by="SC-1")
     executive_role.refresh_from_db()
     assert C.VIEW_SITUATION_ROOM in executive_role.permissions
+
+
+def test_adding_a_permission_is_the_same_audited_change(admin, executive_role):
+    out = io.StringIO()
+    args = [C.FIELD_DUTY, "--role", "PU Coordinator", "--by", "NA-1"]
+    call_command("add_role_permission", *args, stdout=out)
+    assert "PU Coordinator: gains it" in out.getvalue()
+    executive_role.refresh_from_db()
+    assert C.FIELD_DUTY not in executive_role.permissions
+
+    call_command("add_role_permission", *args, "--commit", stdout=out)
+    assert "Added fieldDuty to 1 role(s)." in out.getvalue()
+    executive_role.refresh_from_db()
+    assert C.FIELD_DUTY in executive_role.permissions
+    assert AuditEvent.objects.filter(action="role.updated", target_id=executive_role.code).exists()
+    call_command("add_role_permission", *args, stdout=out)
+    assert "PU Coordinator: has it already" in out.getvalue()

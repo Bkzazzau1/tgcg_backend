@@ -469,6 +469,12 @@ waits for the ward coordinator, who holds the new `moderateDiscussion` for
 their ward (approve, refuse, hide), while the forum's one approval switch is
 on; only a National Administrator changes it.
 
+Field duty (15 October 2026): checking in at a polling unit and sharing
+location on duty now go by the `fieldDuty` permission instead of the agent
+and observer account types. Those accounts hold it, and so do roles such as
+the polling unit executives', who work as their unit's agents; a person
+checks in at the one polling unit where they hold it.
+
 Registered members per area (`GET /members/counts/`) are for whoever may
 find members (`MEMBER_READERS`: the administrator, coordinators, and those
 who verify identities), and only for an area wholly within their reach, so a

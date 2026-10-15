@@ -323,3 +323,70 @@ def test_duty_changes_synced_later_keep_phone_time(agent):
     session = DutySession.objects.get()
     assert abs((session.started_at - went_on_duty).total_seconds()) < 1
     assert session.ended_at < timezone.now() - timedelta(minutes=9)
+
+
+# --- polling unit executives work like agents ------------------------------------
+
+
+def executive(code, access_id, permissions):
+    """A verified member appointed at a polling unit, as a chapter import does."""
+    from apps.access.models import RoleCategory
+    from apps.access.services import appoint, create_role
+
+    admin = User.objects.filter(access_id="NA-1").first() or User.objects.create_user(
+        "NA-1", PASSWORD, full_name="Admin", role=Role.NATIONAL_ADMINISTRATOR
+    )
+    unit = PollingUnit.objects.get(code=code)
+    user = User.objects.create_user(
+        access_id,
+        PASSWORD,
+        full_name=access_id,
+        role=Role.MEMBER,
+        scope_level=GeographyLevel.POLLING_UNIT,
+        polling_unit=unit,
+    )
+    member = verified_member(user)
+    role = create_role(
+        actor=admin,
+        name=f"Executive {access_id}",
+        description="Polling unit executive.",
+        category=RoleCategory.FIELD,
+        permitted_levels=[GeographyLevel.POLLING_UNIT],
+        permissions=sorted(permissions),
+    )
+    appoint(
+        actor=admin,
+        member=member,
+        role=role,
+        areas=[{"scope_level": GeographyLevel.POLLING_UNIT, "polling_unit": unit}],
+        reason="Chapter list",
+    )
+    client = APIClient()
+    client.force_authenticate(user)
+    return client
+
+
+def test_a_polling_unit_executive_checks_in_and_shares_location(agent, agent2, lga_coord):
+    kaura = executive("18-23-05-001", "TGCG-000201", {"fieldDuty", "createIncident"})
+
+    check = check_in(kaura)
+    assert check.status_code == 201, check.content
+    assert check.json()["polling_unit"] == "18-23-05-001"
+    on = kaura.post("/api/v1/tracking/duty/", {"on_duty": True, "gps": fix()}, format="json")
+    assert on.status_code == 200, on.content
+
+    live = {a["agent"]: a for a in lga_coord.get("/api/v1/tracking/live/").json()["agents"]}
+    assert live["TGCG-000201"]["polling_unit"] == "18-23-05-001"
+
+    # Counted with the agents, at their own unit.
+    body = lga_coord.get("/api/v1/tracking/coverage/").json()
+    assert body["agents"] == 3
+    assert body["checked_in"] == 1 and body["on_duty_now"] == 1
+    kaura_ward = next(c for c in body["children"] if c["code"] == "18-23-05")
+    assert kaura_ward["agents"] == 1 and kaura_ward["checked_in"] == 1
+
+
+def test_a_role_without_field_duty_does_not_check_in():
+    clerk = executive("18-23-05-002", "TGCG-000202", {"createIncident"})
+    assert check_in(clerk).status_code == 403
+    assert clerk.post("/api/v1/tracking/duty/", {"on_duty": True}, format="json").status_code == 403

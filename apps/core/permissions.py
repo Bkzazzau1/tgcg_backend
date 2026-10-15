@@ -29,6 +29,7 @@ class Capability(models.TextChoices):
     ASSIGN_INCIDENT = "assignIncident"
     CLOSE_INCIDENT = "closeIncident"
     SUBMIT_FIELD_REPORT = "submitFieldReport"
+    FIELD_DUTY = "fieldDuty"
     VERIFY_FIELD_REPORT = "verifyFieldReport"
     SUBMIT_ELECTION_RESULT = "submitElectionResult"
     VERIFY_ELECTION_RESULT = "verifyElectionResult"
@@ -237,6 +238,7 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             C.VIEW_MEETING_ROOM,
             C.JOIN_MEETING,
             C.VIEW_EVIDENCE,
+            C.FIELD_DUTY,
         }
     ),
     Role.OBSERVER: frozenset(
@@ -252,6 +254,7 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             C.VIEW_MEETING_ROOM,
             C.JOIN_MEETING,
             C.VIEW_EVIDENCE,
+            C.FIELD_DUTY,
         }
     ),
     Role.LEGAL_OFFICER: frozenset(

@@ -114,7 +114,12 @@ def test_executives_are_imported_with_working_roles_and_their_phone_as_password(
     )
     assert login.status_code == 200, login.content
     capabilities = login.json()["user"]["capabilities"]
-    for capability in ("createIncident", "submitElectionResult", "verifyMemberIdentity"):
+    for capability in (
+        "createIncident",
+        "submitElectionResult",
+        "verifyMemberIdentity",
+        "fieldDuty",
+    ):
         assert capability in capabilities
 
     # Running again adds nobody twice.

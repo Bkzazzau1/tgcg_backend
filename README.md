@@ -98,10 +98,10 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | POST | `/api/v1/results/{reference}/reject/` | `{"reason": ...}` |
 | GET | `/api/v1/results/{reference}/events/` | Result audit trail |
 | GET, POST | `/api/v1/results/{reference}/evidence/` | Upload the signed result sheet (`type=resultForm`) |
-| GET, POST | `/api/v1/tracking/check-ins/` | Agent checks in with a GPS fix (required). `POST .../{id}/confirm-location/` lets a coordinator confirm it |
+| GET, POST | `/api/v1/tracking/check-ins/` | An agent or polling unit executive (`fieldDuty`) checks in at their unit with a GPS fix (required). `POST .../{id}/confirm-location/` lets a coordinator confirm it |
 | GET, POST | `/api/v1/tracking/duty/` | `{"on_duty": true, "gps": {...}}` starts sharing live location, and `false` stops it |
 | POST | `/api/v1/tracking/pings/` | Upload up to 500 queued on-duty GPS readings |
-| GET | `/api/v1/tracking/live/` | On-duty agents and their latest position in an area (`viewSituationRoom`) |
+| GET | `/api/v1/tracking/live/` | On-duty agents and their latest position in an area (`viewLiveOperations`) |
 | GET | `/api/v1/tracking/coverage/?level=&code=&date=` | Check-in coverage per area: on site, away, suspect, not checked in |
 | GET | `/api/v1/mapping/units/` | Polling units in your area with `mapping_status`; filter `mapping_status`, `ward__code`; search |
 | POST | `/api/v1/mapping/units/{code}/pin/` | Multipart: `gps` (JSON), `photo`, `at_entrance`, `name_matches`, `note` |
@@ -249,21 +249,24 @@ uv run python manage.py import_executives list.csv --ward 18-23-05 \
   for their rank. The six polling unit roles (PU Coordinator, Assistant PU
   Coordinator, PU Youth Leader, Assistant PU Youth Leader, PU Women
   Coordinator, PU Organising Officer) report to the Ward Coordinator and are
-  created when missing. They can join meetings, report incidents and field
+  created when missing. They work as their unit's agents (`fieldDuty`: check
+  in, share location on duty), join meetings, report incidents and field
   reports, submit results, see their unit's incidents, check identities and
   take part in discussions at their unit. Administrators change this in Role
-  Management. The roles imported before 15 October 2026 also had the
-  Situation Room, which is national; remove it with:
+  Management. The roles imported on 15 October 2026 had the Situation Room,
+  which is national, and lacked `fieldDuty`. Correct them with:
 
   ```bash
   uv run python manage.py remove_role_permission viewSituationRoom --by <NA access ID> \
       --role "PU Coordinator" --role "Assistant PU Coordinator" \
       --role "PU Youth Leader" --role "Assistant PU Youth Leader" \
       --role "PU Women Coordinator" --role "PU Organising Officer"
+  uv run python manage.py add_role_permission fieldDuty --by <NA access ID> \
+      --role "PU Coordinator" ...  # the same six roles
   ```
 
-  It is a dry run until `--commit` is added, changes custom roles only, and
-  writes each change to the audit log as the administrator's.
+  Both are dry runs until `--commit` is added, change custom roles only, and
+  write each change to the audit log as the administrator's.
 - The first password is the phone number as written (`080...`). Members
   change it to a PIN at `/auth/password/`.
 - The chapter checked these people and holds their consent, so the import
@@ -421,8 +424,13 @@ and gives it one of these statuses:
   your own check-in.
 - **Results:** an app result that is `away` or `suspect` goes to
   `underReview`, with a note giving the distance.
+- **Field duty:** checking in and sharing location need `fieldDuty`, which
+  agent and observer accounts hold, and roles such as the polling unit
+  executives'. A person checks in at the one polling unit where they hold
+  it: an agent account's own unit, or their appointment's. Agents on the
+  Ground counts them all, each at their unit.
 - **Live location** is shared only between "on duty" and "off duty" in the
-  app (agents and observers), and readings outside a duty session are
+  app (`fieldDuty`), and readings outside a duty session are
   dropped. Pings are deleted after `LOCATION_PING_RETENTION_DAYS` (30). Run
   `uv run python manage.py purge_location_pings` daily.
 

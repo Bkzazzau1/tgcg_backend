@@ -13,10 +13,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.models import User
-from apps.core.choices import GeographyLevel, MembershipState, Role, VerificationStatus
+from apps.core.choices import GeographyLevel, MembershipState
 from apps.core.permissions import Capability, requires
 from apps.geography.gps import GpsFixSerializer, GpsReadSerializer, LocationStatus
+from apps.geography.models import PollingUnit
 from apps.geography.scope import (
     LEVEL_FIELD,
     ScopeRef,
@@ -27,7 +27,7 @@ from apps.geography.scope import (
     within_scope_any_q,
     within_scope_q,
 )
-from apps.results.collation import CHILD_LEVEL, _units_within
+from apps.results.collation import CHILD_LEVEL, PU_PATH, _units_within
 
 from . import services
 from .models import AgentCheckIn, DutySession, LocationPing
@@ -255,31 +255,23 @@ class CoverageView(APIView):
         tz = timezone.get_current_timezone()
         start = timezone.make_aware(datetime.combine(day, time.min), tz)
 
-        # Only agents who can work count: verified members in good standing.
-        agents = (
-            User.objects.filter(
-                role=Role.POLLING_UNIT_AGENT,
-                is_active=True,
-                polling_unit__isnull=False,
-                member__verification_status=VerificationStatus.VERIFIED,
-            )
-            .filter(within_scope_q(scope))
-            .exclude(member__membership_state__in=STOPPED)
-        )
+        # Who can work at the area's polling units: agents and polling unit
+        # executives, verified members in good standing, each at their unit.
+        workers = services.field_workers(scope)
         check_ins = (
             AgentCheckIn.objects.filter(
-                created_at__gte=start, created_at__lt=start + timedelta(days=1)
+                created_at__gte=start,
+                created_at__lt=start + timedelta(days=1),
+                agent_id__in=list(workers),
             )
-            .filter(within_scope_q(scope, prefix="agent__"))
             .order_by("created_at")
             .values_list("agent_id", "location_status")
         )
         latest = dict(check_ins)  # later check-ins overwrite earlier ones
         on_duty = set(
-            DutySession.objects.filter(ended_at__isnull=True)
-            .filter(within_scope_q(scope, prefix="user__"))
-            .exclude(user__member__membership_state__in=STOPPED)
-            .values_list("user_id", flat=True)
+            DutySession.objects.filter(
+                ended_at__isnull=True, user_id__in=list(workers)
+            ).values_list("user_id", flat=True)
         )
 
         def tally(agent_ids):
@@ -299,14 +291,20 @@ class CoverageView(APIView):
         body = {
             "date": day,
             "scope": scope_payload(scope),
-            **tally(list(agents.values_list("pk", flat=True))),
+            **tally(list(workers)),
         }
         if scope.scope_level in CHILD_LEVEL:
             child_level = CHILD_LEVEL[scope.scope_level]
             child_field = LEVEL_FIELD[child_level]
+            # Each worker counts in the part of the area holding their unit.
+            part_of = dict(
+                PollingUnit.objects.filter(pk__in=set(workers.values())).values_list(
+                    "pk", PU_PATH[child_field]
+                )
+            )
             by_child = {}
-            for agent_id, child_id in agents.values_list("pk", f"{child_field}_id"):
-                by_child.setdefault(child_id, []).append(agent_id)
+            for agent_id, unit_id in workers.items():
+                by_child.setdefault(part_of.get(unit_id), []).append(agent_id)
             rows = []
             for unit in _units_within(child_level, scope).order_by("name"):
                 rows.append(

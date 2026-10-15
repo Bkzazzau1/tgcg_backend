@@ -114,6 +114,12 @@ PERMISSIONS: dict[str, PermissionInfo] = {
             "Pin polling units and confirm agent locations",
         ),
         _p(C.SUBMIT_FIELD_REPORT, M.FIELD_MONITORING, "create", "Submit field reports"),
+        _p(
+            C.FIELD_DUTY,
+            M.FIELD_MONITORING,
+            "create",
+            "Check in at their polling unit and share location on duty",
+        ),
         _p(C.VERIFY_FIELD_REPORT, M.FIELD_MONITORING, "verify", "Verify field reports"),
         _p(C.VIEW_INCIDENTS, M.INCIDENTS, "view", "View incidents"),
         _p(C.CREATE_INCIDENT, M.INCIDENTS, "create", "Report incidents"),

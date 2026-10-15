@@ -5,16 +5,24 @@ from datetime import timedelta
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 
+from apps.access import engine
+from apps.access.models import AssignmentStatus, RoleAssignmentArea, RoleDefinition, RoleStatus
 from apps.access.services import identity_verified, in_good_standing
-from apps.core.choices import Role
-from apps.core.permissions import FIELD_ROLES, Capability
+from apps.accounts.models import User
+from apps.core.choices import GeographyLevel, MembershipState, Role, VerificationStatus
+from apps.core.permissions import FIELD_ROLES, Capability, has_capability
 from apps.geography.gps import LocationStatus, assess
 from apps.geography.models import PollingUnit
-from apps.geography.scope import ScopeRef, scope_contains
+from apps.geography.scope import ScopeRef, scope_contains, within_scope_q
 
 from .models import AgentCheckIn, DutySession, LocationPing
+
+C = Capability
+# Memberships that share no location and count for nothing.
+STOPPED = [MembershipState.SUSPENDED, MembershipState.DEACTIVATED]
 
 NOT_VERIFIED = (
     "Agents and observers work only once their identity is verified. "
@@ -22,10 +30,68 @@ NOT_VERIFIED = (
 )
 
 
-def _require_field_role(user):
-    if user.role not in FIELD_ROLES:
-        raise PermissionDenied("Only field agents and observers share location from the app.")
+def _require_field_duty(user):
+    """Agents, observers and polling unit executives: whoever holds fieldDuty."""
+    if user.role in FIELD_ROLES:
+        _require_standing(user)  # says why an agent's own role does not count yet
+    if not has_capability(user, C.FIELD_DUTY):
+        raise PermissionDenied(
+            "Only agents, observers and polling unit executives share location from the app."
+        )
     _require_standing(user)
+
+
+def duty_polling_unit(user) -> PollingUnit | None:
+    """Where a field worker checks in: the one polling unit where they hold
+    fieldDuty (an agent account's own unit, or the unit of an appointment)."""
+    units = {
+        area.polling_unit_id
+        for area in engine.areas_for(user, C.FIELD_DUTY)
+        if area.scope_level == GeographyLevel.POLLING_UNIT and area.polling_unit_id
+    }
+    if len(units) != 1:
+        return None
+    return PollingUnit.objects.get(pk=units.pop())
+
+
+def field_workers(scope) -> dict[int, int]:
+    """Who works at the polling units in `scope`, as {user id: polling unit id}:
+    agent accounts at their unit, and verified members appointed to a polling
+    unit with fieldDuty, such as a chapter's polling unit executives."""
+    workers = dict(
+        User.objects.filter(
+            role=Role.POLLING_UNIT_AGENT,
+            is_active=True,
+            polling_unit__isnull=False,
+            member__verification_status=VerificationStatus.VERIFIED,
+        )
+        .filter(within_scope_q(scope))
+        .exclude(member__membership_state__in=STOPPED)
+        .values_list("pk", "polling_unit_id")
+    )
+    roles = [
+        role.pk
+        for role in RoleDefinition.objects.filter(status=RoleStatus.ACTIVE)
+        if C.FIELD_DUTY in role.permissions
+    ]
+    now = timezone.now()
+    appointed = (
+        RoleAssignmentArea.objects.filter(
+            within_scope_q(scope),
+            scope_level=GeographyLevel.POLLING_UNIT,
+            assignment__role_id__in=roles,
+            assignment__status=AssignmentStatus.ACTIVE,
+            assignment__starts_at__lte=now,
+            assignment__member__verification_status=VerificationStatus.VERIFIED,
+            assignment__member__user__is_active=True,
+        )
+        .filter(Q(assignment__ends_at__isnull=True) | Q(assignment__ends_at__gt=now))
+        .exclude(assignment__member__membership_state__in=STOPPED)
+        .values_list("assignment__member__user_id", "polling_unit_id")
+    )
+    for user_id, unit_id in appointed:
+        workers.setdefault(user_id, unit_id)
+    return workers
 
 
 def _require_standing(user):
@@ -37,17 +103,18 @@ def _require_standing(user):
 
 @transaction.atomic
 def check_in(*, agent, gps, client_id=None) -> AgentCheckIn:
-    if agent.role != Role.POLLING_UNIT_AGENT or agent.polling_unit_id is None:
-        raise PermissionDenied("Only polling-unit agents check in at a polling unit.")
-    _require_standing(agent)
+    """An agent or polling unit executive arriving at their polling unit."""
+    _require_field_duty(agent)
+    # Read the unit now: its location may have just been confirmed.
+    unit = duty_polling_unit(agent)
+    if unit is None:
+        raise PermissionDenied("Checking in is for someone with a role at one polling unit.")
     if not gps:
         raise ValidationError({"gps": "Turn on location to check in."})
     if client_id:
         existing = AgentCheckIn.objects.filter(client_id=client_id, agent=agent).first()
         if existing is not None:
             return existing
-    # Re-read the unit: its location may have just been confirmed.
-    unit = PollingUnit.objects.get(pk=agent.polling_unit_id)
     check = AgentCheckIn(agent=agent, polling_unit=unit, client_id=client_id)
     check.apply_fix(gps, unit)
     check.save()
@@ -121,7 +188,7 @@ def _device_time(at):
 
 def start_duty(*, user, gps=None, at=None) -> DutySession:
     """Start sharing location. `at` is the phone time, for changes synced later."""
-    _require_field_role(user)
+    _require_field_duty(user)
     started = _device_time(at)
     try:
         with transaction.atomic():
@@ -136,7 +203,7 @@ def start_duty(*, user, gps=None, at=None) -> DutySession:
 
 
 def stop_duty(*, user, at=None) -> DutySession | None:
-    _require_field_role(user)
+    _require_field_duty(user)
     session = DutySession.objects.filter(user=user, ended_at__isnull=True).first()
     if session:
         session.ended_at = max(_device_time(at), session.started_at)
@@ -150,7 +217,7 @@ def record_pings(*, user, fixes) -> int:
 
     Pings outside any session are dropped: location is only shared on duty.
     """
-    _require_field_role(user)
+    _require_field_duty(user)
     if not fixes:
         return 0
     earliest = min(f["captured_at"] for f in fixes)
@@ -159,7 +226,7 @@ def record_pings(*, user, fixes) -> int:
             ended_at__lt=earliest - timedelta(minutes=1)
         )
     )
-    unit = PollingUnit.objects.filter(pk=user.polling_unit_id).first()
+    unit = duty_polling_unit(user)
     pings = []
     for fix in fixes:
         captured = fix["captured_at"]
