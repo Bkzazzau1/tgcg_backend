@@ -53,6 +53,7 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | POST | `/api/v1/auth/login/` | `{"username": "<access ID or phone>", "password": ...}` returns `access`, `refresh` and `user` |
 | POST | `/api/v1/auth/refresh/` | Rotates the refresh token |
 | POST | `/api/v1/auth/logout/` | `{"refresh": ...}` revokes it |
+| POST | `/api/v1/auth/password/` | `{"current_password", "new_password"}` changes one's own PIN (members) or password (staff), ends every other session and returns a new `access` and `refresh` |
 | GET | `/api/v1/auth/me/` | Current user, with `scope` shaped like the client's `GeographicScope` |
 | GET | `/api/v1/geography/{zones,states,senatorial-districts,lgas,wards,polling-units}/` | Read-only reference data; filter with e.g. `?state__code=LA` |
 | GET | `/api/v1/register/options/` | Public. `{"phone_code_required"}`: whether joining in the app needs an SMS code |
@@ -227,10 +228,43 @@ state, LGA or ward coordinators) or `manageMembership` uses
 - The member can later get the app with `register/pin-code/` and
   `register/pin/`.
 
+**Imported from a chapter's list.** A National Administrator imports a
+chapter's polling unit executives from a CSV file with the columns `sn`,
+`name`, `rank`, `phone` and `polling_unit` (the unit's number within the
+ward):
+
+```bash
+uv run python manage.py import_executives list.csv --ward 18-23-05 \
+    --by <NA access ID> --source "TGCG Zaria LGA chapter: polling unit executives list"
+```
+
+- It is a dry run until `--commit` is added. The report names held rows by
+  line and S/N only, never by name or number.
+- A row is held when its rank is not a polling unit rank, its number is not
+  a valid Nigerian mobile number or is shared with another row, its unit is
+  not in the ward, or its number is registered already. Correct the file
+  and run it again: rows already imported are then held as registered.
+- Each person becomes a member at their polling unit, appointed to the role
+  for their rank. The six polling unit roles (PU Coordinator, Assistant PU
+  Coordinator, PU Youth Leader, Assistant PU Youth Leader, PU Women
+  Coordinator, PU Organising Officer) report to the Ward Coordinator and are
+  created when missing. They can join meetings, report incidents and field
+  reports, submit results, see incidents and the situation room, check
+  identities and take part in discussions at their unit. Administrators
+  change this in Role Management.
+- The first password is the phone number as written (`080...`). Members
+  change it to a PIN at `/auth/password/`.
+- The chapter checked these people and holds their consent, so the import
+  records them as verified by the administrator (channel `import`) on the
+  chapter's word. The phone stays unconfirmed until an SMS code confirms it.
+- Everything is saved in one transaction. Keep chapter lists out of the
+  repository and delete the file once imported.
+
 **Signing in.** Members sign in at `/auth/login/` with their phone and a
 6-digit PIN. Obvious PINs (`123456`, `111111` and so on) are refused. After
 5 failed attempts (members and staff alike), the account locks for
-15 minutes.
+15 minutes. Signed in, anyone changes their own PIN or password at
+`/auth/password/`, which signs them out everywhere else.
 
 **Rules:**
 

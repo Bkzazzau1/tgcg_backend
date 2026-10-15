@@ -78,3 +78,10 @@ class LoginSerializer(TokenObtainPairSerializer):
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """The current password or PIN, and the new one (a member's: 6 digits)."""
+
+    current_password = serializers.CharField(write_only=True, trim_whitespace=False)
+    new_password = serializers.CharField(write_only=True, trim_whitespace=False, max_length=128)

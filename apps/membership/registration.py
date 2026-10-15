@@ -522,6 +522,53 @@ def ussd_complete_profile(*, member: Member, full_name, pin_hash) -> Member:
     return member
 
 
+# --- members from a chapter's own list ------------------------------------------
+
+
+@transaction.atomic
+def register_imported(
+    *, actor, full_name: str, phone_number: str, polling_unit, password: str, source: str
+) -> Member:
+    """A member from a chapter's own list, imported by a National Administrator.
+
+    The chapter checked these people itself and holds their agreement to TGCG
+    keeping their details, so both are recorded on its word: the identity as
+    verified by `actor`, consent as of now, with `source` naming the list. The
+    phone is not confirmed by SMS, and the system's own checks record what
+    they can, as for anyone. The first password is the phone number as
+    written on the list; the member changes it later.
+    """
+    phone = require_phone(phone_number)
+    ensure_available(phone)
+    now = timezone.now()
+    member = Member(
+        full_name=full_name,
+        phone_number=phone,
+        registration_channel=RegistrationChannel.IMPORT,
+        scope_level=GeographyLevel.POLLING_UNIT,
+        polling_unit=polling_unit,
+        consent_at=now,
+    )
+    member.full_clean(exclude=["membership_number"])
+    _save_member(member)
+    _member_account(member, password)
+    member.verification_status = VerificationStatus.VERIFIED
+    member.verified_at = now
+    member.verified_by = actor
+    member.save(update_fields=["verification_status", "verified_at", "verified_by", "updated_at"])
+    member = identity.record_checks(member, actor=actor)
+    audit.record(
+        actor=actor,
+        action="member.imported",
+        target_type="member",
+        target_id=member.membership_number,
+        target_label=member.full_name,
+        reason=source,
+        changes={"identity": "checked manually by the chapter", "consent": "through the chapter"},
+    )
+    return member
+
+
 # --- member PIN (first sign-in for assisted members, or forgotten PIN) ---------
 
 

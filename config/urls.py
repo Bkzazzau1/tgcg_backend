@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.access import views as access
-from apps.accounts.views import LoginView, LogoutView, MeView
+from apps.accounts.views import LoginView, LogoutView, MeView, PasswordChangeView
 from apps.announcements.views import AnnouncementViewSet
 from apps.core.views import HealthView
 from apps.field.views import EvidenceDownloadView, FieldReportViewSet, IncidentViewSet
@@ -65,6 +65,7 @@ api_v1 = [
     path("auth/login/", transaction.non_atomic_requests(LoginView.as_view()), name="auth-login"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="auth-refresh"),
     path("auth/logout/", LogoutView.as_view(), name="auth-logout"),
+    path("auth/password/", PasswordChangeView.as_view(), name="auth-password"),
     path("auth/me/", MeView.as_view(), name="auth-me"),
     path(
         "evidence/<uuid:uuid>/download/",
