@@ -278,6 +278,31 @@ uv run python manage.py import_executives list.csv --ward 18-23-05 \
 - Everything is saved in one transaction. Keep chapter lists out of the
   repository and delete the file once imported.
 
+**A state chapter's officers.** `import_state_officers` takes a CSV file
+prepared from the chapter's list, with the columns `sn`, `name`, `role`,
+`phone`, `place` and `hold`:
+
+```bash
+uv run python manage.py import_state_officers officers.csv --state KE \
+    --by <NA access ID> --source "TGCG Kebbi State chapter: state officers list"
+```
+
+- `role` names the position, e.g. "State Treasurer". "State Coordinator" is
+  the system role. A missing role is created as a state officer role,
+  supervised by the State Coordinator. Its holders see the state's incident
+  counts, results and collation, start and join meetings, and use the forum.
+  They cannot register, verify, appoint or change anything, and have no
+  Situation Room. Administrators change this in Role Management.
+- `place` is where the officer votes, as precisely as the list allows: a
+  polling unit code (`21-03-03-018`), a ward code (`21-20-05`) or an LGA code
+  (`KE-ARGUNGU`). It must be in the state. The member is registered there;
+  the appointment covers the whole state.
+- `hold` holds a row back with its reason, for example while the chapter
+  confirms it. Rows are also held for an invalid, shared or registered phone
+  number. As above: a dry run until `--commit`, rows named by line and S/N
+  only, the phone as written is the first password, and the officers are
+  recorded as verified on the chapter's word.
+
 **Signing in.** Members sign in at `/auth/login/` with their phone and a
 6-digit PIN. Obvious PINs (`123456`, `111111` and so on) are refused. After
 5 failed attempts (members and staff alike), the account locks for

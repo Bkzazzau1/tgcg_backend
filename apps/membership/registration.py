@@ -535,7 +535,15 @@ def ussd_complete_profile(*, member: Member, full_name, pin_hash) -> Member:
 
 @transaction.atomic
 def register_imported(
-    *, actor, full_name: str, phone_number: str, polling_unit, password: str, source: str
+    *,
+    actor,
+    full_name: str,
+    phone_number: str,
+    password: str,
+    source: str,
+    polling_unit=None,
+    ward=None,
+    lga=None,
 ) -> Member:
     """A member from a chapter's own list, imported by a National Administrator.
 
@@ -544,8 +552,17 @@ def register_imported(
     verified by `actor`, consent as of now, with `source` naming the list. The
     phone is not confirmed by SMS, and the system's own checks record what
     they can, as for anyone. The first password is the phone number as
-    written on the list; the member changes it later.
+    written on the list; the member changes it later. The member is placed at
+    their polling unit, or at the ward or LGA when the list gives no more.
     """
+    if polling_unit is not None:
+        place = {"scope_level": GeographyLevel.POLLING_UNIT, "polling_unit": polling_unit}
+    elif ward is not None:
+        place = {"scope_level": GeographyLevel.WARD, "ward": ward}
+    elif lga is not None:
+        place = {"scope_level": GeographyLevel.LGA, "lga": lga}
+    else:
+        raise ValueError("An imported member needs a polling unit, ward or LGA.")
     phone = require_phone(phone_number)
     ensure_available(phone)
     now = timezone.now()
@@ -553,9 +570,8 @@ def register_imported(
         full_name=full_name,
         phone_number=phone,
         registration_channel=RegistrationChannel.IMPORT,
-        scope_level=GeographyLevel.POLLING_UNIT,
-        polling_unit=polling_unit,
         consent_at=now,
+        **place,
     )
     member.full_clean(exclude=["membership_number"])
     _save_member(member)
