@@ -6,10 +6,12 @@ import contextlib
 import hashlib
 import io
 import json
+from datetime import timedelta
 
 import jwt
 import pytest
 from django.core.management import call_command
+from django.utils import timezone
 
 from apps.field import recordings
 from apps.field.models import Evidence, LiveStream
@@ -210,7 +212,9 @@ def test_a_stream_left_open_past_its_time_ends(
 ):
     reference = report(agent).json()["reference"]
     room = go_live(agent, reference).json()["room"]
-    settings.LIVE_STREAM_MAX_MINUTES = 0
+    # Started well before the limit, so a coarse clock cannot make it look new.
+    LiveStream.objects.update(started_at=timezone.now() - timedelta(minutes=5))
+    settings.LIVE_STREAM_MAX_MINUTES = 1
     with django_capture_on_commit_callbacks(execute=True):
         call_command("collect_recordings", stdout=io.StringIO())
     assert LiveStream.objects.get().ended_at is not None
