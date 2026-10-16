@@ -240,7 +240,7 @@ def _phone_of(user) -> str:
         return ""
 
 
-def _same_person(user, other) -> bool:
+def same_person(user, other) -> bool:
     """The same account, or two accounts with the same phone number."""
     if user.pk == other.pk:
         return True
@@ -1208,7 +1208,7 @@ def _distinct_people(users) -> int:
     """How many people, counting accounts that share a phone number once."""
     people: list = []
     for user in users:
-        if not any(_same_person(user, other) for other in people):
+        if not any(same_person(user, other) for other in people):
             people.append(user)
     return len(people)
 
@@ -1242,7 +1242,7 @@ def request_admin_action(*, actor, target, kind: str, reason: str) -> AdminActio
     _require_administrator(actor)
     if kind not in AdminActionKind.values:
         raise ValidationError({"kind": "Choose suspend or remove."})
-    if _same_person(actor, target):
+    if same_person(actor, target):
         raise PermissionDenied("You cannot request action against yourself.")
     if not reason.strip():
         raise ValidationError({"reason": "Say why."})
@@ -1274,10 +1274,10 @@ def approve_admin_action(*, actor, request) -> AdminActionRequest:
     )
     if request.status != AdminActionStatus.PENDING:
         raise ValidationError({"status": f"This request is already {request.status}."})
-    if _same_person(actor, request.target):
+    if same_person(actor, request.target):
         raise PermissionDenied("The administrator concerned cannot approve.")
     approvals = list(request.approvals.select_related("approver"))
-    if any(_same_person(actor, approval.approver) for approval in approvals):
+    if any(same_person(actor, approval.approver) for approval in approvals):
         raise ValidationError("You have already approved this request.")
     try:
         _require_applicable(request.kind, request.target)
@@ -1292,7 +1292,7 @@ def approve_admin_action(*, actor, request) -> AdminActionRequest:
     approvers = [
         approval.approver
         for approval in request.approvals.select_related("approver")
-        if approval.approver_id in active and not _same_person(approval.approver, request.target)
+        if approval.approver_id in active and not same_person(approval.approver, request.target)
     ]
     if _distinct_people(approvers) >= 2:
         _execute_admin_action(request, actor, approvers)
@@ -1351,7 +1351,7 @@ def cancel_admin_action(*, actor, request, reason: str = "") -> AdminActionReque
         raise ValidationError({"status": f"This request is already {request.status}."})
     requester_gone = request.requested_by_id not in active_national_administrators()
     if request.requested_by_id != actor.pk and not (
-        requester_gone and not _same_person(actor, request.target)
+        requester_gone and not same_person(actor, request.target)
     ):
         raise PermissionDenied("Only the administrator who made the request can cancel it.")
     request.status = AdminActionStatus.CANCELLED
@@ -1372,7 +1372,7 @@ def reinstate_administrator(*, actor, target, reason: str = ""):
     from apps.accounts.models import User
 
     _require_administrator(actor)
-    if _same_person(actor, target):
+    if same_person(actor, target):
         raise PermissionDenied("You cannot reinstate yourself.")
     target = User.objects.select_for_update().get(pk=target.pk)
     if administrator_state(target) != STATE_SUSPENDED:

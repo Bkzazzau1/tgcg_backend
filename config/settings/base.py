@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.meetings",
     "apps.forum",
     "apps.access",
+    "apps.wallets",
 ]
 
 MIDDLEWARE = [
@@ -188,6 +189,8 @@ SPECTACULAR_SETTINGS = {
         "ForumPostStatus": "apps.forum.models.Post.Status",
         "ForumReplyStatus": "apps.forum.models.Reply.Status",
         "ForumAttachmentKind": "apps.forum.models.Attachment.Kind",
+        "WalletPaymentStatus": "apps.wallets.models.Payment.Status",
+        "WalletEntryKind": "apps.wallets.models.WalletEntry.Kind",
     },
 }
 

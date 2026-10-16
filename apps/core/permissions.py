@@ -64,6 +64,11 @@ class Capability(models.TextChoices):
     VERIFY_MEMBER_IDENTITY = "verifyMemberIdentity"
     SUSPEND_MEMBERS = "suspendMembers"
     REVIEW_POLLING_UNIT_CHANGES = "reviewPollingUnitChanges"
+    # Wallets (apps.wallets): what TGCG owes members. A payment one person
+    # requests is approved by another.
+    VIEW_WALLETS = "viewWallets"
+    CREDIT_WALLETS = "creditWallets"
+    APPROVE_WALLET_CREDITS = "approveWalletCredits"
     # Protected: only National Administrators, never delegable.
     APPOINT_NATIONAL_ADMINISTRATOR = "appointNationalAdministrator"
     APPROVE_ADMINISTRATOR_REMOVAL = "approveAdministratorRemoval"

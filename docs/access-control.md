@@ -269,9 +269,9 @@ name, VIN and photo as they are.
 member awaiting a decision is verified without a person when `pvcCaptured`,
 `cardMatch`, `selfieCaptured` and `duplicates` have all passed and a gender
 and date of birth are given. The decision has no reviewer
-(`verifiedAutomatically` in `.../verification/`) and is audited as
+(`verified_automatically` in `.../verification/`) and is audited as
 `member.verifiedAutomatically`, naming the policy and every check. It
-counts as any verification, for agent work and roles. It is not
+counts as any verification: agent work, roles and the wallet. It is not
 proof of identity: `pvcValidated`, `liveness` and `faceMatch` stay
 unsupported, never passed. Everyone else goes to **pendingReview**.
 

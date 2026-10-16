@@ -34,6 +34,7 @@ class Module:
     REPORTS = "reports"
     GOVERNANCE = "governance"
     SYSTEM_MONITORING = "systemMonitoring"
+    WALLETS = "wallets"
 
 
 @dataclass(frozen=True)
@@ -150,6 +151,15 @@ PERMISSIONS: dict[str, PermissionInfo] = {
         _p(C.JOIN_MEETING, M.MEETINGS, "view", "Join meetings"),
         _p(C.VIEW_MEDIA_INTELLIGENCE, M.MEDIA_INTELLIGENCE, "view", "View media intelligence"),
         _p(C.EXPORT_REPORTS, M.REPORTS, "export", "Export reports"),
+        _p(
+            C.VIEW_WALLETS,
+            M.WALLETS,
+            "view",
+            "View members' wallets and payments",
+            sensitive=True,
+        ),
+        _p(C.CREDIT_WALLETS, M.WALLETS, "create", "Request payments to members' wallets"),
+        _p(C.APPROVE_WALLET_CREDITS, M.WALLETS, "approve", "Approve payments to members' wallets"),
         _p(C.VIEW_AUDIT, M.GOVERNANCE, "view", "View the audit log"),
         _p(C.MANAGE_USERS, M.SYSTEM_MONITORING, "manage", "Support user accounts"),
         _p(C.MANAGE_SYSTEM_SETTINGS, M.SYSTEM_MONITORING, "manage", "Manage system settings"),

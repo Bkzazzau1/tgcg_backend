@@ -36,6 +36,7 @@ from apps.tracking.views import (
     LiveAgentsView,
     PingsView,
 )
+from apps.wallets import views as wallets
 
 router = DefaultRouter()
 router.register("geography/zones", geography.ZoneViewSet)
@@ -59,6 +60,7 @@ router.register("results", ResultViewSet, basename="result")
 router.register("meetings", MeetingViewSet, basename="meeting")
 router.register("forum/posts", forum.PostViewSet, basename="forum-post")
 router.register("forum/replies", forum.ReplyViewSet, basename="forum-reply")
+router.register("wallet-payments", wallets.PaymentViewSet, basename="wallet-payment")
 router.register("access/roles", access.RoleViewSet, basename="role")
 router.register("access/assignments", access.AssignmentViewSet, basename="role-assignment")
 router.register("access/delegations", access.DelegationViewSet, basename="delegation")
@@ -89,6 +91,12 @@ api_v1 = [
     ),
     path("forum/settings/", forum.ForumSettingsView.as_view(), name="forum-settings"),
     path("forum/assignments/", forum.AssignmentTagsView.as_view(), name="forum-assignments"),
+    path("wallets/banks/", wallets.BanksView.as_view(), name="wallet-banks"),
+    path(
+        "wallets/<str:membership_number>/",
+        wallets.MemberWalletView.as_view(),
+        name="member-wallet",
+    ),
     path("tracking/duty/", DutyView.as_view(), name="tracking-duty"),
     path("tracking/pings/", PingsView.as_view(), name="tracking-pings"),
     path("tracking/live/", LiveAgentsView.as_view(), name="tracking-live"),
@@ -168,6 +176,12 @@ api_v1 = [
         name="my-polling-unit-change-withdraw",
     ),
     path("me/announcements/", reg.MyAnnouncementsView.as_view(), name="my-announcements"),
+    path("me/wallet/", wallets.MyWalletView.as_view(), name="my-wallet"),
+    path(
+        "me/wallet/bank-account/",
+        wallets.MyBankAccountView.as_view(),
+        name="my-wallet-bank-account",
+    ),
     path("me/volunteer/", reg.MyVolunteerView.as_view(), name="my-volunteer"),
     path(
         "me/volunteer/<uuid:uuid>/withdraw/",

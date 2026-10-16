@@ -43,6 +43,7 @@ apps/announcements/ news for members, addressed to an area
 apps/tracking/     agent GPS: check-ins, on-duty live location, coverage
 apps/field/        incidents, field reports, evidence uploads, incident audit trail
 apps/results/      parties, elections, result submissions, integrity checks, collation
+apps/wallets/      members' wallets: payments with a second approver, payout accounts
 ```
 
 ## API (v1)
@@ -113,6 +114,11 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | POST | `/api/v1/mapping/pins/{id}/accept/` | Resolve a conflict with this pin |
 | GET | `/api/v1/mapping/progress/?level=&code=` | Mapped, confirmed, conflict and problem counts, with a child breakdown |
 | GET | `/api/v1/collation/?election=...&level=...&code=...` | Unofficial totals from verified results, with a child breakdown |
+| GET | `/api/v1/me/wallet/` | Member home: the wallet (what TGCG owes, its history, the payout account). `has_wallet` only for a verified member; `account_name` is always the member's name |
+| PUT | `/api/v1/me/wallet/bank-account/` | `{"bank", "account_number"}` (bank from `/wallets/banks/`, 10 digits). The account name cannot be sent |
+| GET | `/api/v1/wallets/banks/` | Banks a wallet can be paid into |
+| GET | `/api/v1/wallets/{membership_number}/` | `viewWallets`: a member's wallet in your area, the account number masked |
+| GET, POST | `/api/v1/wallet-payments/` | Payments in your area (`viewWallets`, `creditWallets` or `approveWalletCredits`). POST `{"member", "amount" (naira), "purpose"}` with `creditWallets`; `.../{id}/approve/` or `reject/` (reason required) by another person with `approveWalletCredits`; `cancel/` by the requester |
 
 Enum values (roles, levels, statuses) use the Flutter client's camelCase names,
 so payloads map straight onto `Enum.values.byName(...)` in Dart.
@@ -564,6 +570,26 @@ never ordinary members. Published posts are seen across Nigeria.
   allow a whole post (for example `110m` at the defaults).
 - **Record:** approvals, refusals, hidden posts and replies, deleted posts
   and settings changes are in the audit log.
+
+## Wallets
+
+A member's wallet records what TGCG owes them (decided on 16 October 2026).
+TGCG credits it; members do not deposit, and the money stays in TGCG's bank.
+
+- Only a verified member (by a coordinator or automatically) has a wallet.
+- Someone holding `creditWallets` for the member's area requests a payment,
+  and a different person (not the same account or phone number) holding
+  `approveWalletCredits` there approves or rejects it. Nobody pays
+  themselves. One payment is at most ₦1,000,000.
+- An approved payment becomes a ledger entry that is never changed or
+  removed. Amounts are kept in kobo and shown in naira.
+- The member names their payout account: a bank and a 10-digit account
+  number. The account name is always the member's name from their PVC; it
+  is not stored and cannot be sent. One account belongs to one member.
+- Withdrawals wait for a bank API, which will pay out and confirm that the
+  bank's name for the account matches the member's.
+- Every request, decision and account change is audited, with only the last
+  four digits of the account number.
 
 ## Quality checks
 

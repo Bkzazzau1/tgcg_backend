@@ -9,7 +9,18 @@ from .models import AuditEvent
 
 # Never written to the log, whatever a caller passes in `changes`.
 SENSITIVE_KEYS = frozenset(
-    {"phone_number", "phone", "vin", "photo", "pvc_image", "pin", "password", "code", "email"}
+    {
+        "phone_number",
+        "phone",
+        "vin",
+        "photo",
+        "pvc_image",
+        "pin",
+        "password",
+        "code",
+        "email",
+        "account_number",
+    }
 )
 
 
