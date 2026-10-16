@@ -87,9 +87,15 @@ def field_workers(scope) -> dict[int, int]:
         )
         .filter(Q(assignment__ends_at__isnull=True) | Q(assignment__ends_at__gt=now))
         .exclude(assignment__member__membership_state__in=STOPPED)
-        .values_list("assignment__member__user_id", "polling_unit_id")
+        .values_list(
+            "assignment__member__user_id", "polling_unit_id", "assignment__restricted_permissions"
+        )
     )
-    for user_id, unit_id in appointed:
+    for user_id, unit_id, restricted in appointed:
+        # Restrictions belong to this appointment and its own areas. A null
+        # restriction keeps the role's permissions; an empty list grants none.
+        if restricted is not None and C.FIELD_DUTY not in restricted:
+            continue
         workers.setdefault(user_id, unit_id)
     return workers
 
