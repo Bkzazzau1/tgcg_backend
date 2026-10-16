@@ -23,5 +23,7 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {  # noqa: F405
     for scope in REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]  # noqa: F405
 }
 SMS_BACKEND = "console"
+# A server's .env may hold a real key: tests never send a photo to Google.
+GOOGLE_VISION_API_KEY = ""
 # Codes go to the console here, so joining needs one unless a test turns this off.
 REGISTRATION_PHONE_CODE_REQUIRED = True

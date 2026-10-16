@@ -8,6 +8,18 @@ from apps.geography.models import Lga
 PASSWORD = "Strong-Pass-2027!"
 
 
+@pytest.fixture(autouse=True)
+def card_reader_offline(monkeypatch):
+    """Identity checks never read a card photo in tests (no Google, no
+    Tesseract): a test that compares cards supplies its own reading."""
+    from apps.membership import identity, pvc_reading
+
+    def unavailable(member):
+        raise pvc_reading.ReaderUnavailable
+
+    monkeypatch.setattr(identity, "read_card", unavailable)
+
+
 @pytest.fixture
 def api_client():
     return APIClient()

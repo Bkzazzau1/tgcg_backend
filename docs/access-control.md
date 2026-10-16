@@ -250,6 +250,7 @@ check, each passed, failed, pending or unsupported):
 | Check | How it is decided today |
 |---|---|
 | `pvcCaptured` | Passed when the VIN and polling unit code came with a photo of the card; pending when they were typed in without one, or with a VIN only; failed without a PVC, or when a USSD registration skipped the VIN. |
+| `cardMatch` | The server reads the stored card photo itself (`pvc_reading`: Google Cloud Vision when configured, else Tesseract) and passes when the name given (every word, in any order, a letter or two misread allowed; titles such as Alhaji ignored) and the VIN (one misread character allowed) are both on it. Pending without a card photo, when they are not found, or when the photo could not be read. The result keeps a keyed fingerprint of the name, VIN and photo it compared, never the details or the text read; once any of them changes it no longer counts, and the card is read again. This shows the details came from the card, not that the card is genuine. |
 | `pvcValidated` | **Unsupported**: no authoritative INEC source is connected. Reading a PVC is not validating it. |
 | `duplicates` | Phone and VIN are unique by design; pending when someone else has the same name and date of birth (a count only, as they may be outside the reviewer's area), or when there is no date of birth to compare. |
 | `phoneVerified` | Passed when a code sent by SMS was entered, or when the mobile network supplied the number during USSD registration. |
@@ -257,11 +258,24 @@ check, each passed, failed, pending or unsupported):
 | `liveness` | **Unsupported**: no liveness detection. |
 | `faceMatch` | **Unsupported**: no trusted reference photo exists to compare with. |
 
-Checks run at both kinds of registration, and on demand (`POST
-.../verification/check/`, or `manage.py record_verification_checks` for
-members registered before). A member is verified automatically only when
-every check has passed, which cannot happen today: everyone goes to
-**pendingReview**. A coordinator holding `verifyMemberIdentity` for the
+Checks run at registration, when a member adds their gender, date of
+birth, selfie or PVC scan, and on demand (`POST .../verification/check/`,
+or `manage.py record_verification_checks`: `--awaiting` for every member
+awaiting a decision, `--dry-run` to count first). For a member awaiting a
+decision, the card photo is read only when no comparison covers their
+name, VIN and photo as they are.
+
+**Automatic verification** (TGCG's policy, decided on 16 October 2026): a
+member awaiting a decision is verified without a person when `pvcCaptured`,
+`cardMatch`, `selfieCaptured` and `duplicates` have all passed and a gender
+and date of birth are given. The decision has no reviewer
+(`verifiedAutomatically` in `.../verification/`) and is audited as
+`member.verifiedAutomatically`, naming the policy and every check. It
+counts as any verification, for agent work and roles. It is not
+proof of identity: `pvcValidated`, `liveness` and `faceMatch` stay
+unsupported, never passed. Everyone else goes to **pendingReview**.
+
+A coordinator holding `verifyMemberIdentity` for the
 member's area reviews in person, records notes and approves (the checks are
 run again first; refused while any has failed) or rejects. State, LGA and
 ward coordinators hold `verifyMemberIdentity` for their own area (decided on

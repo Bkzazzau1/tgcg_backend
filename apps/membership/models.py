@@ -446,11 +446,13 @@ class VerificationCheck(TimeStampedModel):
 
     A result is recorded only for what was actually done: checks the system
     cannot perform are `unsupported` and go to a coordinator's review, never
-    `passed`. `detail` never holds the VIN, phone number or images.
+    `passed`. `detail` never holds the VIN, phone number, images or text
+    read from a card.
     """
 
     class Kind(models.TextChoices):
         PVC_CAPTURED = "pvcCaptured", "PVC details captured"
+        CARD_MATCH = "cardMatch", "Name and VIN match the card photo"
         PVC_VALIDATED = "pvcValidated", "PVC confirmed with an authoritative source"
         DUPLICATES = "duplicates", "No duplicate registration"
         PHONE = "phoneVerified", "Phone number confirmed by SMS"
@@ -477,6 +479,9 @@ class VerificationCheck(TimeStampedModel):
         related_name="+",
         help_text="Empty when the system recorded it.",
     )
+    # A keyed fingerprint of what a check compared (never the data itself), so
+    # a result is not reused once the details it rested on have changed.
+    basis = models.CharField(max_length=64, blank=True)
 
     class Meta:
         ordering = ["member", "kind"]

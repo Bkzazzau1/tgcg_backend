@@ -14,6 +14,7 @@ from apps.geography.scope import ScopeField, scope_contains, scope_payload, with
 from apps.geography.serializers import NavigationSerializer, navigation_for
 
 from .card import card_missing
+from .identity import verified_automatically
 from .models import (
     ACCREDITABLE_ROLES,
     AccreditationEvent,
@@ -631,7 +632,11 @@ class VerificationSerializer(serializers.Serializer):
     verification_status = serializers.CharField()
     verified_at = serializers.DateTimeField(allow_null=True)
     reviewed_by = serializers.CharField(source="verified_by.access_id", default=None)
+    verified_automatically = serializers.SerializerMethodField()
     checks = VerificationCheckSerializer(source="verification_checks", many=True)
+
+    def get_verified_automatically(self, member) -> bool:
+        return verified_automatically(member)
 
 
 class VerificationNotesSerializer(serializers.Serializer):

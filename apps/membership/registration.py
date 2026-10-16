@@ -353,8 +353,8 @@ def ussd_register(
     """Register a member who dialled the USSD code (see apps.membership.ussd).
 
     The mobile network supplied the phone number, so it needs no SMS code.
-    There is no photo of the member or the card: like everyone else, the
-    member waits for a coordinator's review.
+    There is no photo of the member or the card, so the member waits for a
+    coordinator's review.
     """
     phone = require_phone(phone_number)
     client_id = f"ussd:{session_id}"[:64]

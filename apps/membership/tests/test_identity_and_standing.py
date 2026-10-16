@@ -105,6 +105,7 @@ def test_checks_record_only_what_was_actually_done(kd_units):
     results = dict(member.verification_checks.values_list("kind", "result"))
     assert results == {
         "pvcCaptured": "passed",
+        "cardMatch": "pending",  # no reader here, so the card photo was not read
         "pvcValidated": "unsupported",
         "duplicates": "passed",
         "phoneVerified": "passed",
@@ -114,6 +115,8 @@ def test_checks_record_only_what_was_actually_done(kd_units):
     }
     # Unsupported checks are never treated as passed: a person must review.
     assert member.verification_status == "pendingReview"
+    card = member.verification_checks.get(kind="cardMatch")
+    assert card.detail == "The card photo could not be read this time." and card.basis == ""
     detail = member.verification_checks.get(kind="pvcValidated").detail
     assert "No authoritative INEC source" in detail
     assert "not biometric" in member.verification_checks.get(kind="selfieCaptured").detail
@@ -151,6 +154,198 @@ def test_a_missing_pvc_or_a_possible_duplicate_is_never_passed():
     typed.save()
     typed = identity.record_checks(typed)
     assert typed.verification_checks.get(kind="pvcCaptured").result == "pending"
+    assert typed.verification_checks.get(kind="cardMatch").result == "pending"
+
+
+# --- automatic verification ------------------------------------------------------
+
+VIN = "90F5B0E8D0295847001"
+READ_CARD = identity.read_card  # the real reader, before each test takes it offline
+
+
+def card_text(name="BELLO\nMUSA", vin=VIN):
+    """What a reader returns for a card photo, with the name on two lines."""
+    return f"INDEPENDENT NATIONAL ELECTORAL COMMISSION\nVOTER'S CARD\n{name}\nVIN {vin}\nM 1990"
+
+
+def read_as(monkeypatch, text):
+    """Card photos read as `text`; returns the members whose card was read."""
+    reads = []
+
+    def read(member):
+        reads.append(member.pk)
+        return text
+
+    monkeypatch.setattr(identity, "read_card", read)
+    return reads
+
+
+def complete(member, unit, vin=VIN):
+    """The member's profile from their card: VIN, unit, card photo, selfie, gender, birth date."""
+    member = placed(member, unit)
+    member.vin = vin
+    member.gender = "male"
+    member.date_of_birth = date(1990, 5, 14)
+    member.photo = "members/photos/selfie.jpg"
+    member.pvc_image = "members/pvc/card.jpg"
+    member.save()
+    return member
+
+
+def test_a_complete_profile_from_the_card_is_verified_automatically(admin, monkeypatch, kd_units):
+    # The surname first, a title the card does not carry, O misread for 0 in the VIN.
+    reads = read_as(monkeypatch, card_text(vin="9OF5B0E8D0295847OO1"))
+    member = member_account("08033330021", name="Alhaji Musa Bello", verified=False)
+    member = identity.record_checks(complete(member, kd_units[0]))
+    assert reads == [member.pk]
+    results = dict(member.verification_checks.values_list("kind", "result"))
+    assert results["cardMatch"] == "passed"
+    assert results["phoneVerified"] == "pending"  # not part of the policy
+    # A policy, not proof: what cannot be checked stays unsupported.
+    assert {results[kind] for kind in ("pvcValidated", "liveness", "faceMatch")} == {"unsupported"}
+    assert member.verification_status == "verified" and member.verified_by is None
+    event = AuditEvent.objects.get(action="member.verifiedAutomatically")
+    assert event.actor is None and event.changes["policy"] == "cardSelfieNoDuplicate"
+    assert event.changes["checks"]["cardMatch"] == "passed"
+    card = member.verification_checks.get(kind="cardMatch")
+    assert card.detail == "The name and VIN given match the text read from the card photo."
+    # A keyed fingerprint of what was compared: neither the VIN nor the text read.
+    assert len(card.basis) == 64 and VIN not in card.basis
+    assert VIN not in str(event.changes) and "VOTER" not in str(event.changes)
+
+    # Roles, like any verification, and the review shows nobody decided.
+    role = custom_role(admin, "Ward Mobiliser", [C.SEND_BROADCAST])
+    assert appoint(admin, member, role, [KD]).status_code == 201
+    verifier = staff_with(admin, "08033330022", "Kaduna Verifier", [C.VERIFY_MEMBER_IDENTITY])
+    seen = client_for(verifier.user).get(
+        f"/api/v1/members/{member.membership_number}/verification/"
+    )
+    assert seen.json()["verified_automatically"] is True and seen.json()["reviewed_by"] is None
+    # Checks run again keep the decision and read nothing.
+    identity.record_checks(member)
+    assert reads == [member.pk]
+
+
+def test_the_card_photo_is_read_by_the_server_reader(monkeypatch, kd_units):
+    monkeypatch.setattr(identity, "read_card", READ_CARD)
+    sizes = []
+
+    def read_text(photo):
+        sizes.append(Image.open(photo).size)
+        return card_text()
+
+    monkeypatch.setattr(identity.pvc_reading, "read_text", read_text)
+    member = complete(make_member(phone="08033330023"), kd_units[0])
+    member.pvc_image = SimpleUploadedFile("card.jpg", image().read(), content_type="image/jpeg")
+    member.save()
+    member = identity.record_checks(member)
+    assert sizes == [(40, 40)]  # the stored photo itself
+    assert member.verification_status == "verified"
+
+
+def test_anything_short_of_the_policy_goes_to_review(monkeypatch, kd_units):
+    reads = read_as(monkeypatch, card_text(name="OBI\nADA"))
+    stranger = identity.record_checks(complete(make_member(phone="08033330024"), kd_units[0]))
+    card = stranger.verification_checks.get(kind="cardMatch")
+    assert card.result == "pending" and stranger.verification_status == "pendingReview"
+    assert card.detail == "The name given could not be found on the card photo."
+    # The same name, VIN and photo give the same answer: the card is not read again.
+    identity.record_checks(stranger)
+    assert reads == [stranger.pk]
+
+    read_as(monkeypatch, card_text(name="UMAR\nSANI"))  # another VIN on the card
+    other_card = make_member(phone="08033330025", full_name="Sani Umar")
+    other_card = complete(other_card, kd_units[0], vin="90F5B0E8D0295847099")
+    detail = identity.record_checks(other_card).verification_checks.get(kind="cardMatch").detail
+    assert detail == "The VIN given could not be found on the card photo."
+
+    no_gender = make_member(phone="08033330026", full_name="Ada Obi")
+    no_gender = complete(no_gender, kd_units[1], vin="90F5B0E8D0295847026")
+    no_gender.gender = ""
+    no_gender.save()
+    read_as(monkeypatch, card_text(name="OBI\nADA", vin=no_gender.vin))
+    no_gender = identity.record_checks(no_gender)
+    results = dict(no_gender.verification_checks.values_list("kind", "result"))
+    assert results["cardMatch"] == results["duplicates"] == "passed"
+    assert no_gender.verification_status == "pendingReview"
+
+    # The unit chosen from the list rather than read from the card.
+    listed = make_member(phone="08033330027", full_name="Hauwa Sani")
+    listed = complete(listed, kd_units[0], vin="90F5B0E8D0295847027")
+    listed.polling_unit_from_list = True
+    listed.save()
+    read_as(monkeypatch, card_text(name="SANI\nHAUWA", vin=listed.vin))
+    assert identity.record_checks(listed).verification_status == "pendingReview"
+
+    # A coordinator's rejection stands, and nothing is read for it.
+    rejected = make_member(phone="08033330028", full_name="Bala Idris")
+    rejected = complete(rejected, kd_units[1], vin="90F5B0E8D0295847028")
+    rejected.verification_status = "rejected"
+    rejected.save()
+    reads = read_as(monkeypatch, card_text(name="IDRIS\nBALA", vin=rejected.vin))
+    assert identity.record_checks(rejected).verification_status == "rejected" and reads == []
+
+
+def test_a_corrected_name_is_compared_with_the_card_again(admin, monkeypatch, kd_units):
+    from apps.membership import services
+
+    read_as(monkeypatch, card_text())
+    member = identity.record_checks(complete(make_member(phone="08033330029"), kd_units[0]))
+    assert member.verification_status == "verified"
+    verifier = staff_with(
+        admin, "08033330030", "Kaduna Verifier", [C.MANAGE_MEMBERSHIP, C.VERIFY_MEMBER_IDENTITY]
+    )
+    member = services.update_member(
+        actor=verifier.user, member=member, reason="Wrong name.", full_name="Musa Bello Kaura"
+    )
+    assert member.verification_status == "pendingReview"
+    assert not identity.card_compared(member)  # the comparison was of the old name
+
+    reads = read_as(monkeypatch, card_text())  # the card has no Kaura
+    member = identity.record_checks(member)
+    assert reads == [member.pk] and member.verification_status == "pendingReview"
+    read_as(monkeypatch, card_text(name="BELLO KAURA\nMUSA"))
+    assert identity.record_checks(member).verification_status == "pendingReview"  # not re-read
+
+    member.pvc_image = "members/pvc/rescanned.jpg"  # a new card photo is compared afresh
+    member.save()
+    assert identity.record_checks(member).verification_status == "verified"
+
+
+def test_members_awaiting_a_decision_are_checked_again_by_command(monkeypatch, kd_units):
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    waiting = complete(make_member(phone="08033330031"), kd_units[0])
+    waiting = identity.record_checks(waiting)  # no reader: the card was not read
+    assert waiting.verification_status == "pendingReview"
+    verified = make_member(phone="08033330032", verification_status="verified")
+
+    reads = read_as(monkeypatch, card_text())
+    events = AuditEvent.objects.count()
+    out = StringIO()
+    call_command("record_verification_checks", "--awaiting", "--dry-run", stdout=out)
+    assert out.getvalue().splitlines() == [
+        "1 member(s) selected; 1 await a decision.",
+        "1 card photo(s) would be read; 1 of those members would be verified automatically "
+        "if their card matches.",
+        "Dry run: nothing was recorded and no card was read.",
+    ]
+    assert reads == [] and AuditEvent.objects.count() == events
+
+    out = StringIO()
+    call_command("record_verification_checks", "--awaiting", stdout=out)
+    assert out.getvalue().splitlines() == [
+        "Recorded checks for 1 member(s).",
+        "Read 1 card photo(s); 0 could not be read this time.",
+        "1 member(s) verified automatically.",
+    ]
+    assert reads == [waiting.pk]
+    waiting.refresh_from_db()
+    assert waiting.verification_status == "verified"
+    verified.refresh_from_db()
+    assert not verified.verification_checks.exists()  # a decided member is not selected
 
 
 # --- review ----------------------------------------------------------------------
