@@ -1,15 +1,19 @@
+import json
+
 from django.core import signing
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.urls import reverse
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field, inline_serializer
 from rest_framework import serializers
 
-from apps.core.choices import AccreditationStatus, Gender
+from apps.core.choices import AccreditationStatus, Disability, Gender
 from apps.core.permissions import Capability
 from apps.geography.scope import ScopeField, scope_contains, scope_payload, within_scope_q
 from apps.geography.serializers import NavigationSerializer, navigation_for
 
+from .card import card_missing
 from .models import (
     ACCREDITABLE_ROLES,
     AccreditationEvent,
@@ -19,6 +23,7 @@ from .models import (
     PvcUpdate,
     VerificationCheck,
     VolunteerApplication,
+    clean_disabilities,
 )
 
 CARD_SALT = "tgcg.member-card"
@@ -46,7 +51,56 @@ def masked_vin(member: Member) -> str | None:
 
 
 # Personal details shown only with viewMemberSensitiveData for the member's area.
-SENSITIVE_MEMBER_FIELDS = ("phone_number", "email", "vin", "date_of_birth", "photo_url")
+SENSITIVE_MEMBER_FIELDS = (
+    "phone_number",
+    "email",
+    "vin",
+    "date_of_birth",
+    "photo_url",
+    "disabilities",
+    "disability_other",
+)
+
+
+@extend_schema_field({"type": "array", "items": {"type": "string", "enum": Disability.values}})
+class DisabilitiesField(serializers.Field):
+    """A list of Disability codes. Multipart forms send it as JSON text."""
+
+    default_error_messages = {"invalid": "Send the disabilities as a list."}
+
+    def to_internal_value(self, data):
+        if isinstance(data, str):
+            try:
+                data = json.loads(data) if data.strip() else []
+            except ValueError:
+                self.fail("invalid")
+        if not isinstance(data, list) or not all(isinstance(kind, str) for kind in data):
+            self.fail("invalid")
+        return data
+
+    def to_representation(self, value):
+        return list(value or [])
+
+
+class DisabilitySerializerMixin:
+    """Checks `disabilities` and `disability_other` together, as the member
+    model does, so a wrong choice is reported against its field."""
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if "disabilities" not in attrs and "disability_other" not in attrs:
+            return attrs
+        if "disabilities" not in attrs:
+            raise serializers.ValidationError(
+                {"disabilities": "Send the disabilities with the words for other."}
+            )
+        try:
+            attrs["disabilities"], attrs["disability_other"] = clean_disabilities(
+                attrs["disabilities"], attrs.get("disability_other", "")
+            )
+        except DjangoValidationError as error:
+            raise serializers.ValidationError(error.message_dict) from None
+        return attrs
 
 
 def may_see_sensitive(serializer, member) -> bool:
@@ -104,6 +158,7 @@ class MemberSerializer(serializers.ModelSerializer):
         help_text="Required when a change sends a verified identity back to review.",
     )
     has_pvc = serializers.BooleanField(read_only=True)
+    disabilities = DisabilitiesField(read_only=True)
     phone_verified = serializers.SerializerMethodField()
     has_app_account = serializers.SerializerMethodField()
     photo_url = serializers.SerializerMethodField()
@@ -122,6 +177,8 @@ class MemberSerializer(serializers.ModelSerializer):
             "gender",
             "date_of_birth",
             "occupation",
+            "disabilities",
+            "disability_other",
             "status",
             "verification_status",
             "membership_state",
@@ -142,6 +199,7 @@ class MemberSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "membership_number",
             "phone_number",
+            "disability_other",
             "verification_status",
             "membership_state",
             "registration_channel",
@@ -205,7 +263,7 @@ def _active_accreditation(member):
     return None
 
 
-class AssistedRegistrationSerializer(serializers.Serializer):
+class AssistedRegistrationSerializer(DisabilitySerializerMixin, serializers.Serializer):
     """A coordinator registers someone in person (multipart form)."""
 
     phone_number = serializers.CharField(max_length=20)
@@ -214,6 +272,8 @@ class AssistedRegistrationSerializer(serializers.Serializer):
     gender = serializers.ChoiceField(choices=Gender.choices)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
     occupation = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    disabilities = DisabilitiesField(required=False)
+    disability_other = serializers.CharField(max_length=100, required=False, allow_blank=True)
     email = serializers.EmailField(required=False, allow_blank=True)
     consent = serializers.BooleanField()
     photo = serializers.FileField(help_text="Photo of the member taken at registration.")
@@ -226,7 +286,7 @@ class AssistedRegistrationSerializer(serializers.Serializer):
     client_id = serializers.CharField(max_length=64, required=False, allow_null=True)
 
 
-class SelfRegistrationSerializer(serializers.Serializer):
+class SelfRegistrationSerializer(DisabilitySerializerMixin, serializers.Serializer):
     """A member registers themselves in the app. As on USSD, joining needs the
     phone, the PVC's VIN and polling unit code, a name and a PIN; the rest is
     optional."""
@@ -255,6 +315,10 @@ class SelfRegistrationSerializer(serializers.Serializer):
     gender = serializers.ChoiceField(choices=Gender.choices, required=False, allow_blank=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
     occupation = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    disabilities = DisabilitiesField(
+        required=False, help_text='Optional, as JSON text in this form, e.g. ["visual"].'
+    )
+    disability_other = serializers.CharField(max_length=100, required=False, allow_blank=True)
     email = serializers.EmailField(required=False, allow_blank=True)
     pin = serializers.CharField(max_length=6, min_length=6, write_only=True)
     consent = serializers.BooleanField()
@@ -310,6 +374,10 @@ class MemberCardSerializer(serializers.ModelSerializer):
     member_since = serializers.DateTimeField(source="created_at", read_only=True)
     photo_url = serializers.SerializerMethodField()
     qr_token = serializers.SerializerMethodField()
+    disabilities = DisabilitiesField(read_only=True)
+    card_missing = serializers.SerializerMethodField(
+        help_text="What the member must add before downloading the card; empty when ready."
+    )
 
     class Meta:
         model = Member
@@ -333,6 +401,9 @@ class MemberCardSerializer(serializers.ModelSerializer):
             "member_since",
             "photo_url",
             "qr_token",
+            "disabilities",
+            "disability_other",
+            "card_missing",
         ]
         read_only_fields = [
             "membership_number",
@@ -340,6 +411,7 @@ class MemberCardSerializer(serializers.ModelSerializer):
             "phone_number",
             "gender",
             "date_of_birth",
+            "disability_other",
             "status",
             "verification_status",
             "membership_state",
@@ -357,14 +429,27 @@ class MemberCardSerializer(serializers.ModelSerializer):
     def get_qr_token(self, member) -> str:
         return card_token(member)
 
+    def get_card_missing(self, member) -> list[str]:
+        return card_missing(member)
 
-class MemberSelfUpdateSerializer(serializers.ModelSerializer):
+
+class MemberSelfUpdateSerializer(DisabilitySerializerMixin, serializers.ModelSerializer):
     """What a member edits themselves. Gender and date of birth come from the
-    PVC: they can be added, and changed until the identity is checked."""
+    PVC: they can be added, and changed until the identity is checked. A
+    disability is the member's own to give, change or take back."""
+
+    disabilities = DisabilitiesField(required=False)
 
     class Meta:
         model = Member
-        fields = ["email", "occupation", "gender", "date_of_birth"]
+        fields = [
+            "email",
+            "occupation",
+            "gender",
+            "date_of_birth",
+            "disabilities",
+            "disability_other",
+        ]
 
     def validate_date_of_birth(self, value):
         if value and value > timezone.localdate():

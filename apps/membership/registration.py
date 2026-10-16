@@ -197,6 +197,8 @@ def self_register(
     email="",
     photo=None,
     pvc_image=None,
+    disabilities=(),
+    disability_other="",
 ):
     """Register a member in the app. Returns (member, user).
 
@@ -230,6 +232,8 @@ def self_register(
         gender=gender or "",
         date_of_birth=date_of_birth,
         occupation=occupation or "",
+        disabilities=list(disabilities or []),
+        disability_other=disability_other or "",
         photo=photo,
         pvc_image=pvc_image,
         registration_channel=RegistrationChannel.SELF,
@@ -272,6 +276,8 @@ def assisted_register(
     email="",
     pvc_image=None,
     client_id=None,
+    disabilities=(),
+    disability_other="",
 ) -> Member:
     """A coordinator registers someone in person. The PVC is optional."""
     phone = require_phone(phone_number)
@@ -305,6 +311,8 @@ def assisted_register(
         gender=gender,
         date_of_birth=date_of_birth,
         occupation=occupation or "",
+        disabilities=list(disabilities or []),
+        disability_other=disability_other or "",
         photo=photo,
         pvc_image=pvc_image or "",
         registration_channel=RegistrationChannel.ASSISTED,

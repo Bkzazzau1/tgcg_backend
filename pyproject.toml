@@ -13,6 +13,7 @@ dependencies = [
     "drf-spectacular>=0.30.0",
     "pillow>=12.3.0",
     "psycopg[binary]>=3.3.6",
+    "reportlab>=5.0.1",
 ]
 
 [dependency-groups]

@@ -59,7 +59,7 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | GET | `/api/v1/register/options/` | Public. `{"phone_code_required"}`: whether joining in the app needs an SMS code |
 | GET | `/api/v1/register/places/{states,lgas,wards,polling-units}/` | Public. Lists to find a polling unit by name (`?state=`, `?lga=`, `?ward=`): INEC names and codes, no map positions |
 | POST | `/api/v1/register/code/` | Public. `{"phone_number", "vin"}` checks both are free and sends an SMS code |
-| POST | `/api/v1/register/` | Public, multipart. Self-registration (phone, VIN, polling unit code, name, PIN); returns a signed-in member session |
+| POST | `/api/v1/register/` | Public, multipart. Self-registration (phone, VIN, polling unit code, name, PIN; optionally `disabilities` as JSON text and `disability_other`); returns a signed-in member session |
 | POST | `/api/v1/register/pin-code/`, `/api/v1/register/pin/` | Public. Set or reset a member's PIN by SMS code |
 | POST | `/api/v1/members/register/` | Coordinator registers someone in person (multipart, PVC optional) |
 | GET | `/api/v1/members/` | Members in your scope; filter `status`, `registration_channel`, `gender`, scope codes; search name, phone, number |
@@ -67,7 +67,8 @@ apps/results/      parties, elections, result submissions, integrity checks, col
 | GET, PATCH | `/api/v1/members/{membership_number}/` | e.g. `TGCG-000001` |
 | GET | `/api/v1/members/{membership_number}/photo/` | Member photo (scope-checked) |
 | GET | `/api/v1/members/verify/?token=` | Staff scan a membership card QR code |
-| GET, PATCH | `/api/v1/me/member/` | Member home: own card and profile. Email and occupation are editable; gender and date of birth can be added, and changed until the identity is checked (audited by field name, identity checks rerun) |
+| GET, PATCH | `/api/v1/me/member/` | Member home: own card and profile. Email and occupation are editable; gender and date of birth can be added, and changed until the identity is checked (audited by field name, identity checks rerun). `disabilities` (any of physical, visual, hearing, speech, intellectual, psychosocial, albinism, other) with `disability_other` are the member's to give, change or take back. `card_missing` lists what the card download still needs |
+| GET | `/api/v1/me/member/card/` | The membership card as a PDF: front and back on two ID-card-size pages (85.6 x 54 mm). Needs an active membership, the member's photo, a PVC photo, gender and date of birth, not an identity check; otherwise 409 with `missing`. Roles print once the identity is checked |
 | POST | `/api/v1/me/member/photo/` (`photo`) | Multipart. The member adds the selfie left out when joining; replacing it is refused once their identity is checked (a coordinator does it). Audited, and the identity checks rerun |
 | GET, POST | `/api/v1/me/member/pvc-scan/` | The member's one PVC scan. GET: `{"can_scan", "latest"}`. POST (multipart: `pvc_image`, `full_name`, `vin`, `delim`, optional `gender`, `date_of_birth`, `occupation`): the card's details replace the typed ones, at once, or after a coordinator's second check when the identity is checked. Refused once a card is on record (from joining or an earlier scan) or while one waits; `.../<id>/withdraw/` takes a waiting scan back |
 | GET, POST | `/api/v1/pvc-updates/` | `verifyMemberIdentity` for the member's area (and the unit on the card): scans awaiting a second check, with what they change; `<id>/card/`, `<id>/approve/`, `<id>/reject/` (reason required). Approving keeps the identity checked, by the approver |

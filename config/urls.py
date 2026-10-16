@@ -149,6 +149,7 @@ api_v1 = [
     path("me/access/", access.MyAccessView.as_view(), name="my-access"),
     path("me/member/", reg.MyMemberView.as_view(), name="my-member"),
     path("me/member/photo/", reg.MyMemberPhotoView.as_view(), name="my-member-photo"),
+    path("me/member/card/", reg.MyMemberCardView.as_view(), name="my-member-card"),
     path("me/member/pvc-scan/", reg.MyPvcScanView.as_view(), name="my-pvc-scan"),
     path(
         "me/member/pvc-scan/<uuid:uuid>/withdraw/",

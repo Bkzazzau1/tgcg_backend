@@ -147,6 +147,19 @@ class Gender(models.TextChoices):
     FEMALE = "female", "Female"
 
 
+class Disability(models.TextChoices):
+    """Kinds of disability a member may record: any number, all optional."""
+
+    PHYSICAL = "physical", "Physical / mobility"
+    VISUAL = "visual", "Visual"
+    HEARING = "hearing", "Hearing"
+    SPEECH = "speech", "Speech"
+    INTELLECTUAL = "intellectual", "Intellectual"
+    PSYCHOSOCIAL = "psychosocial", "Psychosocial (mental health)"
+    ALBINISM = "albinism", "Albinism"
+    OTHER = "other", "Other"
+
+
 class RegistrationChannel(models.TextChoices):
     SELF = "self", "Self-registration (app)"
     ASSISTED = "assisted", "Registered by a coordinator"

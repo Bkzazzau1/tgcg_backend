@@ -307,8 +307,8 @@ audited too.
 
 Coordinators see members in their areas: name, membership and
 verification status, roles, area. Phone number, email, VIN (even masked),
-date of birth and photo come back as `null` (with `sensitive_visible:
-false`) unless the caller holds `viewMemberSensitiveData` for that
+date of birth, photo and disabilities come back as `null` (with
+`sensitive_visible: false`) unless the caller holds `viewMemberSensitiveData` for that
 member's area; the same applies to the member photo endpoint, the phone of
 volunteers and the registered phone of agents. Finding a member by phone
 (`?phone=`) only searches those areas. Legacy coordinator roles were given

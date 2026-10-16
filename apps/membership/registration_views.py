@@ -7,7 +7,7 @@ in config/urls.py so failed code attempts are recorded.
 import mimetypes
 
 from django.conf import settings
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from drf_spectacular.utils import (
     OpenApiParameter,
     extend_schema,
@@ -28,7 +28,8 @@ from apps.announcements.views import announcements_for
 from apps.core.permissions import Capability, has_capability, is_staff_operator
 from apps.geography.models import Lga, PollingUnit, State, Ward
 
-from . import pvc_reading, registration, services
+from . import card_pdf, pvc_reading, registration, services
+from .card import card_missing, missing_message
 from .models import Member, PollingUnitChangeRequest
 from .serializers import (
     AssistedRegistrationSerializer,
@@ -348,6 +349,42 @@ def image_response(image):
 
 def _photo_response(member):
     return image_response(member.photo)
+
+
+class MyMemberCardView(MemberHomeMixin, APIView):
+    """The member's card as a PDF: the front and the back on two pages at
+    ID-card size. Until the card is ready (see apps.membership.card) the
+    answer is 409, listing what the member still has to add."""
+
+    @extend_schema(
+        responses={
+            (200, "application/pdf"): bytes,
+            409: inline_serializer(
+                "CardNotReady",
+                {
+                    "detail": serializers.CharField(),
+                    "missing": serializers.ListField(child=serializers.CharField()),
+                },
+            ),
+        }
+    )
+    def get(self, request):
+        member = (
+            _member_queryset()
+            .prefetch_related("role_assignments__role")
+            .get(pk=request.user.member.pk)
+        )
+        missing = card_missing(member)
+        if missing:
+            return Response(
+                {"detail": missing_message(missing), "missing": missing},
+                status=status.HTTP_409_CONFLICT,
+            )
+        response = HttpResponse(card_pdf.render(member), content_type="application/pdf")
+        name = f"{member.membership_number}-card.pdf"
+        response["Content-Disposition"] = f'attachment; filename="{name}"'
+        response["Cache-Control"] = "no-store"
+        return response
 
 
 class MyMemberPhotoView(MemberHomeMixin, APIView):

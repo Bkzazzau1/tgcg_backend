@@ -13,6 +13,7 @@ from django.utils import timezone
 from apps.accounts.phone import normalize_ng_phone
 from apps.core.choices import (
     AccreditationStatus,
+    Disability,
     Gender,
     MembershipState,
     RecordOrigin,
@@ -69,6 +70,23 @@ def _normalize_phone_field(instance, field, required):
     setattr(instance, field, normalized)
 
 
+def clean_disabilities(kinds, other):
+    """A member's disabilities as known codes in Disability order, without
+    repeats, and their words for "other", kept only when "other" is chosen."""
+    if not isinstance(kinds, list | tuple):
+        raise ValidationError({"disabilities": "Disabilities must be a list."})
+    unknown = [kind for kind in kinds if kind not in Disability.values]
+    if unknown:
+        raise ValidationError({"disabilities": f"{unknown[0]!r} is not a known disability."})
+    chosen = [value for value in Disability.values if value in kinds]
+    other = " ".join((other or "").split())
+    if Disability.OTHER not in chosen:
+        return chosen, ""
+    if not other:
+        raise ValidationError({"disability_other": "Say which other disability."})
+    return chosen, other
+
+
 class Member(TimeStampedModel, ScopedModel):
     """A registered TGCG member. The scope is where the member registered."""
 
@@ -90,6 +108,14 @@ class Member(TimeStampedModel, ScopedModel):
     gender = models.CharField(max_length=8, choices=Gender.choices, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
     occupation = models.CharField(max_length=100, blank=True)
+    # Health information the member chose to give: shown to coordinators only
+    # with access to members' private details, and never printed on the card.
+    disabilities = models.JSONField(
+        default=list, blank=True, help_text="Disability codes, in Disability order."
+    )
+    disability_other = models.CharField(
+        max_length=100, blank=True, help_text="The member's words for the other kind."
+    )
     photo = models.ImageField(upload_to=member_photo_path, blank=True)
     pvc_image = models.ImageField(upload_to=member_pvc_path, blank=True)
 
@@ -175,6 +201,9 @@ class Member(TimeStampedModel, ScopedModel):
             raise ValidationError({"full_name": "A full name is required."})
         self.email = self.email.strip().lower()
         self.occupation = " ".join(self.occupation.split())
+        self.disabilities, self.disability_other = clean_disabilities(
+            self.disabilities, self.disability_other
+        )
         _normalize_phone_field(self, "phone_number", required=True)
         if self.vin:
             self.vin = "".join(self.vin.split()).upper()
