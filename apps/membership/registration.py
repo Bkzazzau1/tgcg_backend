@@ -544,6 +544,7 @@ def register_imported(
     polling_unit=None,
     ward=None,
     lga=None,
+    state=None,
     vin=None,
 ) -> Member:
     """A member from a chapter's own list, imported by a National Administrator.
@@ -554,8 +555,8 @@ def register_imported(
     phone is not confirmed by SMS, and the system's own checks record what
     they can, as for anyone. The first password is the phone number as
     written on the list; the member changes it later. The member is placed at
-    their polling unit, or at the ward or LGA when the list gives no more,
-    with the VIN of their voter's card when the list has a valid one.
+    their polling unit, or at the ward, LGA or state when the list gives no
+    more, with the VIN of their voter's card when the list has a valid one.
     """
     if polling_unit is not None:
         place = {"scope_level": GeographyLevel.POLLING_UNIT, "polling_unit": polling_unit}
@@ -563,8 +564,10 @@ def register_imported(
         place = {"scope_level": GeographyLevel.WARD, "ward": ward}
     elif lga is not None:
         place = {"scope_level": GeographyLevel.LGA, "lga": lga}
+    elif state is not None:
+        place = {"scope_level": GeographyLevel.STATE, "state": state}
     else:
-        raise ValueError("An imported member needs a polling unit, ward or LGA.")
+        raise ValueError("An imported member needs a polling unit, ward, LGA or state.")
     phone = require_phone(phone_number)
     vin = _clean_vin(vin)
     ensure_available(phone, vin)

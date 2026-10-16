@@ -6,6 +6,7 @@ Names and numbers here are made up; real lists never go into tests.
 import io
 
 import pytest
+from django.core.cache import cache
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from rest_framework.test import APIClient
@@ -15,6 +16,7 @@ from apps.accounts.models import User
 from apps.core.choices import GeographyLevel, Role, VerificationStatus
 from apps.geography.models import State
 from apps.geography.polling_units import load_polling_units
+from apps.membership.management.commands.import_executives import PU_PERMISSIONS
 from apps.membership.management.commands.import_state_officers import (
     STATE_OFFICER_PERMISSIONS,
 )
@@ -38,7 +40,9 @@ ROWS = [
 
 @pytest.fixture
 def admin():
-    load_polling_units(lga_codes=["KE-ARGUNGU", "KE-YAURI", "KD-ZARIA", "JI-BUJI", "JI-HADEJIA"])
+    load_polling_units(
+        lga_codes=["KE-ARGUNGU", "KE-YAURI", "KD-ZARIA", "KD-SOBA", "JI-BUJI", "JI-HADEJIA"]
+    )
     return User.objects.create_user(
         "NA-1", PASSWORD, full_name="National Admin", role=Role.NATIONAL_ADMINISTRATOR
     )
@@ -192,7 +196,7 @@ def test_a_deputy_coordinates_their_senatorial_district(admin, tmp_path):
     report = run(csv_file(tmp_path, JIGAWA, header=header), state="JI")
     assert "line 2 (S/N 1): VIN shared with another row" in report
     assert "line 3 (S/N 2): VIN shared with another row" in report
-    assert "line 4 (S/N 3): area not a senatorial district of this state" in report
+    assert "line 4 (S/N 3): area not in this state" in report
     assert "line 5 (S/N 4): VIN not valid" in report
     assert "90F5" not in report
 
@@ -237,3 +241,148 @@ def test_a_deputy_coordinates_their_senatorial_district(admin, tmp_path):
     )
     assert appoint("JI-HADEJIA").status_code == 403  # Jigawa North East
     assert appoint("JI-BUJI").status_code == 201, appoint("JI-BUJI").content
+
+
+KADUNA = [
+    # sn, name, role, phone, place, area, vin, hold
+    ("State 1", "MUSA BELLO", "State Coordinator", "08030000021", "KD", "", "", ""),
+    ("State 2", "AMB. SANI ADO", "State Secretary", "08030000022", "KD", "", "", ""),
+    ("State 9", "AMB. SANI ADO", "State Director of Programmes", "08030000022", "KD", "", "", ""),
+    ("Zaria 1", "TANKO GARBA", "LGA Coordinator", "08030000023", "18-23-01", "KD-ZARIA", "", ""),
+    ("Zaria 3", "ANAS ZUBAIRU", "LGA Secretary", "08030000024", "KD-ZARIA", "KD-ZARIA", "", ""),
+    ("Zaria 9", "KABIRU TANKO", "State Secretary", "08030000025", "KD-ZARIA", "KD-ZARIA", "", ""),
+    ("Kufena 1", "MUSA BINA", "Ward Coordinator", "08030000026", "18-23-13", "18-23-13", "", ""),
+    ("Kufena 3", "SULE ADAMU", "Ward Secretary", "08030000027", "18-23-13", "18-23-13", "", ""),
+    (
+        "Kufena 001 #2",
+        "SANI MUSA",
+        "Assistant PU Organising Officer",
+        "08030000028",
+        "18-23-13-001",
+        "18-23-13-001",
+        "",
+        "",
+    ),
+    (
+        "Soba 5",
+        "ALIYU IBRAHIM",
+        "LGA Logistics Officer",
+        "08030000029",
+        "KD-SOBA",
+        "KD-SOBA",
+        "",
+        "",
+    ),
+    ("Soba 90", "ALIYU SAIBU", "Ward Coordinator", "08030000029", "18-21-01", "18-21-01", "", ""),
+    # Held with no area (the whole state): it must not make the new unit role a state one.
+    (
+        "Soba 26",
+        "ISA MUSA",
+        "Assistant PU Organising Officer",
+        "08030000030",
+        "18-21-09",
+        "",
+        "",
+        "no polling unit on the list",
+    ),
+]
+
+
+def test_lga_ward_and_unit_officers_with_their_coordinators(admin, tmp_path):
+    path = csv_file(tmp_path, KADUNA, header="sn,name,role,phone,place,area,vin,hold")
+    report = run(path, "--commit", state="KD")
+    # State Secretary serves the state, not an LGA; one phone, two names: held.
+    assert "line 7 (S/N Zaria 9): role not allowed for this area" in report
+    assert "line 11 (S/N Soba 5): phone number shared with another row" in report
+    assert "line 12 (S/N Soba 90): phone number shared with another row" in report
+    assert "line 13 (S/N Soba 26): held by the list: no polling unit on the list" in report
+    assert (
+        "8 to import, 4 held back. Placed at 1 polling units, 3 wards and 1 LGAs; "
+        "0 with a VIN." in report
+    )
+    assert "2 placed at state level." in report
+    assert "7 people; 1 of them hold more than one role." in report
+    assert "8 roles, 5 of them new." in report
+    assert (
+        "Imported 7 members with their roles (8 roles), 8 appointments; 3 coordinators "
+        "may appoint in their areas." in report
+    )
+
+    # State officers without a place on the list belong to the state alone;
+    # one person with two posts is one member with both roles.
+    secretary = Member.objects.get(phone_number="+2348030000022")
+    assert (secretary.scope_level, secretary.state.code, secretary.lga_id) == (
+        GeographyLevel.STATE,
+        "KD",
+        None,
+    )
+    assert sorted(a.role.name for a in secretary.role_assignments.all()) == [
+        "State Director of Programmes",
+        "State Secretary",
+    ]
+
+    # New roles serve the level of their areas.
+    lga_officer = RoleDefinition.objects.get(name="LGA Secretary")
+    assert lga_officer.permitted_levels == [GeographyLevel.LGA]
+    assert sorted(lga_officer.permissions) == STATE_OFFICER_PERMISSIONS
+    assert lga_officer.supervising_role.code == Role.LGA_COORDINATOR
+    ward_officer = RoleDefinition.objects.get(name="Ward Secretary")
+    assert ward_officer.permitted_levels == [GeographyLevel.WARD]
+    assert ward_officer.supervising_role.code == Role.WARD_COORDINATOR
+    unit_role = RoleDefinition.objects.get(name="Assistant PU Organising Officer")
+    assert unit_role.permitted_levels == [GeographyLevel.POLLING_UNIT]
+    assert sorted(unit_role.permissions) == PU_PERMISSIONS
+
+    # Each coordinator may appoint below their own level.
+    levels = {grant.recipient.full_name: grant.levels for grant in DelegationGrant.objects.all()}
+    assert levels == {
+        "Musa Bello": ["lga", "ward", "pollingUnit"],
+        "Tanko Garba": ["ward", "pollingUnit"],
+        "Musa Bina": ["pollingUnit"],
+    }
+
+    def client_for(phone):
+        cache.clear()  # the sign-in rate limit
+        login = APIClient().post(
+            "/api/v1/auth/login/", {"username": phone, "password": phone}, format="json"
+        )
+        assert login.status_code == 200, login.content
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}")
+        return client
+
+    def appoint(client, member, role, area):
+        return client.post(
+            "/api/v1/access/assignments/",
+            {"member": member.membership_number, "role": role, "areas": [area]},
+            format="json",
+        )
+
+    # The LGA Coordinator appoints a Ward Coordinator in Zaria, not in Soba.
+    lga_coordinator = client_for("08030000023")
+    candidate = Member.objects.get(full_name="Anas Zubairu")
+    ward_role = Role.WARD_COORDINATOR.value
+    outside = appoint(
+        lga_coordinator, candidate, ward_role, {"level": "ward", "wardId": "18-21-01"}
+    )
+    assert outside.status_code == 403, outside.content
+    inside = appoint(lga_coordinator, candidate, ward_role, {"level": "ward", "wardId": "18-23-04"})
+    assert inside.status_code == 201, inside.content
+
+    # The Ward Coordinator appoints at Kufena's units, not at another ward's.
+    ward_coordinator = client_for("08030000026")
+    officer = Member.objects.get(full_name="Sule Adamu")
+    outside = appoint(
+        ward_coordinator,
+        officer,
+        unit_role.code,
+        {"level": "pollingUnit", "pollingUnitId": "18-23-01-001"},
+    )
+    assert outside.status_code == 403, outside.content
+    inside = appoint(
+        ward_coordinator,
+        officer,
+        unit_role.code,
+        {"level": "pollingUnit", "pollingUnitId": "18-23-13-002"},
+    )
+    assert inside.status_code == 201, inside.content
