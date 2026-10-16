@@ -50,9 +50,9 @@ Polling unit coordinates from INEC's public Polling Unit Locator, applied by
 | | |
 |---|---|
 | Source | INEC Polling Unit Locator, https://cvr.inecnigeria.org/pu. Its GET DIRECTIONS button redirects to a Google Maps link holding the unit's coordinates. |
-| Collected with | `scripts/inec_locator.py`, one request per unit: Kaduna on 2026-10-11, Osun on 2026-10-11 and 12, and Anambra, Bauchi, Benue, Borno, Delta, Kano, Katsina, Lagos, Oyo and Rivers on 2026-10-15 and 16 (one collector per state, all ten at once) |
+| Collected with | `scripts/inec_locator.py`, one request per unit: Kaduna on 2026-10-11, Osun on 2026-10-11 and 12, Anambra, Bauchi, Benue, Borno, Delta, Kano, Katsina, Lagos, Oyo and Rivers on 2026-10-15 and 16, and Abia, Adamawa, Akwa Ibom, Edo, Enugu, Imo, Jigawa, Niger, Ogun and Plateau on 2026-10-16 (one collector per state, ten at once) |
 | Checked with | `scripts/check_inec_locations.py`, against the register above and the Flutter app's LGA and ward boundaries |
-| Coverage | **12 states, each complete: 83,409 units, 74,047 located (88.8%).** Other states are added by collecting them and re-running the check. See **Coverage** below. |
+| Coverage | **22 states, each complete: 128,853 units, 116,781 located (90.6%).** Other states are added by collecting them and re-running the check. See **Coverage** below. |
 
 Columns: `code`, `latitude`, `longitude` (exactly as INEC wrote them), `qa`,
 `fetched_at`.
@@ -62,19 +62,29 @@ state here. Replace the rows whenever LGAs are added.
 
 | State | LGAs | Units | Located | No INEC location | Rejected | Not in the locator |
 |---|---:|---:|---:|---:|---:|---:|
+| Abia | 17 | 4,062 | 3,911 (96.3%) | 91 | 0 | 60 |
+| Adamawa | 21 | 4,104 | 3,965 (96.6%) | 116 | 7 | 16 |
+| Akwa Ibom | 31 | 4,353 | 4,292 (98.6%) | 51 | 10 | 0 |
 | Anambra | 21 | 5,720 | 5,550 (97.0%) | 161 | 9 | 0 |
 | Bauchi | 20 | 5,423 | 4,979 (91.8%) | 444 | 0 | 0 |
 | Benue | 23 | 5,102 | 4,232 (82.9%) | 765 | 105 | 0 |
 | Borno | 27 | 5,071 | 3,992 (78.7%) | 694 | 385 | 0 |
 | Delta | 25 | 5,863 | 4,519 (77.1%) | 1,044 | 269 | 31 |
+| Edo | 18 | 4,519 | 4,179 (92.5%) | 307 | 20 | 13 |
+| Enugu | 17 | 4,145 | 4,017 (96.9%) | 89 | 39 | 0 |
+| Imo | 27 | 4,758 | 4,219 (88.7%) | 531 | 8 | 0 |
+| Jigawa | 27 | 4,522 | 3,995 (88.3%) | 512 | 15 | 0 |
 | Kaduna | 23 | 8,012 | 7,770 (97.0%) | 225 | 17 | 0 |
 | Kano | 44 | 11,222 | 8,078 (72.0%) | 2,637 | 500 | 7 |
 | Katsina | 34 | 6,652 | 6,161 (92.6%) | 487 | 2 | 2 |
 | Lagos | 20 | 13,325 | 12,389 (93.0%) | 924 | 12 | 0 |
+| Niger | 25 | 4,950 | 4,325 (87.4%) | 500 | 125 | 0 |
+| Ogun | 20 | 5,042 | 4,949 (98.2%) | 81 | 11 | 1 |
 | Osun | 30 | 3,763 | 3,612 (96.0%) | 126 | 25 | 0 |
 | Oyo | 33 | 6,390 | 6,029 (94.4%) | 286 | 73 | 2 |
+| Plateau | 17 | 4,989 | 4,882 (97.9%) | 87 | 18 | 2 |
 | Rivers | 23 | 6,866 | 6,736 (98.1%) | 83 | 47 | 0 |
-| **Total** | **323** | **83,409** | **74,047 (88.8%)** | **7,876** | **1,444** | **42** |
+| **Total** | **543** | **128,853** | **116,781 (90.6%)** | **10,241** | **1,697** | **134** |
 
 **Kaduna State** (complete)
 
@@ -471,6 +481,286 @@ state here. Replace the rows whenever LGAs are added.
 | Tai | 141 | 141 | 0 | 0 | 0 | 0 |
 | **Total** | **6,866** | **6,736** | **0** | **115** | **83** | **47** |
 
+**Abia State** (complete)
+
+| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Aba North | 503 | 501 | 201 | 24 | 2 | 0 |
+| Aba South | 518 | 493 | 233 | 3 | 25 | 0 |
+| Arochukwu | 183 | 167 | 62 | 0 | 5 | 0 |
+| Bende | 214 | 211 | 62 | 26 | 3 | 0 |
+| Ikwuano | 143 | 138 | 44 | 2 | 1 | 0 |
+| Isiala Ngwa North | 185 | 177 | 44 | 9 | 1 | 0 |
+| Isiala Ngwa South | 194 | 183 | 62 | 15 | 10 | 0 |
+| Isuikwuato | 149 | 149 | 44 | 10 | 0 | 0 |
+| Obingwa | 312 | 302 | 46 | 10 | 0 | 0 |
+| Ohafia | 282 | 270 | 15 | 0 | 2 | 0 |
+| Osisioma | 301 | 280 | 154 | 0 | 12 | 0 |
+| Ugwunagbo | 160 | 159 | 48 | 6 | 1 | 0 |
+| Ukwa East | 85 | 81 | 7 | 0 | 4 | 0 |
+| Ukwa West | 129 | 113 | 41 | 2 | 16 | 0 |
+| Umu Nneochi | 153 | 145 | 16 | 0 | 8 | 0 |
+| Umuahia North | 378 | 370 | 181 | 0 | 0 | 0 |
+| Umuahia South | 173 | 172 | 21 | 0 | 1 | 0 |
+| **Total** | **4,062** | **3,911** | **1,281** | **107** | **91** | **0** |
+
+**Adamawa State** (complete)
+
+| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Demsa | 177 | 174 | 12 | 0 | 3 | 0 |
+| Fufore | 274 | 268 | 8 | 1 | 6 | 0 |
+| Ganye | 198 | 181 | 4 | 0 | 1 | 0 |
+| Girei | 152 | 147 | 7 | 6 | 1 | 4 |
+| Gombi | 180 | 177 | 4 | 0 | 3 | 0 |
+| Guyuk | 150 | 137 | 2 | 0 | 13 | 0 |
+| Hong | 225 | 219 | 24 | 3 | 3 | 3 |
+| Jada | 215 | 200 | 13 | 1 | 15 | 0 |
+| Lamurde | 152 | 151 | 24 | 0 | 1 | 0 |
+| Madagali | 160 | 149 | 5 | 0 | 11 | 0 |
+| Maiha | 122 | 119 | 9 | 0 | 3 | 0 |
+| Mayo Belwa | 206 | 199 | 1 | 1 | 7 | 0 |
+| Michika | 223 | 216 | 9 | 0 | 7 | 0 |
+| Mubi North | 276 | 272 | 9 | 0 | 4 | 0 |
+| Mubi South | 143 | 130 | 4 | 0 | 13 | 0 |
+| Numan | 170 | 162 | 13 | 0 | 8 | 0 |
+| Shelleng | 124 | 114 | 2 | 0 | 10 | 0 |
+| Song | 207 | 207 | 6 | 1 | 0 | 0 |
+| Toungo | 101 | 95 | 4 | 0 | 6 | 0 |
+| Yola North | 377 | 376 | 15 | 0 | 1 | 0 |
+| Yola South | 272 | 272 | 11 | 0 | 0 | 0 |
+| **Total** | **4,104** | **3,965** | **186** | **13** | **116** | **7** |
+
+**Akwa Ibom State** (complete)
+
+| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Abak | 186 | 184 | 0 | 8 | 2 | 0 |
+| Eastern Obolo | 57 | 57 | 0 | 0 | 0 | 0 |
+| Eket | 203 | 203 | 0 | 0 | 0 | 0 |
+| Esit Eket | 95 | 95 | 0 | 0 | 0 | 0 |
+| Essien Udim | 219 | 215 | 0 | 2 | 4 | 0 |
+| Etim Ekpo | 111 | 110 | 0 | 0 | 1 | 0 |
+| Etinan | 146 | 145 | 0 | 3 | 1 | 0 |
+| Ibeno | 71 | 68 | 0 | 0 | 3 | 0 |
+| Ibesikpo Asutan | 180 | 180 | 0 | 0 | 0 | 0 |
+| Ibiono Ibom | 199 | 198 | 0 | 6 | 1 | 0 |
+| Ika | 79 | 77 | 0 | 0 | 2 | 0 |
+| Ikono | 168 | 168 | 0 | 32 | 0 | 0 |
+| Ikot Abasi | 111 | 111 | 0 | 0 | 0 | 0 |
+| Ikot Ekpene | 171 | 157 | 0 | 0 | 14 | 0 |
+| Ini | 113 | 109 | 0 | 6 | 4 | 0 |
+| Itu | 140 | 136 | 0 | 0 | 4 | 0 |
+| Mbo | 100 | 94 | 0 | 3 | 6 | 0 |
+| Mkpat Enin | 145 | 144 | 0 | 4 | 1 | 0 |
+| Nsit Atai | 85 | 85 | 0 | 0 | 0 | 0 |
+| Nsit Ibom | 114 | 111 | 0 | 0 | 3 | 0 |
+| Nsit Ubium | 117 | 117 | 0 | 4 | 0 | 0 |
+| Obot Akara | 105 | 105 | 0 | 0 | 0 | 0 |
+| Okobo | 112 | 112 | 0 | 2 | 0 | 0 |
+| Onna | 142 | 142 | 0 | 12 | 0 | 0 |
+| Oron | 105 | 100 | 0 | 0 | 5 | 0 |
+| Oruk Anam | 221 | 220 | 0 | 3 | 0 | 1 |
+| Udung Uko | 61 | 61 | 0 | 0 | 0 | 0 |
+| Ukanafun | 134 | 134 | 0 | 3 | 0 | 0 |
+| Uruan | 166 | 166 | 0 | 2 | 0 | 0 |
+| Urue-Offong/Oruko | 73 | 73 | 0 | 0 | 0 | 0 |
+| Uyo | 424 | 415 | 0 | 12 | 0 | 9 |
+| **Total** | **4,353** | **4,292** | **0** | **102** | **51** | **10** |
+
+**Edo State** (complete)
+
+| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Akoko Edo | 241 | 141 | 0 | 0 | 100 | 0 |
+| Egor | 436 | 434 | 0 | 2 | 1 | 1 |
+| Esan Central | 117 | 114 | 0 | 2 | 3 | 0 |
+| Esan North East | 172 | 171 | 0 | 1 | 1 | 0 |
+| Esan South East | 160 | 156 | 0 | 0 | 4 | 0 |
+| Esan West | 200 | 114 | 0 | 0 | 86 | 0 |
+| Etsako Central | 104 | 84 | 0 | 0 | 19 | 1 |
+| Etsako East | 166 | 163 | 0 | 0 | 3 | 0 |
+| Etsako West | 322 | 300 | 0 | 0 | 21 | 1 |
+| Igueben | 95 | 95 | 0 | 0 | 0 | 0 |
+| Ikpoba Okha | 641 | 621 | 0 | 18 | 19 | 1 |
+| Oredo | 619 | 583 | 0 | 17 | 20 | 3 |
+| Orhionmwon | 265 | 264 | 0 | 1 | 1 | 0 |
+| Ovia North East | 292 | 278 | 0 | 14 | 3 | 11 |
+| Ovia South West | 195 | 185 | 0 | 0 | 9 | 1 |
+| Owan East | 189 | 187 | 0 | 0 | 2 | 0 |
+| Owan West | 151 | 150 | 0 | 1 | 1 | 0 |
+| Uhunmwode | 154 | 139 | 0 | 0 | 14 | 1 |
+| **Total** | **4,519** | **4,179** | **0** | **56** | **307** | **20** |
+
+**Enugu State** (complete)
+
+| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Aninri | 153 | 149 | 67 | 0 | 3 | 1 |
+| Awgu | 240 | 240 | 6 | 0 | 0 | 0 |
+| Enugu East | 386 | 378 | 112 | 29 | 3 | 5 |
+| Enugu North | 393 | 386 | 104 | 10 | 7 | 0 |
+| Enugu South | 321 | 317 | 66 | 2 | 2 | 2 |
+| Ezeagu | 180 | 178 | 44 | 0 | 2 | 0 |
+| Igbo Etiti | 201 | 197 | 75 | 3 | 0 | 4 |
+| Igbo Eze North | 266 | 232 | 71 | 0 | 34 | 0 |
+| Igbo Eze South | 213 | 190 | 88 | 1 | 3 | 20 |
+| Isi Uzo | 159 | 154 | 43 | 6 | 5 | 0 |
+| Nkanu East | 164 | 164 | 26 | 1 | 0 | 0 |
+| Nkanu West | 207 | 207 | 43 | 28 | 0 | 0 |
+| Nsukka | 397 | 383 | 122 | 20 | 10 | 4 |
+| Oji River | 175 | 162 | 47 | 0 | 13 | 0 |
+| Udenu | 265 | 261 | 65 | 1 | 3 | 1 |
+| Udi | 279 | 276 | 41 | 0 | 1 | 2 |
+| Uzo Uwani | 146 | 143 | 20 | 0 | 3 | 0 |
+| **Total** | **4,145** | **4,017** | **1,040** | **101** | **89** | **39** |
+
+**Imo State** (complete)
+
+| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Aboh Mbaise | 212 | 209 | 0 | 1 | 3 | 0 |
+| Ahiazu Mbaise | 185 | 184 | 0 | 4 | 0 | 1 |
+| Ehime Mbano | 154 | 154 | 0 | 1 | 0 | 0 |
+| Ezinihitte Mbaise | 175 | 174 | 0 | 9 | 1 | 0 |
+| Ideato North | 196 | 188 | 0 | 6 | 7 | 1 |
+| Ideato South | 152 | 135 | 0 | 48 | 17 | 0 |
+| Ihitte Uboma | 117 | 117 | 0 | 7 | 0 | 0 |
+| Ikeduru | 227 | 162 | 0 | 11 | 65 | 0 |
+| Isiala Mbano | 196 | 190 | 0 | 12 | 5 | 1 |
+| Isu | 123 | 122 | 0 | 0 | 1 | 0 |
+| Mbaitoli | 287 | 284 | 0 | 23 | 3 | 0 |
+| Ngor Okpala | 193 | 0 | 0 | 0 | 193 | 0 |
+| Njaba | 134 | 134 | 0 | 8 | 0 | 0 |
+| Nkwerre | 131 | 109 | 0 | 43 | 21 | 1 |
+| Nwangele | 113 | 100 | 0 | 64 | 13 | 0 |
+| Obowo | 128 | 127 | 0 | 5 | 1 | 0 |
+| Oguta | 184 | 180 | 0 | 0 | 4 | 0 |
+| Ohaji Egbema | 210 | 193 | 0 | 0 | 17 | 0 |
+| Okigwe | 154 | 152 | 0 | 1 | 2 | 0 |
+| Onuimo | 97 | 97 | 0 | 24 | 0 | 0 |
+| Orlu | 209 | 195 | 0 | 2 | 13 | 1 |
+| Orsu | 137 | 95 | 0 | 0 | 41 | 1 |
+| Oru East | 171 | 170 | 0 | 8 | 1 | 0 |
+| Oru West | 147 | 138 | 0 | 0 | 9 | 0 |
+| Owerri Municipal | 239 | 133 | 0 | 0 | 106 | 0 |
+| Owerri North | 236 | 234 | 0 | 7 | 2 | 0 |
+| Owerri West | 251 | 243 | 0 | 6 | 6 | 2 |
+| **Total** | **4,758** | **4,219** | **0** | **290** | **531** | **8** |
+
+**Jigawa State** (complete)
+
+| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Auyo | 137 | 136 | 1 | 0 | 0 | 1 |
+| Babura | 214 | 199 | 13 | 0 | 14 | 1 |
+| Birnin Kudu | 322 | 303 | 30 | 0 | 19 | 0 |
+| Birniwa | 148 | 146 | 1 | 0 | 2 | 0 |
+| Buji | 117 | 113 | 9 | 0 | 4 | 0 |
+| Dutse | 267 | 253 | 9 | 0 | 14 | 0 |
+| Gagarawa | 89 | 89 | 22 | 0 | 0 | 0 |
+| Garki | 172 | 163 | 10 | 1 | 4 | 5 |
+| Gumel | 103 | 101 | 25 | 0 | 2 | 0 |
+| Guri | 113 | 108 | 2 | 0 | 5 | 0 |
+| Gwaram | 298 | 266 | 47 | 0 | 32 | 0 |
+| Gwiwa | 112 | 103 | 8 | 1 | 9 | 0 |
+| Hadejia | 138 | 136 | 53 | 0 | 2 | 0 |
+| Jahun | 232 | 0 | 0 | 0 | 232 | 0 |
+| Kafin Hausa | 239 | 227 | 12 | 0 | 6 | 6 |
+| Kaugama | 161 | 159 | 2 | 0 | 2 | 0 |
+| Kazaure | 144 | 139 | 11 | 0 | 5 | 0 |
+| Kirika Samma | 149 | 139 | 8 | 0 | 10 | 0 |
+| Kiyawa | 188 | 175 | 3 | 1 | 13 | 0 |
+| Maigatari | 161 | 161 | 5 | 0 | 0 | 0 |
+| Malam Madori | 154 | 151 | 6 | 0 | 2 | 1 |
+| Miga | 113 | 110 | 10 | 0 | 3 | 0 |
+| Ringim | 240 | 149 | 3 | 0 | 91 | 0 |
+| Roni | 110 | 85 | 3 | 1 | 24 | 1 |
+| Sule Tankarkar | 167 | 165 | 3 | 0 | 2 | 0 |
+| Taura | 157 | 143 | 17 | 0 | 14 | 0 |
+| Yankwashi | 77 | 76 | 1 | 0 | 1 | 0 |
+| **Total** | **4,522** | **3,995** | **314** | **4** | **512** | **15** |
+
+**Niger State** (complete)
+
+| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Agaie | 164 | 162 | 42 | 1 | 2 | 0 |
+| Agwara | 70 | 70 | 5 | 0 | 0 | 0 |
+| Bida | 270 | 207 | 28 | 0 | 63 | 0 |
+| Borgu | 208 | 191 | 10 | 1 | 17 | 0 |
+| Bosso | 249 | 245 | 20 | 6 | 1 | 3 |
+| Chanchaga | 379 | 373 | 30 | 2 | 5 | 1 |
+| Edatti | 119 | 118 | 1 | 0 | 0 | 1 |
+| Gbako | 156 | 139 | 4 | 15 | 0 | 17 |
+| Gurara | 150 | 92 | 13 | 2 | 48 | 10 |
+| Katcha | 149 | 142 | 4 | 1 | 6 | 1 |
+| Kontagora | 248 | 210 | 50 | 3 | 37 | 1 |
+| Lapai | 193 | 184 | 21 | 1 | 5 | 4 |
+| Lavun | 223 | 179 | 8 | 33 | 5 | 39 |
+| Magama | 189 | 176 | 10 | 0 | 8 | 5 |
+| Mariga | 214 | 183 | 12 | 1 | 28 | 3 |
+| Mashegu | 205 | 196 | 6 | 12 | 8 | 1 |
+| Mokwa | 187 | 161 | 10 | 15 | 4 | 22 |
+| Munya | 119 | 100 | 4 | 0 | 19 | 0 |
+| Paikoro | 232 | 179 | 31 | 3 | 48 | 5 |
+| Rafi | 219 | 147 | 31 | 0 | 72 | 0 |
+| Rijau | 178 | 168 | 19 | 0 | 9 | 1 |
+| Shiroro | 257 | 176 | 10 | 5 | 73 | 8 |
+| Suleja | 277 | 259 | 18 | 21 | 17 | 1 |
+| Tafa | 171 | 160 | 47 | 0 | 11 | 0 |
+| Wushishi | 124 | 108 | 2 | 2 | 14 | 2 |
+| **Total** | **4,950** | **4,325** | **436** | **124** | **500** | **125** |
+
+**Ogun State** (complete)
+
+| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Abeokuta North | 338 | 335 | 34 | 1 | 3 | 0 |
+| Abeokuta South | 445 | 434 | 131 | 15 | 8 | 3 |
+| Ado-Odo/Ota | 655 | 654 | 83 | 1 | 1 | 0 |
+| Ewekoro | 188 | 187 | 17 | 1 | 1 | 0 |
+| Ifo | 448 | 445 | 82 | 0 | 2 | 0 |
+| Ijebu East | 154 | 153 | 22 | 3 | 1 | 0 |
+| Ijebu North | 268 | 258 | 51 | 4 | 5 | 5 |
+| Ijebu North East | 111 | 110 | 4 | 32 | 0 | 1 |
+| Ijebu Ode | 161 | 161 | 28 | 1 | 0 | 0 |
+| Ikenne | 126 | 123 | 20 | 0 | 3 | 0 |
+| Imeko Afon | 132 | 119 | 11 | 1 | 13 | 0 |
+| Ipokia | 262 | 260 | 7 | 0 | 2 | 0 |
+| Obafemi Owode | 329 | 326 | 11 | 2 | 3 | 0 |
+| Odeda | 182 | 180 | 6 | 17 | 2 | 0 |
+| Odogbolu | 178 | 174 | 10 | 21 | 4 | 0 |
+| Ogun Waterside | 126 | 93 | 12 | 0 | 31 | 2 |
+| Remo North | 132 | 131 | 7 | 1 | 1 | 0 |
+| Sagamu | 299 | 299 | 80 | 0 | 0 | 0 |
+| Yewa North | 251 | 251 | 65 | 5 | 0 | 0 |
+| Yewa South | 257 | 256 | 16 | 0 | 1 | 0 |
+| **Total** | **5,042** | **4,949** | **697** | **105** | **81** | **11** |
+
+**Plateau State** (complete)
+
+| LGA | Units | Located | Outside own ward | In next LGA | No INEC location | Rejected |
+|---|---:|---:|---:|---:|---:|---:|
+| Barkin Ladi | 236 | 199 | 0 | 0 | 37 | 0 |
+| Bassa | 296 | 289 | 0 | 2 | 6 | 1 |
+| Bokkos | 236 | 236 | 0 | 9 | 0 | 0 |
+| Jos East | 133 | 116 | 0 | 3 | 7 | 10 |
+| Jos North | 913 | 913 | 0 | 0 | 0 | 0 |
+| Jos South | 542 | 542 | 0 | 0 | 0 | 0 |
+| Kanam | 285 | 262 | 0 | 5 | 22 | 1 |
+| Kanke | 185 | 178 | 0 | 4 | 2 | 5 |
+| Langtang North | 225 | 225 | 0 | 0 | 0 | 0 |
+| Langtang South | 127 | 124 | 0 | 9 | 2 | 1 |
+| Mangu | 409 | 408 | 0 | 1 | 1 | 0 |
+| Mikang | 111 | 111 | 0 | 1 | 0 | 0 |
+| Pankshin | 260 | 260 | 0 | 5 | 0 | 0 |
+| Qua'an Pan | 279 | 277 | 0 | 3 | 2 | 0 |
+| Riyom | 146 | 145 | 0 | 5 | 1 | 0 |
+| Shendam | 329 | 329 | 0 | 1 | 0 | 0 |
+| Wase | 277 | 268 | 0 | 2 | 7 | 0 |
+| **Total** | **4,989** | **4,882** | **0** | **50** | **87** | **18** |
+
 - **Located** units are imported. **Outside own ward** counts located units
   that fall just outside their ward on GRID3's operational ward map, whose
   lines do not always follow INEC's. They are kept (`qa = ok_outside_ward`).
@@ -479,14 +769,18 @@ state here. Replace the rows whenever LGAs are added.
   than 5 km beyond their own (`qa = ok_neighbouring_lga`). Border towns are
   often drawn on the wrong side of the line: 112 of Olorunda's 114 lie in
   Osogbo LGA as the app's boundaries draw it, in the part of Osogbo town that
-  INEC counts in Olorunda. Half of these points are within about 2 km of
+  INEC counts in Olorunda. In Imo, Nwangele and Nkwerre mirror each other: 55
+  of Nwangele's 64 lie in Nkwerre and 42 of Nkwerre's 43 in Nwangele, all
+  within about 4 km. Half of these points are within about 2 km of
   their own LGA. They are imported with a note (`location_note`) that the
   app shows with the directions, asking whoever goes there to check the
   point; a coordinator's pin clears it.
 - **No INEC location:** the locator has no coordinates for these units and
   only offers a Google Maps search by name. Coordinators pin them. Whole
-  areas can be missing: all of Warji (Bauchi), most of Burutu and Warri North
-  (Delta), and much of Kano city (Nasarawa, Kumbotso, Gwale, Tarauni).
+  areas can be missing: all of Warji (Bauchi), Ngor Okpala (Imo) and Jahun
+  (Jigawa), most of Burutu and Warri North (Delta), much of Kano city
+  (Nasarawa, Kumbotso, Gwale, Tarauni), and large parts of Owerri Municipal
+  (Imo), Ringim (Jigawa), Akoko Edo and Esan West (Edo).
 - **Rejected:** INEC's point is more than 1 km outside the unit's LGA and
   not just inside a neighbouring LGA of the same state. These units stay
   unmapped until a coordinator pins them. In Kaduna and Osun, 39 of the 42
@@ -505,14 +799,22 @@ state here. Replace the rows whenever LGAs are added.
     because of the insurgency, so a few may be real relocated sites.
   - **Benue:** 26 Ushongo points lie just inside Kwande, about 7.5 km out,
     past the 5 km allowed for border towns; Vandeikya's lie 66 to 100 km away.
+  - **Niger** (125): Lavun's 39 and Gbako's 17 lie mostly in Bida LGA, a
+    median 14 and 10 km beyond their own; Mokwa's 22 lie about 50 km away,
+    in Katcha and Lavun.
+  - **Enugu:** 20 of Igbo-Eze South's points lie in Enugu city (Enugu North),
+    about 45 km away.
 - **Not in the locator:** a few register units are missing from the
-  locator's own lists (31 in Delta, 7 in Kano, 2 each in Katsina and Oyo), so
-  there was nothing to fetch. They count under Units only.
+  locator's own lists (60 in Abia, 31 in Delta, 16 in Adamawa, 13 in Edo, 7
+  in Kano, 2 each in Katsina, Oyo and Plateau, and 1 in Ogun), so there was
+  nothing to fetch: in Oredo (Edo), the locator lists 32 units in Ibiwe/
+  Iwegie/Ugbague ward and the register 45. They count under Units only.
 - Only one spot is claimed by units of three or more wards: four Dawaki Kudu
   (Kano) units from four wards, rejected as `shared_spot`. A few pairs share
   a spot, as two units at one school would.
-- States without published ward boundaries (Anambra, Benue, Lagos, Rivers)
-  show 0 under Outside own ward: there is nothing to compare with.
+- States without published ward boundaries (Akwa Ibom, Anambra, Benue, Edo,
+  Imo, Lagos, Plateau, Rivers) show 0 under Outside own ward: there is nothing
+  to compare with.
 - Spot check: unit `18-23-01-014` (UNG. ASKA I/ L.E.A. ANGUWAN KAHU) matches
   the location seen in the locator by hand (11.0539, 7.712955).
 
@@ -537,7 +839,9 @@ own ward. The locator's current data is far better, as the coverage table shows.
 **To extend**, collect more units, check them (the check merges them into this
 file and keeps the LGAs already here), and reload. `--complete-only` takes just
 the LGAs whose units have all been collected, so it is safe to run while the
-collector is still working:
+collector is still working. Once the collector has finished, check its file
+without it: the locator lists fewer units than the register in a few wards
+(see Not in the locator), and with the option such an LGA is left out whole.
 
 ```bash
 python scripts/inec_locator.py --out inec_locator.csv --state 18
@@ -548,5 +852,6 @@ uv run python manage.py load_inec_locations
 
 Several states can be collected at once: one collector per state, each with
 its own `--out` file (for example `--out inec_locator.csv.KN --state 19`), then
-each file checked in turn. Ten ran side by side on 2026-10-15 with only a few
-retried server errors.
+each file checked in turn. Ten ran side by side on 2026-10-15 and ten more on
+2026-10-16 with only a few retried server errors; when this side's connection
+dropped for three hours, they waited and carried on.
