@@ -10,7 +10,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from rest_framework.test import APIClient
 
-from apps.access.models import RoleAssignment, RoleDefinition
+from apps.access.models import DelegationGrant, RoleAssignment, RoleDefinition
 from apps.accounts.models import User
 from apps.core.choices import GeographyLevel, Role, VerificationStatus
 from apps.geography.models import State
@@ -38,27 +38,27 @@ ROWS = [
 
 @pytest.fixture
 def admin():
-    load_polling_units(lga_codes=["KE-ARGUNGU", "KE-YAURI", "KD-ZARIA"])
+    load_polling_units(lga_codes=["KE-ARGUNGU", "KE-YAURI", "KD-ZARIA", "JI-BUJI", "JI-HADEJIA"])
     return User.objects.create_user(
         "NA-1", PASSWORD, full_name="National Admin", role=Role.NATIONAL_ADMINISTRATOR
     )
 
 
-def csv_file(tmp_path, rows=ROWS):
+def csv_file(tmp_path, rows=ROWS, header="sn,name,role,phone,place,hold"):
     path = tmp_path / "officers.csv"
-    lines = ["sn,name,role,phone,place,hold"]
+    lines = [header]
     lines += [",".join(f'"{value}"' for value in row) for row in rows]
     path.write_text("\n".join(lines), encoding="utf-8")
     return path
 
 
-def run(path, *flags, by="NA-1"):
+def run(path, *flags, by="NA-1", state="KE"):
     out = io.StringIO()
     call_command(
         "import_state_officers",
         str(path),
         "--state",
-        "KE",
+        state,
         "--by",
         by,
         "--source",
@@ -71,7 +71,11 @@ def run(path, *flags, by="NA-1"):
 
 def test_a_dry_run_reports_held_rows_by_number_and_saves_nothing(admin, tmp_path):
     report = run(csv_file(tmp_path))
-    assert "4 to import, 4 held back. Placed at 1 polling units, 2 wards and 1 LGAs." in report
+    assert (
+        "4 to import, 4 held back. Placed at 1 polling units, 2 wards and 1 LGAs; "
+        "0 with a VIN." in report
+    )
+    assert "3 roles, 2 of them new." in report
     assert "line 6 (S/N 5): not a valid Nigerian mobile number" in report
     assert "line 7 (S/N 6): not a valid Nigerian mobile number" in report
     assert "line 8 (S/N 7): held by the list: to confirm" in report
@@ -83,7 +87,10 @@ def test_a_dry_run_reports_held_rows_by_number_and_saves_nothing(admin, tmp_path
 
 def test_officers_become_verified_members_with_state_roles(admin, tmp_path):
     report = run(csv_file(tmp_path), "--commit")
-    assert "Imported 4 members with their roles (3 roles)." in report
+    assert (
+        "Imported 4 members with their roles (3 roles); 1 coordinators may appoint in "
+        "their areas." in report
+    )
 
     places = {
         m.full_name: (m.scope_level, m.polling_unit_id and m.polling_unit.code)
@@ -102,7 +109,10 @@ def test_officers_become_verified_members_with_state_roles(admin, tmp_path):
     assert coordinator.role.code == Role.STATE_COORDINATOR
     officer = RoleDefinition.objects.get(name="Assistant State Women Leader")
     assert sorted(officer.permissions) == STATE_OFFICER_PERMISSIONS
-    assert officer.permitted_levels == [GeographyLevel.STATE]
+    assert officer.permitted_levels == [
+        GeographyLevel.STATE,
+        GeographyLevel.SENATORIAL_DISTRICT,
+    ]
     assert officer.supervising_role.code == Role.STATE_COORDINATOR
     assert officer.assignments.count() == 2
     for assignment in RoleAssignment.objects.prefetch_related("areas"):
@@ -139,3 +149,91 @@ def test_only_a_national_administrator_imports(admin, tmp_path):
     with pytest.raises(CommandError):
         run(csv_file(tmp_path), by="SC-1")
     assert not Member.objects.exists()
+
+
+JIGAWA = [
+    # sn, name, role, phone, place, area, vin, hold
+    (
+        "1",
+        "IDI KANO",
+        "Deputy State Coordinator",
+        "08030000011",
+        "17-05-04",
+        "SD/049/JG",
+        "90F5AFAE76296269300",
+        "",
+    ),
+    (
+        "2",
+        "ADA SULE",
+        "State Director of ICT",
+        "08030000012",
+        "JI-HADEJIA",
+        "",
+        "90F5AFAE76296269300",
+        "",
+    ),  # the first row's VIN
+    (
+        "3",
+        "BALA GARBA",
+        "State Director of ICT",
+        "08030000013",
+        "JI-HADEJIA",
+        "SD/999/XX",
+        "",
+        "",
+    ),  # no such district here
+    ("4", "LADI MUSA", "State Women Leader", "08030000014", "JI-HADEJIA", "", "90F5AF", ""),
+]
+
+
+def test_a_deputy_coordinates_their_senatorial_district(admin, tmp_path):
+    header = "sn,name,role,phone,place,area,vin,hold"
+    report = run(csv_file(tmp_path, JIGAWA, header=header), state="JI")
+    assert "line 2 (S/N 1): VIN shared with another row" in report
+    assert "line 3 (S/N 2): VIN shared with another row" in report
+    assert "line 4 (S/N 3): area not a senatorial district of this state" in report
+    assert "line 5 (S/N 4): VIN not valid" in report
+    assert "90F5" not in report
+
+    # The chapter corrects row 2's VIN: rows 1 and 2 go in, 3 and 4 wait.
+    rows = [*JIGAWA]
+    rows[1] = (*rows[1][:6], "", rows[1][7])
+    report = run(csv_file(tmp_path, rows, header=header), "--commit", state="JI")
+    assert "2 to import, 2 held back." in report
+    assert "1 coordinators may appoint in their areas." in report
+    deputy = Member.objects.get(full_name="Idi Kano")
+    assert deputy.vin == "90F5AFAE76296269300"
+    assignment = RoleAssignment.objects.select_related("role").get(member=deputy)
+    coordinator = RoleDefinition.objects.get(code=Role.STATE_COORDINATOR)
+    assert assignment.role.name == "Deputy State Coordinator"
+    assert sorted(assignment.role.permissions) == sorted(coordinator.permissions)
+    (area,) = assignment.areas.all()
+    assert (area.scope_level, area.senatorial_district.code) == (
+        GeographyLevel.SENATORIAL_DISTRICT,
+        "SD/049/JG",
+    )
+    grant = DelegationGrant.objects.get(recipient=deputy)
+    assert {"assignRoles", "manageAssignments"} <= set(grant.permissions)
+
+    # The deputy appoints an LGA Coordinator inside their district, not outside.
+    candidate = Member.objects.get(full_name="Ada Sule")
+    login = APIClient().post(
+        "/api/v1/auth/login/",
+        {"username": "08030000011", "password": "08030000011"},
+        format="json",
+    )
+    assert login.status_code == 200, login.content
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}")
+    appoint = lambda lga: client.post(  # noqa: E731
+        "/api/v1/access/assignments/",
+        {
+            "member": candidate.membership_number,
+            "role": Role.LGA_COORDINATOR.value,
+            "areas": [{"level": "lga", "lgaId": lga}],
+        },
+        format="json",
+    )
+    assert appoint("JI-HADEJIA").status_code == 403  # Jigawa North East
+    assert appoint("JI-BUJI").status_code == 201, appoint("JI-BUJI").content

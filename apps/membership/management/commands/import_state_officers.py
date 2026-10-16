@@ -4,26 +4,34 @@ Columns:
 - sn: the list's serial number;
 - name, phone: as on the list (the phone, as written, is the first password);
 - role: the position's role name, e.g. "State Treasurer". "State Coordinator"
-  is the system role. A missing role is created as a state officer role,
-  supervised by the State Coordinator: its holders see the state's incident
-  counts, results and collation, meet and use the forum, and change nothing
-  (agreed with the user on 16 October 2026). Administrators change a role
-  later in Role Management;
+  is the system role. "Deputy State Coordinator" is created, when missing,
+  with the State Coordinator's permissions, for a senatorial district. Any
+  other missing role is created as a state officer role: its holders see the
+  incident counts, results and collation of their area, meet and use the
+  forum, and change nothing (agreed with the user on 16 October 2026). Both
+  report to the State Coordinator. Administrators change roles later in Role
+  Management;
 - place: where the officer votes, as precisely as the list allows: a polling
   unit code (21-03-03-018), a ward code (21-20-05) or an LGA code (KE-ARGUNGU);
+- area (optional): the senatorial district the role covers (SD/049/JG); empty
+  for the whole state (--state);
+- vin (optional): the VIN of their voter's card, stored on the membership;
 - hold: a reason to hold the row back, e.g. while the chapter confirms it.
 
 Each other valid row becomes a member at that place, with an app account, and
-an appointment to the role over the whole state (--state). As with
-import_executives, the chapter checked these people and holds their agreement
-to TGCG keeping their details, so --by, a National Administrator, records both
-on its word.
+an appointment to the role over its area. State and Deputy State Coordinators
+also receive, from --by, the power to appoint and manage the field roles below
+them in their area (LGA and ward coordinators, observers, polling unit
+executives), as no system role carries it (docs/access-control.md, section 5).
+As with import_executives, the chapter checked these people and holds their
+agreement to TGCG keeping their details, so --by, a National Administrator,
+records both on its word.
 
 A dry run unless --commit. Rows are held back when the list holds them, or
-their phone number is invalid, shared with another row or registered already,
-and the report names them by line and S/N only, never by name or phone number.
-Run it again once rows are corrected: those already imported are then held as
-registered, and only the corrected ones are added.
+their phone number or VIN is invalid, shared with another row or registered
+already, and the report names them by line and S/N only, never by name, phone
+number or VIN. Run it again once rows are corrected: those already imported
+are then held as registered, and only the corrected ones are added.
 """
 
 import csv
@@ -37,16 +45,17 @@ from django.db import transaction
 
 from apps.access import engine
 from apps.access.models import RoleCategory, RoleDefinition, name_key
-from apps.access.services import appoint, create_role
+from apps.access.services import appoint, create_role, delegate
 from apps.accounts.models import User
 from apps.core.choices import GeographyLevel, Role
 from apps.core.permissions import Capability as C
-from apps.geography.models import Lga, PollingUnit, State, Ward
+from apps.geography.models import Lga, PollingUnit, SenatorialDistrict, State, Ward
 from apps.membership import registration
+from apps.membership.models import Member
 
-from .import_executives import MOBILE, person_name, registered
+from .import_executives import MOBILE, PU_PERMISSIONS, person_name, registered
 
-# What a state officer may do across their state.
+# What a state officer may do across their area.
 STATE_OFFICER_PERMISSIONS = sorted(
     {
         C.VIEW_INCIDENTS,
@@ -59,6 +68,12 @@ STATE_OFFICER_PERMISSIONS = sorted(
         C.POST_DISCUSSION_REPLY,
     }
 )
+DEPUTY = "Deputy State Coordinator"
+# The roles whose holders also appoint the field roles below them.
+COORDINATORS = {name_key("State Coordinator"), name_key(DEPUTY)}
+# The field roles a coordinator appoints in their area.
+APPOINTED = (Role.LGA_COORDINATOR, Role.WARD_COORDINATOR, Role.OBSERVER)
+VIN = re.compile(r"^[A-Z0-9]{19}$")
 
 
 @dataclass
@@ -69,22 +84,45 @@ class Row:
     role: str
     phone: str  # as written: 11 digits, also the first password
     place: dict  # polling_unit, ward or lga for registration.register_imported
+    area: dict  # the appointment's area
+    vin: str | None
 
 
 def ensure_role(actor, name: str) -> RoleDefinition:
-    """The role named [name]; a missing one is created as a state officer role."""
+    """The role named [name]; a missing one is created as a Deputy State
+    Coordinator or a state officer role."""
     role = RoleDefinition.objects.filter(name_key=name_key(name)).first()
-    if role is None:
-        role = create_role(
+    if role is not None:
+        return role
+    coordinator = RoleDefinition.objects.get(code=Role.STATE_COORDINATOR.value)
+    if name_key(name) == name_key(DEPUTY):
+        return create_role(
             actor=actor,
             name=name,
-            description="State officer of a TGCG chapter.",
-            category=RoleCategory.COMMAND,
-            permitted_levels=[GeographyLevel.STATE],
-            permissions=STATE_OFFICER_PERMISSIONS,
-            supervising_role=RoleDefinition.objects.get(code=Role.STATE_COORDINATOR.value),
+            description="Coordinates a senatorial district for the State Coordinator.",
+            category=coordinator.category,
+            permitted_levels=[GeographyLevel.SENATORIAL_DISTRICT, GeographyLevel.STATE],
+            permissions=sorted(coordinator.permissions),
+            supervising_role=coordinator,
         )
-    return role
+    return create_role(
+        actor=actor,
+        name=name,
+        description="State officer of a TGCG chapter.",
+        category=RoleCategory.COMMAND,
+        permitted_levels=[GeographyLevel.STATE, GeographyLevel.SENATORIAL_DISTRICT],
+        permissions=STATE_OFFICER_PERMISSIONS,
+        supervising_role=coordinator,
+    )
+
+
+def appointing_power() -> list[str]:
+    """Appoint and manage appointments, up to everything the field roles a
+    coordinator appoints carry."""
+    ceiling = set(PU_PERMISSIONS)
+    for role in RoleDefinition.objects.filter(code__in=[r.value for r in APPOINTED]):
+        ceiling |= set(role.permissions)
+    return sorted(ceiling | {C.ASSIGN_ROLES, C.MANAGE_ASSIGNMENTS})
 
 
 class Command(BaseCommand):
@@ -121,14 +159,17 @@ class Command(BaseCommand):
         self.stdout.write(
             f"{len(accepted)} to import, {len(held)} held back. Placed at "
             f"{levels['polling_unit']} polling units, {levels['ward']} wards and "
-            f"{levels['lga']} LGAs."
+            f"{levels['lga']} LGAs; {sum(1 for row in accepted if row.vin)} with a VIN."
         )
+        names = {name_key(row.role) for row in accepted}
+        known = RoleDefinition.objects.filter(name_key__in=names).count()
+        self.stdout.write(f"{len(names)} roles, {len(names) - known} of them new.")
         if not commit:
             self.stdout.write("Dry run: nothing was saved. Add --commit to import.")
             return
 
         with transaction.atomic():
-            roles = {}
+            roles, powers = {}, 0
             for row in accepted:
                 if row.role not in roles:
                     roles[row.role] = ensure_role(actor, row.role)
@@ -138,18 +179,35 @@ class Command(BaseCommand):
                     phone_number=row.phone,
                     password=row.phone,
                     source=source,
+                    vin=row.vin,
                     **row.place,
                 )
                 appoint(
                     actor=actor,
                     member=member,
                     role=roles[row.role],
-                    areas=[{"scope_level": GeographyLevel.STATE, "state": state}],
+                    areas=[row.area],
                     reason=source,
                 )
+                if name_key(row.role) in COORDINATORS:
+                    delegate(
+                        actor=actor,
+                        recipient=member,
+                        areas=[row.area],
+                        permissions=appointing_power(),
+                        categories=[RoleCategory.FIELD],
+                        levels=[
+                            GeographyLevel.LGA,
+                            GeographyLevel.WARD,
+                            GeographyLevel.POLLING_UNIT,
+                        ],
+                        reason=source,
+                    )
+                    powers += 1
         self.stdout.write(
             self.style.SUCCESS(
-                f"Imported {len(accepted)} members with their roles ({len(roles)} roles)."
+                f"Imported {len(accepted)} members with their roles ({len(roles)} roles); "
+                f"{powers} coordinators may appoint in their areas."
             )
         )
 
@@ -163,10 +221,20 @@ class Command(BaseCommand):
             return {"lga": lga} if lga.state_id == state.pk else None
         return None
 
+    def _area(self, code: str, state) -> dict | None:
+        """The whole state, or a senatorial district of it."""
+        if not code:
+            return {"scope_level": GeographyLevel.STATE, "state": state}
+        district = SenatorialDistrict.objects.filter(code=code, state=state).first()
+        if district is None:
+            return None
+        return {"scope_level": GeographyLevel.SENATORIAL_DISTRICT, "senatorial_district": district}
+
     def _check(self, path: Path, state):
         with path.open(encoding="utf-8-sig", newline="") as handle:
             rows = [(line, record) for line, record in enumerate(csv.DictReader(handle), start=2)]
         phones = Counter(re.sub(r"\D", "", record.get("phone") or "") for _, record in rows)
+        vins = Counter("".join((record.get("vin") or "").split()).upper() for _, record in rows)
         accepted, held = [], []
         for line, record in rows:
             sn = (record.get("sn") or "").strip()
@@ -174,6 +242,8 @@ class Command(BaseCommand):
             role = " ".join((record.get("role") or "").split())
             phone = re.sub(r"\D", "", record.get("phone") or "")
             place = self._place((record.get("place") or "").strip(), state)
+            area = self._area((record.get("area") or "").strip(), state)
+            vin = "".join((record.get("vin") or "").split()).upper() or None
             if hold := (record.get("hold") or "").strip():
                 reason = f"held by the list: {hold}"
             elif not name:
@@ -186,10 +256,18 @@ class Command(BaseCommand):
                 reason = "phone number shared with another row"
             elif place is None:
                 reason = "place not in this state's INEC register"
+            elif area is None:
+                reason = "area not a senatorial district of this state"
+            elif vin and not VIN.match(vin):
+                reason = "VIN not valid"
+            elif vin and vins[vin] > 1:
+                reason = "VIN shared with another row"
             elif registered(phone):
                 reason = "phone number registered already"
+            elif vin and Member.objects.filter(vin=vin).exists():
+                reason = "VIN registered already"
             else:
-                accepted.append(Row(line, sn, name, role, phone, place))
+                accepted.append(Row(line, sn, name, role, phone, place, area, vin))
                 continue
             held.append((line, sn, reason))
         return accepted, held
