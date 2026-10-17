@@ -1,4 +1,5 @@
 import datetime
+import importlib
 from datetime import timedelta
 
 import pytest
@@ -293,6 +294,23 @@ def test_pings_are_kept_only_while_on_duty(agent):
     ).json()
     assert after["stored"] == 0
     assert LocationPing.objects.count() == 2  # start-of-duty fix + one ping
+
+
+def test_sharing_from_before_projects_ends_with_the_release(agent):
+    from django.apps import apps as registry
+
+    user = User.objects.get(access_id="AG-1")
+    old = DutySession.objects.create(user=user, started_at=timezone.now() - timedelta(hours=3))
+    release = importlib.import_module(
+        "apps.tracking.migrations.0005_end_sharing_from_before_projects"
+    )
+    release.end_sharing(registry, None)
+    old.refresh_from_db()
+    assert old.ended_at is not None
+    # The older app keeps sending: nothing after the release is kept.
+    later = {**fix(), "captured_at": (timezone.now() + timedelta(minutes=5)).isoformat()}
+    stored = agent.post("/api/v1/tracking/pings/", {"pings": [later]}, format="json").json()
+    assert stored["stored"] == 0
 
 
 def test_only_field_roles_share_location(lga_coord):

@@ -551,8 +551,10 @@ work while it happens.
   projects at the same time.
 - **While it runs:** an accepted person's app shares their location without
   a switch, and asks them to turn GPS on. Outside a project nobody shares
-  location. With `check_place`, every reading is judged against their polling
-  unit, so `monitor/` shows who is at their place, away, or not sharing.
+  location: sharing switched on before projects existed ends when migration
+  `tracking.0005` runs. With `check_place`, every reading is judged against
+  their polling unit, so `monitor/` shows who is at their place, away, or not
+  sharing.
 - **The work counts for it:** incidents, field reports and results recorded
   by someone taking part carry the project. An election that a project names
   takes results only while one of its projects runs (from phones that were
