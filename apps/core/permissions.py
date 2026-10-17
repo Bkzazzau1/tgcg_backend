@@ -69,9 +69,13 @@ class Capability(models.TextChoices):
     VIEW_WALLETS = "viewWallets"
     CREDIT_WALLETS = "creditWallets"
     APPROVE_WALLET_CREDITS = "approveWalletCredits"
+    # Projects (apps.projects): scheduled periods of field work, such as an
+    # election. Coordinators assign people to them.
+    ASSIGN_PROJECT_PARTICIPANTS = "assignProjectParticipants"
     # Protected: only National Administrators, never delegable.
     APPOINT_NATIONAL_ADMINISTRATOR = "appointNationalAdministrator"
     APPROVE_ADMINISTRATOR_REMOVAL = "approveAdministratorRemoval"
+    MANAGE_PROJECTS = "manageProjects"
 
 
 C = Capability
@@ -169,6 +173,7 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             C.VIEW_GEOGRAPHY,
             C.ACCREDIT_AGENTS,
             C.MANAGE_AGENT_ASSIGNMENTS,
+            C.ASSIGN_PROJECT_PARTICIPANTS,
             C.VIEW_INCIDENTS,
             C.CREATE_INCIDENT,
             C.ACKNOWLEDGE_INCIDENT,
@@ -194,6 +199,7 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
             C.VIEW_ALERTS,
             C.VIEW_GEOGRAPHY,
             C.MANAGE_AGENT_ASSIGNMENTS,
+            C.ASSIGN_PROJECT_PARTICIPANTS,
             C.VIEW_INCIDENTS,
             C.CREATE_INCIDENT,
             C.ACKNOWLEDGE_INCIDENT,
@@ -214,6 +220,7 @@ ROLE_CAPABILITIES: dict[str, frozenset[str]] = {
         {
             C.VIEW_LIVE_OPERATIONS,
             C.VIEW_GEOGRAPHY,
+            C.ASSIGN_PROJECT_PARTICIPANTS,
             C.VIEW_INCIDENTS,
             C.CREATE_INCIDENT,
             C.ACKNOWLEDGE_INCIDENT,

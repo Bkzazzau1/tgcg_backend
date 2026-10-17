@@ -5,11 +5,12 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.core.choices import ElectionStatus, GeographyLevel, RecordStatus, SubmissionSource
+from apps.core.choices import GeographyLevel, RecordStatus, SubmissionSource
 from apps.core.models import Sequence
 from apps.core.permissions import Capability, has_capability
 from apps.geography.gps import LocationStatus
 from apps.geography.scope import scope_contains
+from apps.projects.services import accepting_results, current_project
 
 from .models import ACTIVE_RESULT_STATUSES, PartyVote, ResultEvent, ResultSubmission
 
@@ -110,7 +111,8 @@ def submit_result(
         if existing is not None:
             return existing  # offline retry
 
-    if election.status != ElectionStatus.OPEN:
+    submitted_at = submitted_at or timezone.now()
+    if not accepting_results(election, at=submitted_at):
         raise ValidationError({"election": "This election is not open for results."})
     if source == SubmissionSource.APP and not gps:
         raise ValidationError({"gps": "Turn on location: results from the app need a GPS reading."})
@@ -118,7 +120,8 @@ def submit_result(
     submission = ResultSubmission(
         election=election,
         submitted_by=actor,
-        submitted_at=submitted_at or timezone.now(),
+        submitted_at=submitted_at,
+        project=current_project(actor, min(submitted_at, timezone.now())),
         source=source,
         source_reference=source_reference.strip(),
         client_id=client_id,

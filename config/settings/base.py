@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "apps.forum",
     "apps.access",
     "apps.wallets",
+    "apps.projects",
 ]
 
 MIDDLEWARE = [
@@ -191,6 +192,7 @@ SPECTACULAR_SETTINGS = {
         "ForumAttachmentKind": "apps.forum.models.Attachment.Kind",
         "WalletPaymentStatus": "apps.wallets.models.Payment.Status",
         "WalletEntryKind": "apps.wallets.models.WalletEntry.Kind",
+        "ParticipationStatus": "apps.projects.models.ParticipationStatus",
     },
 }
 

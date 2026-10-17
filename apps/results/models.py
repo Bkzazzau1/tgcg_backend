@@ -103,6 +103,14 @@ class ResultSubmission(TimeStampedModel, ScopedModel, GpsCheckFields):
     client_id = models.CharField(  # noqa: DJ001 - NULL keeps the unique index sparse
         max_length=64, unique=True, null=True, blank=True
     )
+    project = models.ForeignKey(
+        "projects.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="The project the submitter was taking part in when they captured it.",
+    )
     status = models.CharField(max_length=16, choices=RecordStatus.choices)
 
     registered_voters = models.PositiveIntegerField(null=True, blank=True)

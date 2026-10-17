@@ -15,6 +15,7 @@ from apps.core.models import Sequence
 from apps.core.permissions import Capability, has_capability
 from apps.core.uploads import PHOTO_EXTENSIONS, VIDEO_EXTENSIONS, matches_signature
 from apps.geography.scope import default_to_actor_scope, scope_contains
+from apps.projects.services import current_project
 
 from .models import Evidence, FieldReport, Incident, IncidentEvent
 
@@ -95,6 +96,7 @@ def report_incident(*, actor, **fields) -> Incident:
             {"gps": "Turn on location: a report from your polling unit needs GPS."}
         )
     incident = Incident(reporter=actor, status=I.REPORTED, **fields)
+    incident.project = current_project(actor, incident.reported_at)
     incident.normalize_scope()
     incident.apply_fix(gps, incident.polling_unit)
     incident.full_clean(exclude=["reference", "severity_rank"])
@@ -193,6 +195,7 @@ def submit_report(*, actor, **fields) -> FieldReport:
             return existing
     default_to_actor_scope(actor, fields, C.SUBMIT_FIELD_REPORT)
     report = FieldReport(reporter=actor, status=RecordStatus.SUBMITTED, **fields)
+    report.project = current_project(actor, report.reported_at)
     report.full_clean(exclude=["reference"])
     _require_scope(actor, report, "report location", C.SUBMIT_FIELD_REPORT)
     if report.incident is not None:

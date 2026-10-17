@@ -45,6 +45,41 @@ def zaria(db):
     load_polling_units(lga_codes=["KD-ZARIA"])
 
 
+def on_project(*access_ids):
+    """A project running now in Zaria with these accounts taking part, each at
+    their own polling unit: outside a project nobody shares location."""
+    from apps.projects.models import Participation, ParticipationStatus, Project, ProjectArea
+    from apps.tracking.services import duty_polling_unit
+
+    admin = User.objects.filter(access_id="NA-1").first() or User.objects.create_user(
+        "NA-1", PASSWORD, full_name="Admin", role=Role.NATIONAL_ADMINISTRATOR
+    )
+    now = timezone.now()
+    project = Project.objects.create(
+        name="Election day",
+        starts_at=now - timedelta(hours=2),
+        ends_at=now + timedelta(hours=10),
+        created_by=admin,
+    )
+    area = ProjectArea(project=project, scope_level=GeographyLevel.LGA)
+    area.lga = Lga.objects.get(code="KD-ZARIA")
+    area.normalize_scope()
+    area.save()
+    for access_id in access_ids:
+        user = User.objects.get(access_id=access_id)
+        work = Participation(
+            project=project,
+            member=user.member,
+            status=ParticipationStatus.ACCEPTED,
+            assigned_by=admin,
+            scope_level=GeographyLevel.POLLING_UNIT,
+            polling_unit=duty_polling_unit(user),
+        )
+        work.normalize_scope()
+        work.save()
+    return project
+
+
 def agent_at(code, access_id):
     return login(
         access_id=access_id,
@@ -237,6 +272,7 @@ def test_incident_location_is_judged(agent):
 
 
 def test_pings_are_kept_only_while_on_duty(agent):
+    on_project("AG-1")
     assert (
         agent.post("/api/v1/tracking/duty/", {"on_duty": True, "gps": fix()}, format="json").json()[
             "on_duty"
@@ -265,6 +301,7 @@ def test_only_field_roles_share_location(lga_coord):
 
 
 def test_live_map(agent, agent2, director, lagos, lga_coord):
+    on_project("AG-1", "AG-2")
     agent.post("/api/v1/tracking/duty/", {"on_duty": True, "gps": fix()}, format="json")
     agent2.post("/api/v1/tracking/duty/", {"on_duty": True}, format="json")
 
@@ -284,6 +321,7 @@ def test_coverage(agent, agent2, ward_coord, lga_coord):
     check = check_in(agent).json()
     ward_coord.post(f"/api/v1/tracking/check-ins/{check['id']}/confirm-location/")
     check_in(agent)  # latest check-in of the day counts
+    on_project("AG-2")
     agent2.post("/api/v1/tracking/duty/", {"on_duty": True}, format="json")
 
     body = lga_coord.get("/api/v1/tracking/coverage/").json()
@@ -298,6 +336,7 @@ def test_coverage(agent, agent2, ward_coord, lga_coord):
 
 
 def test_purge_old_pings(agent):
+    on_project("AG-1")
     agent.post("/api/v1/tracking/duty/", {"on_duty": True, "gps": fix()}, format="json")
     LocationPing.objects.update(received_at=timezone.now() - timedelta(days=40))
     call_command("purge_location_pings")
@@ -306,6 +345,7 @@ def test_purge_old_pings(agent):
 
 
 def test_duty_changes_synced_later_keep_phone_time(agent):
+    on_project("AG-1")
     went_on_duty = timezone.now() - timedelta(minutes=50)
     agent.post(
         "/api/v1/tracking/duty/",
@@ -373,6 +413,7 @@ def test_a_polling_unit_executive_checks_in_and_shares_location(agent, agent2, l
     check = check_in(kaura)
     assert check.status_code == 201, check.content
     assert check.json()["polling_unit"] == "18-23-05-001"
+    on_project("TGCG-000201")
     on = kaura.post("/api/v1/tracking/duty/", {"on_duty": True, "gps": fix()}, format="json")
     assert on.status_code == 200, on.content
 

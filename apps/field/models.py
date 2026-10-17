@@ -91,6 +91,14 @@ class FieldRecord(TimeStampedModel, ScopedModel):
         blank=True,
         help_text="Device-generated id, so offline sync can retry without duplicates.",
     )
+    project = models.ForeignKey(
+        "projects.Project",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="The project the reporter was taking part in when they recorded it.",
+    )
 
     class Meta:
         abstract = True

@@ -35,6 +35,7 @@ class Module:
     GOVERNANCE = "governance"
     SYSTEM_MONITORING = "systemMonitoring"
     WALLETS = "wallets"
+    PROJECTS = "projects"
 
 
 @dataclass(frozen=True)
@@ -160,6 +161,14 @@ PERMISSIONS: dict[str, PermissionInfo] = {
         ),
         _p(C.CREDIT_WALLETS, M.WALLETS, "create", "Request payments to members' wallets"),
         _p(C.APPROVE_WALLET_CREDITS, M.WALLETS, "approve", "Approve payments to members' wallets"),
+        _p(
+            C.MANAGE_PROJECTS,
+            M.PROJECTS,
+            "manage",
+            "Create and schedule projects",
+            protected=True,
+        ),
+        _p(C.ASSIGN_PROJECT_PARTICIPANTS, M.PROJECTS, "assign", "Assign people to projects"),
         _p(C.VIEW_AUDIT, M.GOVERNANCE, "view", "View the audit log"),
         _p(C.MANAGE_USERS, M.SYSTEM_MONITORING, "manage", "Support user accounts"),
         _p(C.MANAGE_SYSTEM_SETTINGS, M.SYSTEM_MONITORING, "manage", "Manage system settings"),

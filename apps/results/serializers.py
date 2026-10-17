@@ -6,6 +6,7 @@ from apps.field.serializers import EvidenceSerializer
 from apps.geography.gps import GpsFixSerializer, GpsReadSerializer
 from apps.geography.models import PollingUnit
 from apps.geography.scope import ScopeField
+from apps.projects.services import accepting_results
 
 from .models import Election, Party, ResultEvent, ResultSubmission
 
@@ -19,10 +20,25 @@ class PartySerializer(serializers.ModelSerializer):
 class ElectionSerializer(serializers.ModelSerializer):
     scope = ScopeField(read_only=True)
     parties = PartySerializer(many=True, read_only=True)
+    accepting_results = serializers.SerializerMethodField()
 
     class Meta:
         model = Election
-        fields = ["code", "name", "type", "election_date", "status", "scope", "parties"]
+        fields = [
+            "code",
+            "name",
+            "type",
+            "election_date",
+            "status",
+            "accepting_results",
+            "scope",
+            "parties",
+        ]
+
+    def get_accepting_results(self, election) -> bool:
+        """Open for results now: while a project naming it runs, or, with no
+        project, while its status is open."""
+        return accepting_results(election)
 
 
 def party_votes_input(**kwargs):

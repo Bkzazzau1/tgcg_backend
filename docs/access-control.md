@@ -360,6 +360,7 @@ verified member, converting its legacy role into a normal assignment.
 | `/members/<number>/verification/` | `GET` the decision and every check; `POST check/` to run them again, `approve/` (notes) or `reject/` (reason). |
 | `/polling-unit-changes/` | Requests to move into the caller's areas; `POST /<id>/approve/`, `/reject/`; `GET /<id>/card/` (the updated card photo). |
 | `/me/polling-unit/changes/` | The member's own requests; `POST` (multipart: `delim`, `pvc_image`, `reason`); `POST /<id>/withdraw/`. `/me/member/` now includes `verification_status` and `membership_state`. |
+| `/projects/` | Scheduled field work (see the README's **Projects**): everyone with a role sees those overlapping their areas. Creating, changing and cancelling need `manageProjects` (protected: National Administrators only). `participants/` assigns people with a role, with `assignProjectParticipants` (state, LGA and ward coordinators) over the place; `monitor/` needs that or `viewLiveOperations`, and shows only the caller's areas. A person shares location only while a project they accepted runs. |
 
 Every existing endpoint now checks the permission it uses against the
 caller's grants and their areas (`within_scope_q`, `scope_contains` and

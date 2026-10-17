@@ -192,24 +192,75 @@ def _device_time(at):
     return max(at, now - timedelta(days=1))
 
 
+PROJECT_ONLY = "Location is shared only during a project you take part in."
+
+
+def end_participation_duty(*, participation, at) -> None:
+    """Stop sharing location for this project work (the person withdrew or was removed)."""
+    for session in DutySession.objects.filter(participation=participation, ended_at__isnull=True):
+        session.ended_at = max(at, session.started_at)
+        session.save(update_fields=["ended_at"])
+
+
+def end_project_duty(*, project, at) -> None:
+    for session in DutySession.objects.filter(
+        participation__project=project, ended_at__isnull=True
+    ):
+        session.ended_at = max(at, session.started_at)
+        session.save(update_fields=["ended_at"])
+
+
+def close_finished_sessions(user=None) -> None:
+    """End sharing whose project has finished: location stops with the project."""
+    now = timezone.now()
+    sessions = (
+        DutySession.objects.filter(ended_at__isnull=True, participation__isnull=False)
+        .filter(
+            Q(participation__project__ends_at__lte=now)
+            | Q(participation__project__cancelled_at__isnull=False)
+        )
+        .select_related("participation__project")
+    )
+    if user is not None:
+        sessions = sessions.filter(user=user)
+    for session in sessions:
+        finished = min(session.participation.project.finished_at, now)
+        session.ended_at = max(finished, session.started_at)
+        session.save(update_fields=["ended_at"])
+
+
 def start_duty(*, user, gps=None, at=None) -> DutySession:
-    """Start sharing location. `at` is the phone time, for changes synced later."""
-    _require_field_duty(user)
+    """Start sharing location for the project the person takes part in now.
+    Their app does this by itself while the project runs; outside a project
+    nobody shares location. `at` is the phone time, for changes synced later."""
+    from apps.projects.services import current_participation
+
+    _require_standing(user)
+    close_finished_sessions(user)
     started = _device_time(at)
-    try:
-        with transaction.atomic():
-            session, created = DutySession.objects.get_or_create(
-                user=user, ended_at__isnull=True, defaults={"started_at": started}
-            )
-    except IntegrityError:  # two "start" taps at once
-        session = DutySession.objects.get(user=user, ended_at__isnull=True)
+    participation = current_participation(user, started) or current_participation(user)
+    if participation is None:
+        raise PermissionDenied(PROJECT_ONLY)
+    started = max(started, participation.project.starts_at)
+    session = DutySession.objects.filter(user=user, ended_at__isnull=True).first()
+    if session is not None and session.participation_id != participation.pk:
+        session.ended_at = max(started, session.started_at)  # sharing for something else
+        session.save(update_fields=["ended_at"])
+        session = None
+    if session is None:
+        try:
+            with transaction.atomic():
+                session = DutySession.objects.create(
+                    user=user, started_at=started, participation=participation
+                )
+        except IntegrityError:  # two "start" calls at once
+            session = DutySession.objects.get(user=user, ended_at__isnull=True)
     if gps:
         record_pings(user=user, fixes=[gps])
     return session
 
 
 def stop_duty(*, user, at=None) -> DutySession | None:
-    _require_field_duty(user)
     session = DutySession.objects.filter(user=user, ended_at__isnull=True).first()
     if session:
         session.ended_at = max(_device_time(at), session.started_at)
@@ -217,22 +268,36 @@ def stop_duty(*, user, at=None) -> DutySession | None:
     return session
 
 
+def _place_unit(session, user):
+    """Where a ping is judged: the polling unit the person works at in the
+    project (none when the project does not check places), or for sharing
+    from before projects, their own polling unit."""
+    participation = session.participation
+    if participation is None:
+        return duty_polling_unit(user)
+    if not participation.project.check_place:
+        return None
+    return participation.polling_unit if participation.polling_unit_id else None
+
+
 @transaction.atomic
 def record_pings(*, user, fixes) -> int:
     """Store queued pings that fall inside one of the user's duty sessions.
 
-    Pings outside any session are dropped: location is only shared on duty.
+    Pings outside any session are dropped: location is only shared on duty,
+    which ends with the project.
     """
-    _require_field_duty(user)
+    _require_standing(user)
+    close_finished_sessions(user)
     if not fixes:
         return 0
     earliest = min(f["captured_at"] for f in fixes)
     sessions = list(
-        DutySession.objects.filter(user=user, started_at__lte=timezone.now()).exclude(
-            ended_at__lt=earliest - timedelta(minutes=1)
-        )
+        DutySession.objects.filter(user=user, started_at__lte=timezone.now())
+        .exclude(ended_at__lt=earliest - timedelta(minutes=1))
+        .select_related("participation__project", "participation__polling_unit")
     )
-    unit = duty_polling_unit(user)
+    places = {}
     pings = []
     for fix in fixes:
         captured = fix["captured_at"]
@@ -248,8 +313,10 @@ def record_pings(*, user, fixes) -> int:
         )
         if session is None:
             continue
+        if session.pk not in places:
+            places[session.pk] = _place_unit(session, user)
         ping = LocationPing(session=session)
-        ping.apply_fix(fix, unit)
+        ping.apply_fix(fix, places[session.pk])
         pings.append(ping)
     LocationPing.objects.bulk_create(pings)
     return len(pings)

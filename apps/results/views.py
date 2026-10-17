@@ -20,6 +20,7 @@ from apps.geography.scope import (
     scope_contains,
     within_scope_any_q,
 )
+from apps.projects.services import accepting_results
 
 from . import collation, services
 from .models import Election, Party, ResultSubmission
@@ -52,11 +53,26 @@ class PartyViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ElectionViewSet(viewsets.ReadOnlyModelViewSet):
+    """Elections. `?accepting=true` lists those open for results now (see
+    `accepting_results`: an election a project names is open while it runs)."""
+
     queryset = Election.objects.prefetch_related("parties").select_related(*SCOPE_FIELDS)
     serializer_class = ElectionSerializer
     lookup_field = "code"
     pagination_class = None
     filterset_fields = ["status", "type"]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("accepting", bool, description="Only elections open for results now")
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get("accepting") in ("true", "1"):
+            elections = self.filter_queryset(self.get_queryset())
+            open_now = [election for election in elections if accepting_results(election)]
+            return Response(self.get_serializer(open_now, many=True).data)
+        return super().list(request, *args, **kwargs)
 
 
 class ResultViewSet(

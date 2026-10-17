@@ -1,7 +1,8 @@
 """Agent check-ins and on-duty location sharing.
 
-Pings are recorded only while an agent has switched "on duty", and are
-deleted after LOCATION_PING_RETENTION_DAYS (see purge_location_pings).
+Pings are recorded only while someone is on duty, which happens only during
+a project they take part in (apps.projects), and are deleted after
+LOCATION_PING_RETENTION_DAYS (see purge_location_pings).
 """
 
 from django.conf import settings
@@ -50,7 +51,7 @@ class AgentCheckIn(TimeStampedModel, GpsCheckFields):
 
 
 class DutySession(models.Model):
-    """The period an agent has chosen to share live location."""
+    """A period of sharing live location, within a project the person takes part in."""
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="duty_sessions"
@@ -59,6 +60,14 @@ class DutySession(models.Model):
         default=timezone.now, help_text="Phone time the agent went on duty."
     )
     ended_at = models.DateTimeField(null=True, blank=True)
+    participation = models.ForeignKey(
+        "projects.Participation",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="duty_sessions",
+        help_text="The project work this location was shared for.",
+    )
 
     class Meta:
         ordering = ["-started_at"]

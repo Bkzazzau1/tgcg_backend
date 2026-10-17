@@ -208,12 +208,19 @@ class LiveAgentsView(APIView):
     @extend_schema(parameters=AREA_PARAMS, responses={200: OpenApiTypes.OBJECT})
     def get(self, request):
         scope = _area(request, C.VIEW_LIVE_OPERATIONS)
+        services.close_finished_sessions()
         latest = LocationPing.objects.filter(session=OuterRef("pk")).order_by("-gps_captured_at")
+        # Someone sharing for a project counts where they work in it.
+        where = (
+            Q(participation__isnull=False) & within_scope_q(scope, prefix="participation__")
+        ) | (Q(participation__isnull=True) & within_scope_q(scope, prefix="user__"))
         sessions = (
             DutySession.objects.filter(ended_at__isnull=True)
-            .filter(within_scope_q(scope, prefix="user__"))
+            .filter(where)
             .exclude(user__member__membership_state__in=STOPPED)
-            .select_related("user__polling_unit")
+            .select_related(
+                "user__polling_unit", "participation__project", "participation__polling_unit"
+            )
             .annotate(ping_id=Subquery(latest.values("pk")[:1]))
         )
         pings = LocationPing.objects.in_bulk([s.ping_id for s in sessions if s.ping_id])
@@ -222,12 +229,15 @@ class LiveAgentsView(APIView):
         for session in sessions:
             ping = pings.get(session.ping_id)
             user = session.user
+            work = session.participation
+            unit = work.polling_unit if work is not None else user.polling_unit
             agents.append(
                 {
                     "agent": user.access_id,
                     "name": user.full_name,
                     "role": user.role,
-                    "polling_unit": user.polling_unit.code if user.polling_unit else None,
+                    "polling_unit": unit.code if unit else None,
+                    "project": work.project.name if work is not None else None,
                     "on_duty_since": session.started_at,
                     "position": GpsReadSerializer(ping).data if ping else None,
                     "stale": ping is None or ping.gps_captured_at < stale_before,

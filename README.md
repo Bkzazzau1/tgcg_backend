@@ -44,6 +44,7 @@ apps/tracking/     agent GPS: check-ins, on-duty live location, coverage
 apps/field/        incidents, field reports, evidence uploads, incident audit trail
 apps/results/      parties, elections, result submissions, integrity checks, collation
 apps/wallets/      members' wallets: payments with a second approver, payout accounts
+apps/projects/     scheduled field work (elections, assignments): who takes part, where
 ```
 
 ## API (v1)
@@ -103,7 +104,12 @@ apps/wallets/      members' wallets: payments with a second approver, payout acc
 | GET | `/api/v1/results/{reference}/events/` | Result audit trail |
 | GET, POST | `/api/v1/results/{reference}/evidence/` | Upload the signed result sheet (`type=resultForm`) |
 | GET, POST | `/api/v1/tracking/check-ins/` | An agent or polling unit executive (`fieldDuty`) checks in at their unit with a GPS fix (required). `POST .../{id}/confirm-location/` lets a coordinator confirm it |
-| GET, POST | `/api/v1/tracking/duty/` | `{"on_duty": true, "gps": {...}}` starts sharing live location, and `false` stops it |
+| GET, POST | `/api/v1/tracking/duty/` | `{"on_duty": true, "gps": {...}}` starts sharing live location, only during a project the account takes part in (the app does it without a switch); `false` stops it |
+| GET, POST, PATCH | `/api/v1/projects/` | Projects in your areas, for everyone with a role (all for an administrator). POST/PATCH `{"name", "description", "starts_at", "ends_at", "areas", "election", "check_place"}` and `.../{id}/cancel/` (reason required) need `manageProjects` |
+| GET, POST | `/api/v1/projects/{id}/participants/` | GET with `viewLiveOperations` or `assignProjectParticipants`: the people in your areas. POST `{"member", "place"}` with `assignProjectParticipants` over the place (by default the person's own polling unit) |
+| GET | `/api/v1/projects/{id}/monitor/` | Each person's state in your areas (`atPlace`, `away`, `notSharing`, `notStarted`, `invited`...) and the project's incidents, reports and results there |
+| POST | `/api/v1/project-participants/{id}/remove/` | Take someone out of a project (reason required) |
+| GET | `/api/v1/me/projects/` | The member's projects with `my_participation`; `POST /api/v1/me/projects/{participation}/accept/`, `decline/` or `withdraw/` |
 | POST | `/api/v1/tracking/pings/` | Upload up to 500 queued on-duty GPS readings |
 | GET | `/api/v1/tracking/live/` | On-duty agents and their latest position in an area (`viewLiveOperations`) |
 | GET | `/api/v1/tracking/coverage/?level=&code=&date=` | Check-in coverage per area: on site, away, suspect, not checked in |
@@ -511,10 +517,42 @@ and gives it one of these statuses:
   executives'. A person checks in at the one polling unit where they hold
   it: an agent account's own unit, or their appointment's. Agents on the
   Ground counts them all, each at their unit.
-- **Live location** is shared only between "on duty" and "off duty" in the
-  app (`fieldDuty`), and readings outside a duty session are
+- **Live location** is shared only during a project the person takes part
+  in (see **Projects**): their app starts sharing by itself while it runs,
+  and sharing ends with the project. Readings outside a duty session are
   dropped. Pings are deleted after `LOCATION_PING_RETENTION_DAYS` (30). Run
   `uv run python manage.py purge_location_pings` daily.
+
+## Projects
+
+A project is a scheduled period of field work, such as an election or
+another assignment (decided on 17 October 2026). It is how TGCG watches the
+work while it happens.
+
+- **Scheduling:** only a National Administrator (`manageProjects`, protected)
+  creates one, from the app's settings. It has a name, a brief, a start and an
+  end (at most 31 days), the areas it covers, and optionally an election.
+  Before it starts everything may change; once it runs, only the name, the
+  brief, the end and the place check, and it can be cancelled with a reason.
+- **Who sees it:** everyone with a role in its areas, while it is scheduled,
+  on, or finished within a week. Ordinary members do not.
+- **Taking part:** coordinators holding `assignProjectParticipants` (state,
+  LGA and ward coordinators) assign people with a role to a place inside both
+  the project's areas and their own, by default the person's own polling
+  unit. The person accepts in their app, which is their agreement to sharing
+  their location while the project runs, or declines; they may withdraw
+  later, and a coordinator may take them out with a reason. Nobody is in two
+  projects at the same time.
+- **While it runs:** an accepted person's app shares their location without
+  a switch, and asks them to turn GPS on. Outside a project nobody shares
+  location. With `check_place`, every reading is judged against their polling
+  unit, so `monitor/` shows who is at their place, away, or not sharing.
+- **The work counts for it:** incidents, field reports and results recorded
+  by someone taking part carry the project. An election that a project names
+  takes results only while one of its projects runs (from phones that were
+  offline, captured then and sent within a day); other elections still go by
+  their status. `elections/?accepting=true` lists those open now.
+- Every change and every answer is audited.
 
 ## Polling unit mapping
 
