@@ -27,6 +27,13 @@ CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 if env("SMS_BACKEND", default="console") == "console":
     raise ImproperlyConfigured("Set SMS_BACKEND=termii (and TERMII_API_KEY) in production.")
 
+# Bulk WhatsApp and app notifications use the real services too: until their
+# accounts are set up, those channels are simply not offered.
+WHATSAPP_BACKEND = env("WHATSAPP_BACKEND", default="termii")
+PUSH_BACKEND = env("PUSH_BACKEND", default="fcm")
+if "console" in (WHATSAPP_BACKEND, PUSH_BACKEND):
+    raise ImproperlyConfigured("WHATSAPP_BACKEND and PUSH_BACKEND cannot be console in production.")
+
 # The USSD callback URL is the provider's only credential: keep it long.
 if 0 < len(env("USSD_CALLBACK_TOKEN", default="")) < 32:
     raise ImproperlyConfigured("USSD_CALLBACK_TOKEN must be at least 32 characters.")

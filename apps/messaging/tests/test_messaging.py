@@ -258,6 +258,24 @@ def test_the_services_receive_what_they_expect(settings, monkeypatch):
         providers.send_push("old-token", "TGCG", "Hello", {"broadcast": "b-1"})
 
 
+def test_a_channel_whose_service_is_not_set_up_is_not_offered(admin, settings):
+    sender = sender_with(admin, [C.SEND_SMS, C.SEND_PUSH_NOTIFICATIONS])
+    member_account("08037770071", name="Ada Obi")
+    # As on a server with no Termii key or Firebase key file yet.
+    settings.SMS_BACKEND = "termii"
+    settings.TERMII_API_KEY = ""
+    settings.PUSH_BACKEND = "fcm"
+    settings.FIREBASE_SERVICE_ACCOUNT_FILE = ""
+    assert sender.get("/api/v1/broadcasts/roles/").json()["channels"] == []
+    refused = sender.post("/api/v1/broadcasts/", message(), format="json")
+    assert refused.status_code == 400
+    assert "SMS is not set up on the server yet." in str(refused.json())
+    assert not Broadcast.objects.exists()
+
+    settings.TERMII_API_KEY = "test-key"
+    assert sender.get("/api/v1/broadcasts/roles/").json()["channels"] == ["sms"]
+
+
 def test_senders_see_the_roles_they_can_name_and_their_channels(admin):
     sender = sender_with(admin, [C.SEND_SMS, C.SEND_PUSH_NOTIFICATIONS])
     body = sender.get("/api/v1/broadcasts/roles/").json()

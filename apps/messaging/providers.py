@@ -30,6 +30,17 @@ FCM_SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
 outbox: list[tuple[str, object, str]] = []
 
 
+def ready(channel: str) -> bool:
+    """Whether messages on this channel can go out: its service is set up, or
+    (development and tests) the console backend records them."""
+    backend, real, credential = {
+        "sms": (settings.SMS_BACKEND, "termii", settings.TERMII_API_KEY),
+        "whatsapp": (settings.WHATSAPP_BACKEND, "termii", settings.TERMII_API_KEY),
+        "push": (settings.PUSH_BACKEND, "fcm", settings.FIREBASE_SERVICE_ACCOUNT_FILE),
+    }[channel]
+    return backend == "console" or (backend == real and bool(credential))
+
+
 class ProviderError(RuntimeError):
     """The service refused or could not be reached; the message says which."""
 

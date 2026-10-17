@@ -651,7 +651,12 @@ SMS, WhatsApp and app notifications to members (decided on 17 October 2026).
     that start a conversation);
   - `PUSH_BACKEND=fcm` and `FIREBASE_SERVICE_ACCOUNT_FILE`, the path to the
     Firebase project's service account key (JSON), readable only by the API.
-  - `console` (the default) records messages without sending them.
+  - `console` (the default outside production) records messages without
+    sending them. Production refuses it: WhatsApp and app notifications
+    default to `termii` and `fcm` there.
+  - A channel whose service is not set up (no Termii key, no Firebase key
+    file) is left out of `broadcasts/roles/` and refused when sending, so
+    nothing is marked sent that was not.
 
 ## Wallets
 

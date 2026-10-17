@@ -105,12 +105,12 @@ class BroadcastViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
     @action(detail=False, methods=["get"])
     def roles(self, request):
         """The active roles a group can name: `[{"code", "name"}]`, and the
-        channels this account may send on."""
+        channels this account may send on that the server can carry now."""
         roles = RoleDefinition.objects.filter(status=RoleStatus.ACTIVE).order_by("name")
         return Response(
             {
                 "roles": [{"code": role.code, "name": role.name} for role in roles],
-                "channels": services.sending_channels(request.user),
+                "channels": services.open_channels(request.user),
             }
         )
 

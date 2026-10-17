@@ -35,12 +35,22 @@ def sending_channels(user) -> list[str]:
     return [channel for channel in Channel.values if can_send(user, channel)]
 
 
+def open_channels(user) -> list[str]:
+    """The channels this account may send on that the server can carry now."""
+    return [channel for channel in sending_channels(user) if providers.ready(channel)]
+
+
 def _require_channels(user, channels):
     if not channels:
         raise ValidationError({"channels": "Choose SMS, WhatsApp or app notification."})
     for channel in channels:
         if not can_send(user, channel):
             raise PermissionDenied(f"You may not send {Channel(channel).label} messages.")
+        # Refused rather than queued to fail for everyone.
+        if not providers.ready(channel):
+            raise ValidationError(
+                {"channels": f"{Channel(channel).label} is not set up on the server yet."}
+            )
 
 
 def _reach_q(user):
