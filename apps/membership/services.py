@@ -143,6 +143,8 @@ def update_own_details(*, member: Member, actor=None, **fields) -> Member:
 
     by = actor or member.user
     member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
+    if actor is not None:
+        require_completing(actor, member)
     verified = member.verification_status == VerificationStatus.VERIFIED
     for name in OWN_PVC_DETAILS:
         if name in fields and verified and getattr(member, name) not in ("", None):
@@ -177,6 +179,8 @@ def set_own_selfie(*, member: Member, upload, actor=None) -> Member:
     by = actor or member.user
     registration.validate_image(upload, "photo", required=True)
     member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
+    if actor is not None:
+        require_completing(actor, member)
     replacing = bool(member.photo)
     if replacing and member.verification_status == VerificationStatus.VERIFIED:
         raise ValidationError(
@@ -677,6 +681,8 @@ def scan_own_pvc(
 
     member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
     by = actor or member.user
+    if actor is not None:
+        require_completing(actor, member)
     if member.membership_state != MS.ACTIVE:
         raise ValidationError("Your membership is not active.")
     if member.pvc_image:
@@ -719,6 +725,10 @@ def scan_own_pvc(
 
 @transaction.atomic
 def withdraw_pvc_update(*, member: Member, update, actor=None) -> PvcUpdate:
+    # Reviews take the same locks in the same order: member, then scan.
+    member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
+    if actor is not None:
+        require_completing(actor, member)
     update = PvcUpdate.objects.select_for_update().get(pk=update.pk)
     if update.member_id != member.pk:
         raise PermissionDenied("This scan belongs to another member.")
@@ -775,6 +785,7 @@ def correct_registration(
     place they gave. Once the PVC is on record, the name and place come from
     it; the phone number, which is also the first password, changes only
     until the member first signs in."""
+    from apps.accounts.models import User
     from apps.accounts.verification import require_phone
     from apps.geography.scope import SCOPE_FIELDS
 
@@ -782,6 +793,10 @@ def correct_registration(
 
     member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
     require_completing(actor, member)
+    if member.user_id:
+        # The joined account is only a snapshot. A first sign-in may have
+        # completed while this request was waiting for the member lock.
+        member.user = User.objects.select_for_update().get(pk=member.user_id)
     changed = []
     if full_name is not None:
         name = " ".join(full_name.split())
@@ -835,12 +850,21 @@ def _lock_pvc_update(actor, update) -> PvcUpdate:
 
     from . import identity
 
+    # Serialize with withdrawal and member completion without relying on a
+    # joined query's row-lock acquisition order.
+    member = (
+        Member.objects.select_for_update(of=("self",))
+        .select_related("user")
+        .get(pk=update.member_id)
+    )
     update = (
-        PvcUpdate.objects.select_for_update(of=("self", "member"))
-        .select_related("member__user", "polling_unit")
+        PvcUpdate.objects.select_for_update(of=("self",))
+        .select_related("polling_unit")
         .get(pk=update.pk)
     )
-    member = update.member
+    if update.member_id != member.pk:
+        raise PermissionDenied("This scan belongs to another member.")
+    update.member = member
     identity.require_reviewer(actor, member)
     if update.polling_unit_id != member.polling_unit_id:
         authority_over_member(
