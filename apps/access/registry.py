@@ -128,6 +128,12 @@ PERMISSIONS: dict[str, PermissionInfo] = {
         _p(C.ACKNOWLEDGE_INCIDENT, M.INCIDENTS, "verify", "Acknowledge incidents"),
         _p(C.ASSIGN_INCIDENT, M.INCIDENTS, "assign", "Assign incidents"),
         _p(C.CLOSE_INCIDENT, M.INCIDENTS, "manage", "Close incidents"),
+        _p(
+            C.RESPOND_TO_SECURITY,
+            M.INCIDENTS,
+            "respond",
+            "Respond as a security officer to incidents the Situation Room sends",
+        ),
         _p(C.VIEW_EVIDENCE, M.EVIDENCE, "view", "View evidence"),
         _p(C.MANAGE_EVIDENCE, M.EVIDENCE, "manage", "Manage evidence"),
         _p(C.SUBMIT_ELECTION_RESULT, M.RESULT_SUBMISSION, "create", "Submit results"),

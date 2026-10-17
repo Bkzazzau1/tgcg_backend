@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.wallets",
     "apps.projects",
     "apps.messaging",
+    "apps.security",
 ]
 
 MIDDLEWARE = [
@@ -196,6 +197,8 @@ SPECTACULAR_SETTINGS = {
         "ParticipationStatus": "apps.projects.models.ParticipationStatus",
         "MessageChannel": "apps.messaging.models.Channel",
         "BroadcastStatus": "apps.messaging.models.Broadcast.Status",
+        "SecurityDispatchStatus": "apps.security.models.SecurityDispatch.Status",
+        "SecurityLocatedBy": "apps.security.models.SecurityDispatch.LocatedBy",
         "DeliveryStatus": "apps.messaging.models.Delivery.Status",
     },
 }

@@ -92,6 +92,11 @@ apps/messaging/    bulk SMS, WhatsApp and app notifications; saved lists; the in
 | POST | `/api/v1/incidents/{reference}/assign/` | `{"team": ..., "note": ...}` |
 | GET | `/api/v1/incidents/{reference}/events/` | Incident audit trail |
 | GET, POST | `/api/v1/incidents/{reference}/evidence/` | Multipart upload: `file`, `type`, `caption`, `latitude`, `longitude`, `captured_at`, `content_hash`, `client_id` |
+| GET, POST | `/api/v1/incidents/{reference}/security/` | The security officers it was sent to, each step with its time (`can_send`, `dispatches`). POST `{"officer": access ID, "note"}` sends it to one (the Situation Room only) |
+| GET | `/api/v1/incidents/{reference}/security/nearest/` | The Situation Room's pick list: officers nearest first, by live location or the area of their role (`?search=`, `?limit=` up to 50) |
+| POST | `/api/v1/security/dispatches/{id}/cancel/` | `{"reason"}`: the Situation Room takes it back; the officer is told |
+| GET | `/api/v1/me/security/` | A security officer's incidents: those still with them and those finished in the last week, with the place, a point to navigate to and the reporter's phone |
+| POST | `/api/v1/me/security/{id}/respond/` | `{"step": "accepted" \| "declined" \| "onTheWay" \| "arrived" \| "resolved", "note"}`; declining and resolving need a note |
 | POST | `/api/v1/incidents/{reference}/live/start/`, `watch/`, `end/` | Live video of an incident: a LiveKit pass to broadcast (its reporter) or watch (whoever sees it); `end` for the broadcaster or a coordinator over it |
 | POST | `/api/v1/livekit/webhook/` | Events LiveKit posts, signed with the API key: rooms closing, recordings ending |
 | GET, POST | `/api/v1/field-reports/` | Optional `incident` reference |
@@ -436,6 +441,43 @@ writes codes to the server log, and production refuses to start with it.
 - Field reports are reviewed (verified or rejected) by holders of
   `verifyFieldReport`. Rejecting needs a reason, and nobody can review their
   own report.
+
+## Security officers
+
+The Situation Room sends incidents to security officers (decided on 17
+October 2026).
+
+- **Who they are:** members, signed in like everyone else, whose role holds
+  `respondToSecurity`. A National Administrator creates such a role and
+  appoints officers to it over their areas (a polling unit, ward, LGA or
+  state). An administrator holds every power but is never offered as an
+  officer.
+- **Who sends:** one grant holding both `viewSituationRoom` and
+  `assignIncident` over the incident's place: the Situation Room Director,
+  the National Administrator, or a role given both. Coordinators who assign
+  incidents in their area do not send to security, but those who see the
+  incident follow what happens.
+- **Nearest:** `nearest/` measures from the incident's GPS fix (else its
+  polling unit, ward or LGA) to each officer: their live location while they
+  share it for a project, if a real fix arrived in the last
+  `LIVE_STALE_MINUTES`, else the area of their role (a polling unit's own
+  location, else the middle of the located units in the area; a unit or ward
+  with none borrows its LGA's). Officers whose distance is unknown come last.
+  An officer busy with another incident is marked, and one who declined this
+  incident is not offered again.
+- **Sending:** one officer at a time. Sending escalates the incident and
+  tells the officer by app notification and SMS (channels the server can
+  carry now; see **Bulk messages**). The notice names the incident, its
+  category, severity and place; the reporter's number stays in the app.
+  Notices are in the officer's inbox, not among the sender's messages.
+- **The officer:** accepts or declines (with a reason), then says they are on
+  the way, have arrived and have resolved it (with what was done), which
+  resolves the incident. They see the place, a point to navigate to and the
+  reporter's name and phone. An officer who loses the role stops answering.
+- **Standing down:** the Situation Room cancels with a reason, and resolving
+  or closing the incident there stands the officer down too; either way the
+  officer is told. Every step is on the incident's trail (`/events/`, action
+  `security`).
 
 ## Evidence
 

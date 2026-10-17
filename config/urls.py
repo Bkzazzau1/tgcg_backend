@@ -30,6 +30,7 @@ from apps.membership.views import (
 from apps.messaging import views as messaging
 from apps.projects import views as projects
 from apps.results.views import CollationView, ElectionViewSet, PartyViewSet, ResultViewSet
+from apps.security import views as security
 from apps.tracking import mapping_views as mapping
 from apps.tracking.views import (
     CheckInViewSet,
@@ -225,6 +226,28 @@ api_v1 = [
         "me/volunteer/<uuid:uuid>/withdraw/",
         reg.MyVolunteerWithdrawView.as_view(),
         name="my-volunteer-withdraw",
+    ),
+    # Security officers: incidents the Situation Room sends them, and their answers
+    path(
+        "incidents/<str:reference>/security/",
+        security.IncidentSecurityView.as_view(),
+        name="incident-security",
+    ),
+    path(
+        "incidents/<str:reference>/security/nearest/",
+        security.NearestOfficersView.as_view(),
+        name="incident-security-nearest",
+    ),
+    path(
+        "security/dispatches/<uuid:uuid>/cancel/",
+        security.CancelDispatchView.as_view(),
+        name="security-dispatch-cancel",
+    ),
+    path("me/security/", security.MyDispatchesView.as_view(), name="my-security"),
+    path(
+        "me/security/<uuid:uuid>/respond/",
+        security.RespondView.as_view(),
+        name="my-security-respond",
     ),
     path("", include(router.urls)),
 ]

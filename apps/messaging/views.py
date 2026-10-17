@@ -65,7 +65,7 @@ class BroadcastViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Broadcast.objects.none()
-        broadcasts = Broadcast.objects.select_related("sender")
+        broadcasts = Broadcast.objects.filter(kind=Broadcast.Kind.MESSAGE).select_related("sender")
         if engine.is_national_administrator(self.request.user):
             return broadcasts
         return broadcasts.filter(sender=self.request.user)

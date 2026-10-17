@@ -21,13 +21,20 @@ class Channel(models.TextChoices):
 
 
 class Broadcast(TimeStampedModel):
-    """One message sent to many people."""
+    """One message sent to many people, or a notice the system sends one person."""
 
     class Status(models.TextChoices):
         SENDING = "sending", "Sending"
         DONE = "done", "Sent"
 
+    class Kind(models.TextChoices):
+        MESSAGE = "message", "Message"
+        # Sent by the system on someone's action, such as an incident sent to
+        # a security officer; it is not among the sender's messages.
+        NOTICE = "notice", "Notice"
+
     sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.MESSAGE)
     title = models.CharField(max_length=120, blank=True, help_text="For app notifications.")
     body = models.TextField(max_length=1000)
     channels = models.JSONField(default=list)

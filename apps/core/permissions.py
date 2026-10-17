@@ -77,6 +77,9 @@ class Capability(models.TextChoices):
     SEND_SMS = "sendSms"
     SEND_WHATSAPP = "sendWhatsApp"
     SEND_PUSH_NOTIFICATIONS = "sendPushNotifications"
+    # Security officers (apps.security): members whose role holds this answer
+    # the incidents the Situation Room sends them.
+    RESPOND_TO_SECURITY = "respondToSecurity"
     # Protected: only National Administrators, never delegable.
     APPOINT_NATIONAL_ADMINISTRATOR = "appointNationalAdministrator"
     APPROVE_ADMINISTRATOR_REMOVAL = "approveAdministratorRemoval"

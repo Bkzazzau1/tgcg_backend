@@ -362,6 +362,7 @@ verified member, converting its legacy role into a normal assignment.
 | `/me/polling-unit/changes/` | The member's own requests; `POST` (multipart: `delim`, `pvc_image`, `reason`); `POST /<id>/withdraw/`. `/me/member/` now includes `verification_status` and `membership_state`. |
 | `/projects/` | Scheduled field work (see the README's **Projects**): everyone with a role sees those overlapping their areas. Creating, changing and cancelling need `manageProjects` (protected: National Administrators only). `participants/` assigns people with a role, with `assignProjectParticipants` (state, LGA and ward coordinators) over the place; `monitor/` needs that or `viewLiveOperations`, and shows only the caller's areas. A person shares location only while a project they accepted runs. |
 | `/broadcasts/` | Bulk SMS, WhatsApp and app notifications (see the README's **Bulk messages**). Each channel is its own power, `sendSms`, `sendWhatsApp` and `sendPushNotifications`, which no role holds until a National Administrator gives it; a sender reaches only active members in the areas where they hold the channel's power. `/message-lists/` are each sender's own. |
+| `/incidents/<reference>/security/` | Security officers (see the README's **Security officers**): the Situation Room, one grant holding `viewSituationRoom` and `assignIncident` over the incident's place, picks an officer from `nearest/` and sends it; whoever sees incidents there follows each step. Officers hold `respondToSecurity`, which no role holds until a National Administrator gives it, and answer at `/me/security/`. |
 | `/me/registered/` | Anyone signed in registers members with a name and a phone number (see the README's **Member registration**); no permission is needed and there is no limit. Each person sees and completes only the members they registered, until the identity is checked; every change is audited against them. |
 
 Every existing endpoint now checks the permission it uses against the
@@ -491,6 +492,12 @@ location on duty now go by the `fieldDuty` permission instead of the agent
 and observer account types. Those accounts hold it, and so do roles such as
 the polling unit executives', who work as their unit's agents; a person
 checks in at the one polling unit where they hold it.
+
+Security officers (17 October 2026) are members whose role holds
+`respondToSecurity`; their menu shows Security Response, the incidents the
+Situation Room sends them. They sign in on the same page as everyone else.
+The National Administrator holds the power like every other but is never
+offered as an officer.
 
 Registered members per area (`GET /members/counts/`) are for whoever may
 find members (`MEMBER_READERS`: the administrator, coordinators, and those

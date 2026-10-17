@@ -120,6 +120,33 @@ def send(*, sender, channels, body: str, groups, title: str = "", record=None) -
     return broadcast
 
 
+def notify(*, sender, member, title: str, body: str, record=None) -> list[str]:
+    """Queue a notice to one member on the channels the server can carry now:
+    the app on their phone, if they have it, and SMS. It goes out with the
+    other messages, and is in their inbox. Returns the channels used."""
+    reached = Member.objects.filter(pk=member.pk)
+    channels = [
+        channel
+        for channel in (Channel.PUSH, Channel.SMS)
+        if providers.ready(channel) and audience.addressable(reached, channel).exists()
+    ]
+    if not channels:
+        return []
+    broadcast = Broadcast.objects.create(
+        sender=sender,
+        kind=Broadcast.Kind.NOTICE,
+        title=" ".join(title.split()),
+        body=body.strip(),
+        channels=channels,
+        audience=record or {},
+        people=1,
+    )
+    Delivery.objects.bulk_create(
+        [Delivery(broadcast=broadcast, member=member, channel=channel) for channel in channels]
+    )
+    return channels
+
+
 # --- delivery ----------------------------------------------------------------------
 
 

@@ -154,6 +154,11 @@ def change_incident_status(*, actor, incident, status, note="") -> Incident:
         note=note,
         actor=actor,
     )
+    if status in (I.RESOLVED, I.CLOSED):
+        # A security officer still sent to it is told they are not needed.
+        from apps.security.services import incident_finished
+
+        incident_finished(actor=actor, incident=incident)
     return incident
 
 

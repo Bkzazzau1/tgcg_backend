@@ -153,6 +153,7 @@ class IncidentEvent(models.Model):
         ASSIGNED = "assigned", "Assigned"
         EVIDENCE_ADDED = "evidenceAdded", "Evidence added"
         LIVE_VIDEO = "liveVideo", "Live video"
+        SECURITY = "security", "Security officer"
 
     incident = models.ForeignKey(Incident, on_delete=models.CASCADE, related_name="events")
     action = models.CharField(max_length=16, choices=Action.choices)
