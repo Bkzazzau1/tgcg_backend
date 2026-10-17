@@ -45,6 +45,7 @@ apps/field/        incidents, field reports, evidence uploads, incident audit tr
 apps/results/      parties, elections, result submissions, integrity checks, collation
 apps/wallets/      members' wallets: payments with a second approver, payout accounts
 apps/projects/     scheduled field work (elections, assignments): who takes part, where
+apps/messaging/    bulk SMS, WhatsApp and app notifications; saved lists; the inbox
 ```
 
 ## API (v1)
@@ -110,6 +111,11 @@ apps/projects/     scheduled field work (elections, assignments): who takes part
 | GET | `/api/v1/projects/{id}/monitor/` | Each person's state in your areas (`atPlace`, `away`, `notSharing`, `notStarted`, `invited`...) and the project's incidents, reports and results there |
 | POST | `/api/v1/project-participants/{id}/remove/` | Take someone out of a project (reason required) |
 | GET | `/api/v1/me/projects/` | The member's projects with `my_participation`; `POST /api/v1/me/projects/{participation}/accept/`, `decline/` or `withdraw/` |
+| GET, POST | `/api/v1/broadcasts/` | Bulk messages. POST `{"channels": ["sms", "whatsapp", "push"], "title", "body", "groups": [...]}` sends at once; each channel needs `sendSms`, `sendWhatsApp` or `sendPushNotifications` and reaches only the sender's areas. GET: what you sent (an administrator, everything), with `delivered` counts |
+| POST | `/api/v1/broadcasts/preview/` | The same body: how many people each channel reaches, and how many SMS pages the text takes |
+| GET, POST, PATCH, DELETE | `/api/v1/message-lists/` | Your saved lists. POST `{"name", "members": [membership numbers], "groups": [...]}`; PATCH `{"name", "add", "remove"}` |
+| POST, DELETE | `/api/v1/me/devices/` | `{"token", "platform"}`: this phone receives the account's app notifications, or stops |
+| GET | `/api/v1/me/messages/` | The member's inbox: messages sent to them on any channel |
 | POST | `/api/v1/tracking/pings/` | Upload up to 500 queued on-duty GPS readings |
 | GET | `/api/v1/tracking/live/` | On-duty agents and their latest position in an area (`viewLiveOperations`) |
 | GET | `/api/v1/tracking/coverage/?level=&code=&date=` | Check-in coverage per area: on site, away, suspect, not checked in |
@@ -608,6 +614,44 @@ never ordinary members. Published posts are seen across Nigeria.
   allow a whole post (for example `110m` at the defaults).
 - **Record:** approvals, refusals, hidden posts and replies, deleted posts
   and settings changes are in the audit log.
+
+## Bulk messages
+
+SMS, WhatsApp and app notifications to members (decided on 17 October 2026).
+
+- **Who sends:** a National Administrator gives the power for each channel
+  through roles: `sendSms`, `sendWhatsApp`, `sendPushNotifications`. A
+  sender reaches only active members in the areas where they hold that
+  channel's power; an administrator reaches everyone. Sends go out at once,
+  without approval, and each is audited (`message.sent`).
+- **Who receives:** a message names groups, and reaches everyone in any of
+  them once:
+  - `filter`: members in some areas (all of Nigeria when none), narrowed to
+    people with a role, without one, or holding chosen roles (`roles`, by
+    role code), by `gender`, and to checked identities (`verified_only`);
+  - `project`: those taking part in a project;
+  - `list`: one of the sender's saved lists (membership numbers, or the people
+    some groups reach when it is saved).
+- **Where it goes:** SMS to the member's phone number; WhatsApp to their
+  WhatsApp number when they gave one (`/me/member/`), else their phone
+  number; app notifications to every phone signed in to their account. Every
+  message also appears in the member's inbox (`/me/messages/`).
+- **Sending:** each send is queued per person and channel, and
+  `uv run python manage.py deliver_messages` hands the queue over in
+  batches: SMS through Termii's bulk API (500 numbers a request), WhatsApp
+  through Termii one by one, notifications through Firebase Cloud Messaging.
+  Run it every minute (systemd timer or cron); each run works for up to 55
+  seconds. What a service refuses is recorded per person (`delivered`).
+- **Settings** (server environment, never in the code):
+  - `SMS_BACKEND=termii`, `TERMII_API_KEY`, `TERMII_SENDER_ID` (an approved
+    sender name), and `TERMII_BULK_CHANNEL` (`generic` by default; `dnd`
+    reaches numbers on Do Not Disturb once Termii approves the sender);
+  - `WHATSAPP_BACKEND=termii`, with a WhatsApp number connected to the
+    sender in Termii (WhatsApp may require approved templates for messages
+    that start a conversation);
+  - `PUSH_BACKEND=fcm` and `FIREBASE_SERVICE_ACCOUNT_FILE`, the path to the
+    Firebase project's service account key (JSON), readable only by the API.
+  - `console` (the default) records messages without sending them.
 
 ## Wallets
 

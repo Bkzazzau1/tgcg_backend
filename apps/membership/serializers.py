@@ -8,6 +8,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field, inline_serializer
 from rest_framework import serializers
 
+from apps.accounts.phone import normalize_ng_phone
 from apps.core.choices import AccreditationStatus, Disability, Gender
 from apps.core.permissions import Capability
 from apps.geography.scope import ScopeField, scope_contains, scope_payload, within_scope_q
@@ -387,6 +388,7 @@ class MemberCardSerializer(serializers.ModelSerializer):
             "membership_number",
             "full_name",
             "phone_number",
+            "whatsapp_number",
             "email",
             "vin",
             "has_pvc",
@@ -445,6 +447,7 @@ class MemberSelfUpdateSerializer(DisabilitySerializerMixin, serializers.ModelSer
         model = Member
         fields = [
             "email",
+            "whatsapp_number",
             "occupation",
             "gender",
             "date_of_birth",
@@ -456,6 +459,15 @@ class MemberSelfUpdateSerializer(DisabilitySerializerMixin, serializers.ModelSer
         if value and value > timezone.localdate():
             raise serializers.ValidationError("A date of birth cannot be in the future.")
         return value
+
+    def validate_whatsapp_number(self, value):
+        """Empty means WhatsApp is on the member's phone number."""
+        if not value:
+            return ""
+        number = normalize_ng_phone(value)
+        if number is None:
+            raise serializers.ValidationError("Enter a Nigerian mobile number.")
+        return number
 
 
 class CardVerificationSerializer(serializers.ModelSerializer):

@@ -72,6 +72,11 @@ class Capability(models.TextChoices):
     # Projects (apps.projects): scheduled periods of field work, such as an
     # election. Coordinators assign people to them.
     ASSIGN_PROJECT_PARTICIPANTS = "assignProjectParticipants"
+    # Bulk messages (apps.messaging): each channel is its own power, which a
+    # National Administrator gives through roles; a sender reaches their area.
+    SEND_SMS = "sendSms"
+    SEND_WHATSAPP = "sendWhatsApp"
+    SEND_PUSH_NOTIFICATIONS = "sendPushNotifications"
     # Protected: only National Administrators, never delegable.
     APPOINT_NATIONAL_ADMINISTRATOR = "appointNationalAdministrator"
     APPROVE_ADMINISTRATOR_REMOVAL = "approveAdministratorRemoval"

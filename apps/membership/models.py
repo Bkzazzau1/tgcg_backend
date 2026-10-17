@@ -93,6 +93,9 @@ class Member(TimeStampedModel, ScopedModel):
     membership_number = models.CharField(max_length=16, unique=True, editable=False)
     full_name = models.CharField(max_length=150, blank=True)
     phone_number = models.CharField(max_length=16, unique=True)
+    whatsapp_number = models.CharField(
+        max_length=16, blank=True, help_text="Only when WhatsApp is on another number."
+    )
     email = models.EmailField(blank=True)
 
     # Identity from the Permanent Voter Card. Empty only for assisted

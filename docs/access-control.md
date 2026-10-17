@@ -361,6 +361,7 @@ verified member, converting its legacy role into a normal assignment.
 | `/polling-unit-changes/` | Requests to move into the caller's areas; `POST /<id>/approve/`, `/reject/`; `GET /<id>/card/` (the updated card photo). |
 | `/me/polling-unit/changes/` | The member's own requests; `POST` (multipart: `delim`, `pvc_image`, `reason`); `POST /<id>/withdraw/`. `/me/member/` now includes `verification_status` and `membership_state`. |
 | `/projects/` | Scheduled field work (see the README's **Projects**): everyone with a role sees those overlapping their areas. Creating, changing and cancelling need `manageProjects` (protected: National Administrators only). `participants/` assigns people with a role, with `assignProjectParticipants` (state, LGA and ward coordinators) over the place; `monitor/` needs that or `viewLiveOperations`, and shows only the caller's areas. A person shares location only while a project they accepted runs. |
+| `/broadcasts/` | Bulk SMS, WhatsApp and app notifications (see the README's **Bulk messages**). Each channel is its own power, `sendSms`, `sendWhatsApp` and `sendPushNotifications`, which no role holds until a National Administrator gives it; a sender reaches only active members in the areas where they hold the channel's power. `/message-lists/` are each sender's own. |
 
 Every existing endpoint now checks the permission it uses against the
 caller's grants and their areas (`within_scope_q`, `scope_contains` and

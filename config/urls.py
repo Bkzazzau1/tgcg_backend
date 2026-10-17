@@ -27,6 +27,7 @@ from apps.membership.views import (
     PvcUpdateViewSet,
     VolunteerViewSet,
 )
+from apps.messaging import views as messaging
 from apps.projects import views as projects
 from apps.results.views import CollationView, ElectionViewSet, PartyViewSet, ResultViewSet
 from apps.tracking import mapping_views as mapping
@@ -63,6 +64,8 @@ router.register("forum/posts", forum.PostViewSet, basename="forum-post")
 router.register("forum/replies", forum.ReplyViewSet, basename="forum-reply")
 router.register("wallet-payments", wallets.PaymentViewSet, basename="wallet-payment")
 router.register("projects", projects.ProjectViewSet, basename="project")
+router.register("broadcasts", messaging.BroadcastViewSet, basename="broadcast")
+router.register("message-lists", messaging.MessageListViewSet, basename="message-list")
 router.register(
     "project-participants", projects.ParticipationViewSet, basename="project-participant"
 )
@@ -188,6 +191,8 @@ api_v1 = [
         name="my-wallet-bank-account",
     ),
     path("me/projects/", projects.MyProjectsView.as_view(), name="my-projects"),
+    path("me/messages/", messaging.MyMessagesView.as_view(), name="my-messages"),
+    path("me/devices/", messaging.MyDevicesView.as_view(), name="my-devices"),
     path(
         "me/projects/<uuid:uuid>/<str:answer>/",
         projects.MyProjectAnswerView.as_view(),

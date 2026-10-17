@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "apps.access",
     "apps.wallets",
     "apps.projects",
+    "apps.messaging",
 ]
 
 MIDDLEWARE = [
@@ -193,6 +194,9 @@ SPECTACULAR_SETTINGS = {
         "WalletPaymentStatus": "apps.wallets.models.Payment.Status",
         "WalletEntryKind": "apps.wallets.models.WalletEntry.Kind",
         "ParticipationStatus": "apps.projects.models.ParticipationStatus",
+        "MessageChannel": "apps.messaging.models.Channel",
+        "BroadcastStatus": "apps.messaging.models.Broadcast.Status",
+        "DeliveryStatus": "apps.messaging.models.Delivery.Status",
     },
 }
 
@@ -242,6 +246,17 @@ REGISTRATION_PHONE_CODE_REQUIRED = env.bool(
     default=SMS_BACKEND == "console" or bool(TERMII_API_KEY),
 )
 OTP_MAX_PER_HOUR = 5
+
+# --- Bulk messages (apps.messaging) -----------------------------------------------
+# SMS go through SMS_BACKEND above. "console" records messages without sending
+# them (development and tests); "termii" and "fcm" send for real.
+WHATSAPP_BACKEND = env("WHATSAPP_BACKEND", default="console")
+PUSH_BACKEND = env("PUSH_BACKEND", default="console")
+# Termii's route for bulk SMS: "generic" does not reach numbers on DND;
+# "dnd" does, once Termii has approved the sender for it.
+TERMII_BULK_CHANNEL = env("TERMII_BULK_CHANNEL", default="generic")
+# A Firebase service account's JSON key file, kept outside the code (push).
+FIREBASE_SERVICE_ACCOUNT_FILE = env("FIREBASE_SERVICE_ACCOUNT_FILE", default="")
 
 # --- Member registration ---------------------------------------------------------
 MEMBER_PHOTO_MAX_MB = env.int("MEMBER_PHOTO_MAX_MB", default=8)
