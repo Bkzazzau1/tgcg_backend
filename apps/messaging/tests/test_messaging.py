@@ -256,3 +256,12 @@ def test_the_services_receive_what_they_expect(settings, monkeypatch):
     monkeypatch.setattr(providers, "_post", unregistered)
     with pytest.raises(providers.InvalidToken):
         providers.send_push("old-token", "TGCG", "Hello", {"broadcast": "b-1"})
+
+
+def test_senders_see_the_roles_they_can_name_and_their_channels(admin):
+    sender = sender_with(admin, [C.SEND_SMS, C.SEND_PUSH_NOTIFICATIONS])
+    body = sender.get("/api/v1/broadcasts/roles/").json()
+    assert body["channels"] == ["sms", "push"]
+    assert {"code": "pollingUnitAgent", "name": "Polling Unit Agent"} in body["roles"]
+    plain = client_for(member_account("08037770061", name="Ada Obi").user)
+    assert plain.get("/api/v1/broadcasts/roles/").status_code == 403

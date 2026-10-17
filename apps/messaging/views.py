@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.access import engine
+from apps.access.models import RoleDefinition, RoleStatus
 from apps.core.permissions import Capability, requires
 from apps.projects.models import Project
 from apps.projects.services import require_visible
@@ -98,6 +99,19 @@ class BroadcastViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewset
                 groups=resolve_groups(request.user, message["groups"]),
                 body=message["body"],
             )
+        )
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    @action(detail=False, methods=["get"])
+    def roles(self, request):
+        """The active roles a group can name: `[{"code", "name"}]`, and the
+        channels this account may send on."""
+        roles = RoleDefinition.objects.filter(status=RoleStatus.ACTIVE).order_by("name")
+        return Response(
+            {
+                "roles": [{"code": role.code, "name": role.name} for role in roles],
+                "channels": services.sending_channels(request.user),
+            }
         )
 
 
