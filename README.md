@@ -74,6 +74,8 @@ apps/messaging/    bulk SMS, WhatsApp and app notifications; saved lists; the in
 | GET | `/api/v1/me/member/card/` | The membership card as a PDF: front and back on two ID-card-size pages (85.6 x 54 mm). Needs an active membership, the member's photo, a PVC photo, gender and date of birth, not an identity check; otherwise 409 with `missing`. Roles print once the identity is checked |
 | POST | `/api/v1/me/member/photo/` (`photo`) | Multipart. The member adds the selfie left out when joining; replacing it is refused once their identity is checked (a coordinator does it). Audited, and the identity checks rerun |
 | GET, POST | `/api/v1/me/member/pvc-scan/` | The member's one PVC scan. GET: `{"can_scan", "latest"}`. POST (multipart: `pvc_image`, `full_name`, `vin`, `delim`, optional `gender`, `date_of_birth`, `occupation`): the card's details replace the typed ones, at once, or after a coordinator's second check when the identity is checked. Refused once a card is on record (from joining or an earlier scan) or while one waits; `.../<id>/withdraw/` takes a waiting scan back |
+| GET, POST | `/api/v1/me/registered/` | Anyone signed in registers a member with `full_name`, `phone_number` and `consent=true` (optional `scope`), with no limit; the phone number is the first password. GET lists the members they registered, newest first (`?search=`), with `missing`, `can_complete` and `signed_in` |
+| GET, PATCH | `/api/v1/me/registered/<number>/` (also `photo/`, `pvc-scan/`) | The person who registered a member completes the registration until the identity is checked: the fields of `/me/member/`, the photo and the one PVC scan, plus `full_name` and `scope` until the PVC is on record and `phone_number` until the member first signs in. Every change is audited against them |
 | GET, POST | `/api/v1/pvc-updates/` | `verifyMemberIdentity` for the member's area (and the unit on the card): scans awaiting a second check, with what they change; `<id>/card/`, `<id>/approve/`, `<id>/reject/` (reason required). Approving keeps the identity checked, by the approver |
 | GET | `/api/v1/me/member/photo/`, `/api/v1/me/polling-unit/`, `/api/v1/me/announcements/` | Member home |
 | GET, POST | `/api/v1/me/volunteer/` | Apply to serve as a polling-unit agent |
@@ -249,6 +251,35 @@ state, LGA or ward coordinators) or `manageMembership` uses
   enough.
 - The member can later get the app with `register/pin-code/` and
   `register/pin/`.
+
+**Registered by another person** (decided on 17 October 2026). Anyone
+signed in, ordinary members included, registers members with
+`POST /me/registered/`, as many as they wish. Only these are needed:
+`full_name`, `phone_number` and `consent=true`, meaning the person agreed to
+join TGCG and to TGCG keeping their name and number.
+
+- **Place:** `scope` is optional. Without it the member has no place
+  (Nigeria) until their PVC scan places them, so area lists and coordinators
+  do not see them until then.
+- **Sign-in:** the member signs in with their phone number as the password:
+  its 11 digits, as for chapter imports (08031234567). It stays the password
+  until they change it with Change PIN. The number is not confirmed by SMS.
+- **Review:** with nothing to check yet, the member is not verified and
+  waits in no review queue. The usual checks run once a photo, the PVC or
+  their gender and date of birth are added.
+- **Completing it:** the member completes their registration in the member
+  app. So may the person who registered them, at `/me/registered/<number>/`,
+  until the identity is checked:
+  - the member's own details, as at `/me/member/`;
+  - a photo of them;
+  - the one PVC scan;
+  - corrections to the name and the place, until the PVC is on record;
+  - corrections to the phone number, until the member first signs in. The
+    first password follows the number.
+- **Audit:** every change is recorded against the person who made it.
+- **Their list:** `GET /me/registered/` lists only the members this person
+  registered, newest first, with `?search=` by name, number or membership
+  number.
 
 **Imported from a chapter's list.** A National Administrator imports a
 chapter's polling unit executives from a CSV file with the columns `sn`,

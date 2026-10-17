@@ -132,14 +132,16 @@ OWN_PVC_DETAILS = ("gender", "date_of_birth")
 
 
 @transaction.atomic
-def update_own_details(*, member: Member, **fields) -> Member:
+def update_own_details(*, member: Member, actor=None, **fields) -> Member:
     """A member edits their email and occupation, and adds the gender and date
     of birth left out when joining. Like the photos, those two can be changed
     until the identity is checked; after that only a coordinator changes them.
     Only the edited fields are saved, so a suspension or review decided
-    meanwhile is never written back over."""
+    meanwhile is never written back over. `actor`: the person who registered
+    the member, completing their registration (see require_completing)."""
     from . import identity
 
+    by = actor or member.user
     member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
     verified = member.verification_status == VerificationStatus.VERIFIED
     for name in OWN_PVC_DETAILS:
@@ -153,21 +155,26 @@ def update_own_details(*, member: Member, **fields) -> Member:
         setattr(member, name, value)
     member.full_clean()
     member.save(update_fields=[*fields, "updated_at"])
-    if details := [name for name in changed if name in OWN_PVC_DETAILS]:
-        # Field names only: the values are personal data.
-        _audit(member.user, "member.detailsChanged", member, changes={"fields": details})
-        member = identity.record_checks(member, actor=member.user)
+    details = [name for name in changed if name in OWN_PVC_DETAILS]
+    # Field names only: the values are personal data. Every change someone
+    # else makes is recorded.
+    if recorded := (changed if actor is not None else details):
+        _audit(by, "member.detailsChanged", member, changes={"fields": recorded})
+    if details:
+        member = identity.record_checks(member, actor=by)
     return member
 
 
 @transaction.atomic
-def set_own_selfie(*, member: Member, upload) -> Member:
+def set_own_selfie(*, member: Member, upload, actor=None) -> Member:
     """A member adds the selfie they did not take when joining, or replaces it
     before their identity is checked. After that only a coordinator changes
     it, so what a reviewer approved stays on record. (The PVC photo comes
-    with the member's one PVC scan: see scan_own_pvc.)"""
+    with the member's one PVC scan: see scan_own_pvc.) `actor`: as for
+    update_own_details."""
     from . import identity, registration
 
+    by = actor or member.user
     registration.validate_image(upload, "photo", required=True)
     member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
     replacing = bool(member.photo)
@@ -178,12 +185,12 @@ def set_own_selfie(*, member: Member, upload) -> Member:
     member.photo = upload
     member.save(update_fields=["photo", "updated_at"])
     _audit(
-        member.user,
+        by,
         "member.photoReplaced" if replacing else "member.photoAdded",
         member,
         changes={"kind": "selfie"},  # which photo, never the image itself
     )
-    return identity.record_checks(member, actor=member.user)
+    return identity.record_checks(member, actor=by)
 
 
 @transaction.atomic
@@ -660,13 +667,16 @@ def scan_own_pvc(
     gender: str = "",
     date_of_birth=None,
     occupation: str = "",
+    actor=None,
 ) -> PvcUpdate:
     """The member's one PVC scan after joining: the details read off the card,
     which they checked, replace the ones they typed. They apply at once unless
-    the identity is checked; then they wait for a coordinator's second check."""
+    the identity is checked; then they wait for a coordinator's second check.
+    `actor`: as for update_own_details."""
     from . import identity, registration
 
     member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
+    by = actor or member.user
     if member.membership_state != MS.ACTIVE:
         raise ValidationError("Your membership is not active.")
     if member.pvc_image:
@@ -699,16 +709,16 @@ def scan_own_pvc(
     update.save()
     changes = {"request": str(update.uuid), "fields": update.changed_fields}
     if verified:
-        _audit(member.user, "member.pvcUpdateRequested", member, changes=changes)
+        _audit(by, "member.pvcUpdateRequested", member, changes=changes)
         return update
     _apply_pvc_update(member, update)
-    _audit(member.user, "member.pvcUpdateApplied", member, changes=changes)
-    identity.record_checks(member, actor=member.user)
+    _audit(by, "member.pvcUpdateApplied", member, changes=changes)
+    identity.record_checks(member, actor=by)
     return update
 
 
 @transaction.atomic
-def withdraw_pvc_update(*, member: Member, update) -> PvcUpdate:
+def withdraw_pvc_update(*, member: Member, update, actor=None) -> PvcUpdate:
     update = PvcUpdate.objects.select_for_update().get(pk=update.pk)
     if update.member_id != member.pk:
         raise PermissionDenied("This scan belongs to another member.")
@@ -716,8 +726,106 @@ def withdraw_pvc_update(*, member: Member, update) -> PvcUpdate:
         raise ValidationError(f"This scan is already {update.status}.")
     update.status = PV.WITHDRAWN
     update.save(update_fields=["status", "updated_at"])
-    _audit(member.user, "member.pvcUpdateWithdrawn", member, changes={"request": str(update.uuid)})
+    _audit(
+        actor or member.user,
+        "member.pvcUpdateWithdrawn",
+        member,
+        changes={"request": str(update.uuid)},
+    )
     return update
+
+
+# --- completing a registration for someone ---------------------------------------
+
+# Once the identity is decided, the details are the member's and their coordinators'.
+CHECKED = (VerificationStatus.VERIFIED, VerificationStatus.REJECTED)
+
+
+def can_complete(actor, member: Member) -> bool:
+    """Whoever registered a member may complete the registration until the
+    identity is checked (decided on 17 October 2026)."""
+    return (
+        member.created_by_id == actor.pk
+        and member.verification_status not in CHECKED
+        and member.membership_state == MS.ACTIVE
+    )
+
+
+def require_completing(actor, member: Member) -> None:
+    if member.created_by_id != actor.pk:
+        raise PermissionDenied("You did not register this member.")
+    if member.verification_status in CHECKED:
+        raise PermissionDenied(
+            "This member's identity has been checked, so only they or a coordinator "
+            "change their details now."
+        )
+    if member.membership_state != MS.ACTIVE:
+        raise PermissionDenied("This membership is not active.")
+
+
+def has_signed_in(member: Member) -> bool:
+    return bool(member.user_id and member.user.last_login)
+
+
+@transaction.atomic
+def correct_registration(
+    *, actor, member: Member, full_name=None, phone_number=None, scope=None
+) -> Member:
+    """The person who registered a member corrects the name, phone number or
+    place they gave. Once the PVC is on record, the name and place come from
+    it; the phone number, which is also the first password, changes only
+    until the member first signs in."""
+    from apps.accounts.verification import require_phone
+    from apps.geography.scope import SCOPE_FIELDS
+
+    from . import identity, registration
+
+    member = Member.objects.select_for_update(of=("self",)).select_related("user").get(pk=member.pk)
+    require_completing(actor, member)
+    changed = []
+    if full_name is not None:
+        name = " ".join(full_name.split())
+        if name != member.full_name:
+            if member.vin:
+                raise ValidationError({"full_name": "The name now comes from the member's PVC."})
+            member.full_name = name
+            changed.append("full_name")
+    if scope is not None:
+        where = (member.scope_level, *(getattr(member, f"{f}_id") for f in SCOPE_FIELDS))
+        for name, value in scope.items():
+            setattr(member, name, value)
+        member.normalize_scope()
+        if where != (member.scope_level, *(getattr(member, f"{f}_id") for f in SCOPE_FIELDS)):
+            if member.vin:
+                raise ValidationError({"scope": "The place now comes from the member's PVC."})
+            changed.append("place")
+    if phone_number is not None:
+        phone = require_phone(phone_number)
+        if phone != member.phone_number:
+            if has_signed_in(member):
+                raise ValidationError(
+                    {"phone_number": "The member has signed in with this number, so it stays."}
+                )
+            registration.ensure_available(phone)
+            member.phone_number = phone
+            changed.append("phone_number")
+    if not changed:
+        return member
+    _save_unique(member)
+    if member.user_id:
+        user = member.user
+        user.full_name = member.full_name
+        user.phone_number = member.phone_number
+        fields = ["full_name", "phone_number"]
+        if "phone_number" in changed:
+            # The first password follows the number.
+            user.set_password(registration.first_password(member.phone_number))
+            fields.append("password")
+        user.save(update_fields=fields)
+    _audit(actor, "member.registrationCorrected", member, changes={"fields": changed})
+    if member.verification_status == VerificationStatus.PENDING_REVIEW:
+        member = identity.record_checks(member, actor=actor)
+    return member
 
 
 def _lock_pvc_update(actor, update) -> PvcUpdate:

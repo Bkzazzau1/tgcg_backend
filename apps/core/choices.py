@@ -165,6 +165,7 @@ class RegistrationChannel(models.TextChoices):
     ASSISTED = "assisted", "Registered by a coordinator"
     USSD = "ussd", "Self-registration by USSD"
     IMPORT = "import", "Imported from a chapter's list"
+    REFERRED = "referred", "Registered by another person"
 
 
 class VerificationStatus(models.TextChoices):

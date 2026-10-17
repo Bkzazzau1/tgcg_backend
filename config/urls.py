@@ -172,6 +172,28 @@ api_v1 = [
         reg.MyPvcScanWithdrawView.as_view(),
         name="my-pvc-scan-withdraw",
     ),
+    # Members someone registered with a name and a phone number, and completes
+    path("me/registered/", reg.RegisteredMembersView.as_view(), name="registered-members"),
+    path(
+        "me/registered/<str:number>/",
+        reg.RegisteredMemberView.as_view(),
+        name="registered-member",
+    ),
+    path(
+        "me/registered/<str:number>/photo/",
+        reg.RegisteredMemberPhotoView.as_view(),
+        name="registered-member-photo",
+    ),
+    path(
+        "me/registered/<str:number>/pvc-scan/",
+        reg.RegisteredMemberPvcScanView.as_view(),
+        name="registered-member-pvc-scan",
+    ),
+    path(
+        "me/registered/<str:number>/pvc-scan/<uuid:uuid>/withdraw/",
+        reg.RegisteredMemberPvcScanWithdrawView.as_view(),
+        name="registered-member-pvc-scan-withdraw",
+    ),
     path("me/polling-unit/", reg.MyPollingUnitView.as_view(), name="my-polling-unit"),
     path(
         "me/polling-unit/changes/",

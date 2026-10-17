@@ -19,6 +19,7 @@ from PIL import Image, UnidentifiedImageError
 
 from apps.access import audit, engine
 from apps.accounts.models import User
+from apps.accounts.phone import local_ng_phone
 from apps.accounts.verification import PhoneVerification, consume_code, require_phone, send_code
 from apps.core.choices import (
     GeographyLevel,
@@ -596,6 +597,53 @@ def register_imported(
         target_label=member.full_name,
         reason=source,
         changes={"identity": "checked manually by the chapter", "consent": "through the chapter"},
+    )
+    return member
+
+
+# --- registered by another person: a name and a phone number -------------------
+
+
+def first_password(phone: str) -> str:
+    """Members registered by someone else, like chapter imports, first sign in
+    with their phone number as the password: the 11 digits, 08031234567."""
+    return local_ng_phone(phone)
+
+
+@transaction.atomic
+def register_someone(*, actor, full_name, phone_number, consent, scope=None) -> Member:
+    """Anyone signed in registers a member with just a name and a phone
+    number, as many as they wish (decided on 17 October 2026), on their word
+    that the person agreed to join. The place is optional. The member signs
+    in with their phone number as the password and completes the rest; so may
+    the person who registered them, until the identity is checked. With
+    nothing to check yet, the member is not verified and awaits no review
+    until a photo, their PVC or their details are added."""
+    own = getattr(actor, "member", None)
+    if own is not None and own.membership_state != MembershipState.ACTIVE:
+        raise PermissionDenied("Your membership is not active.")
+    if consent is not True:
+        raise ValidationError({"consent": "Confirm that the person agreed to join TGCG."})
+    phone = require_phone(phone_number)
+    ensure_available(phone)
+    member = Member(
+        full_name=full_name,
+        phone_number=phone,
+        registration_channel=RegistrationChannel.REFERRED,
+        created_by=actor,
+        consent_at=timezone.now(),
+        **(scope or {}),
+    )
+    member.full_clean(exclude=["membership_number"])
+    _save_member(member)
+    _member_account(member, first_password(phone))
+    audit.record(
+        actor=actor,
+        action="member.registeredByOther",
+        target_type="member",
+        target_id=member.membership_number,
+        target_label=member.full_name,
+        changes={"place": member.scope_level, "consent": "given to the person who registered them"},
     )
     return member
 

@@ -7,6 +7,7 @@ in config/urls.py so failed code attempts are recorded.
 import mimetypes
 
 from django.conf import settings
+from django.db.models import Q
 from django.http import FileResponse, Http404, HttpResponse
 from drf_spectacular.utils import (
     OpenApiParameter,
@@ -17,12 +18,13 @@ from drf_spectacular.utils import (
 from rest_framework import generics, serializers, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import AllowAny, BasePermission
+from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.accounts.phone import normalize_ng_phone
 from apps.announcements.serializers import AnnouncementSerializer
 from apps.announcements.views import announcements_for
 from apps.core.permissions import Capability, has_capability, is_staff_operator
@@ -43,6 +45,10 @@ from .serializers import (
     PollingUnitChangeSerializer,
     PollingUnitSummarySerializer,
     PvcScanSerializer,
+    RegisteredMemberCardSerializer,
+    RegisteredMemberSerializer,
+    RegisteredMemberUpdateSerializer,
+    RegisterSomeoneSerializer,
     RegistrationCodeSerializer,
     SelfRegistrationSerializer,
     SetPinSerializer,
@@ -622,3 +628,167 @@ class MyPollingUnitChangeWithdrawView(MemberHomeMixin, APIView):
             raise Http404
         change = services.withdraw_polling_unit_change(member=member, change=change)
         return Response(PollingUnitChangeSerializer(change).data)
+
+
+# --- members registered by another person (17 October 2026) ---------------------
+
+
+class RegisteredMembersView(generics.ListAPIView):
+    """Anyone signed in registers members with a name and a phone number, as
+    many as they wish; GET lists the ones they registered, newest first
+    (`?search=` by name, phone number or membership number)."""
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = RegisteredMemberSerializer
+    parser_classes = [JSONParser]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):  # building the API schema
+            return Member.objects.none()
+        members = (
+            _member_queryset()
+            .select_related("user")
+            .filter(created_by=self.request.user)
+            .order_by("-created_at", "-pk")
+        )
+        search = self.request.query_params.get("search", "").strip()
+        if search:
+            match = Q(full_name__icontains=search) | Q(membership_number__iexact=search)
+            if phone := normalize_ng_phone(search):
+                match |= Q(phone_number=phone)
+            members = members.filter(match)
+        return members
+
+    @extend_schema(request=RegisterSomeoneSerializer, responses={201: RegisteredMemberSerializer})
+    def post(self, request):
+        serializer = RegisterSomeoneSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        member = registration.register_someone(actor=request.user, **serializer.validated_data)
+        member = self.get_queryset().get(pk=member.pk)
+        return Response(
+            RegisteredMemberSerializer(member, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class RegisteredMemberMixin:
+    """One member the signed-in person registered, while they may still
+    complete the registration: until the identity is checked."""
+
+    permission_classes = [IsAuthenticated]
+
+    def lookup(self):
+        member = (
+            _member_queryset()
+            .select_related("user")
+            .filter(membership_number=self.kwargs["number"], created_by=self.request.user)
+            .first()
+        )
+        if member is None:
+            raise Http404
+        return member
+
+    def registered(self):
+        member = self.lookup()
+        services.require_completing(self.request.user, member)
+        return member
+
+    def details(self):
+        # Read without the check: the change just made may have verified them.
+        return Response(
+            RegisteredMemberCardSerializer(self.lookup(), context={"request": self.request}).data
+        )
+
+
+class RegisteredMemberView(RegisteredMemberMixin, APIView):
+    """The member's details to complete: their own (as in /me/member/), and the
+    name, phone number and place given when registering them."""
+
+    parser_classes = [JSONParser]
+
+    @extend_schema(responses=RegisteredMemberCardSerializer)
+    def get(self, request, number):
+        self.registered()
+        return self.details()
+
+    @extend_schema(
+        request=RegisteredMemberUpdateSerializer, responses=RegisteredMemberCardSerializer
+    )
+    def patch(self, request, number):
+        member = self.registered()
+        serializer = RegisteredMemberUpdateSerializer(data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        fields = dict(serializer.validated_data)
+        given = ("full_name", "phone_number", "scope")  # what the registrant typed
+        corrections = {name: fields.pop(name) for name in given if name in fields}
+        if corrections:
+            member = services.correct_registration(actor=request.user, member=member, **corrections)
+        if fields:
+            services.update_own_details(member=member, actor=request.user, **fields)
+        return self.details()
+
+
+class RegisteredMemberPhotoView(RegisteredMemberMixin, APIView):
+    """The member's photo, taken by the person who registered them."""
+
+    parser_classes = [MultiPartParser, FormParser]
+
+    @extend_schema(responses={(200, "image/jpeg"): bytes})
+    def get(self, request, number):
+        return _photo_response(self.registered())
+
+    @extend_schema(
+        request={
+            "multipart/form-data": inline_serializer(
+                "RegisteredMemberPhoto", {"photo": serializers.FileField()}
+            )
+        },
+        responses={200: RegisteredMemberCardSerializer},
+    )
+    def post(self, request, number):
+        services.set_own_selfie(
+            member=self.registered(), upload=request.FILES.get("photo"), actor=request.user
+        )
+        return self.details()
+
+
+class RegisteredMemberPvcScanView(RegisteredMemberMixin, APIView):
+    """The member's one PVC scan, made by the person who registered them."""
+
+    parser_classes = [MultiPartParser, FormParser]
+
+    @extend_schema(responses=MY_PVC_SCAN)
+    def get(self, request, number):
+        member = self.registered()
+        latest = member.pvc_updates.first()
+        return Response(
+            {
+                "can_scan": services.can_scan_pvc(member),
+                "latest": MyPvcUpdateSerializer(latest).data if latest else None,
+            }
+        )
+
+    @extend_schema(
+        request={"multipart/form-data": PvcScanSerializer},
+        responses={201: MyPvcUpdateSerializer},
+    )
+    def post(self, request, number):
+        serializer = PvcScanSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        update = services.scan_own_pvc(
+            member=self.registered(), actor=request.user, **serializer.validated_data
+        )
+        return Response(MyPvcUpdateSerializer(update).data, status=status.HTTP_201_CREATED)
+
+
+class RegisteredMemberPvcScanWithdrawView(RegisteredMemberMixin, APIView):
+    """Take back a scan still waiting for a coordinator."""
+
+    @extend_schema(request=None, responses=MyPvcUpdateSerializer)
+    def post(self, request, number, uuid):
+        member = self.registered()
+        update = member.pvc_updates.filter(uuid=uuid).first()
+        if update is None:
+            raise Http404
+        update = services.withdraw_pvc_update(member=member, update=update, actor=request.user)
+        return Response(MyPvcUpdateSerializer(update).data)

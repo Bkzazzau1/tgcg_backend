@@ -470,6 +470,102 @@ class MemberSelfUpdateSerializer(DisabilitySerializerMixin, serializers.ModelSer
         return number
 
 
+# --- members registered by another person ----------------------------------------
+
+
+class RegisterSomeoneSerializer(serializers.Serializer):
+    """Anyone signed in registers a member with a name and a phone number."""
+
+    full_name = serializers.CharField(max_length=150)
+    phone_number = serializers.CharField(max_length=20)
+    consent = serializers.BooleanField(
+        help_text="The person agreed to join TGCG and to TGCG keeping their name and number."
+    )
+    scope = ScopeField(required=False, help_text="Where the person is, when known.")
+
+
+class RegisteredMemberSerializer(serializers.ModelSerializer):
+    """A member in the list of those the signed-in person registered."""
+
+    scope = ScopeField(read_only=True)
+    registered_at = serializers.DateTimeField(source="created_at", read_only=True)
+    missing = serializers.SerializerMethodField(
+        help_text="What the member's card still needs (card_missing codes)."
+    )
+    can_complete = serializers.SerializerMethodField(
+        help_text="Whether the person who registered them may still complete it."
+    )
+    signed_in = serializers.SerializerMethodField(help_text="Whether the member has signed in.")
+
+    class Meta:
+        model = Member
+        fields = [
+            "membership_number",
+            "full_name",
+            "phone_number",
+            "scope",
+            "verification_status",
+            "membership_state",
+            "registered_at",
+            "missing",
+            "can_complete",
+            "signed_in",
+        ]
+
+    def get_missing(self, member) -> list[str]:
+        return card_missing(member)
+
+    def get_can_complete(self, member) -> bool:
+        from .services import can_complete
+
+        return can_complete(self.context["request"].user, member)
+
+    def get_signed_in(self, member) -> bool:
+        from .services import has_signed_in
+
+        return has_signed_in(member)
+
+
+class RegisteredMemberCardSerializer(MemberCardSerializer):
+    """A member's details as the person who registered them completes them:
+    the card's data without its QR token, and whether the number can change."""
+
+    qr_token = None
+    photo_url = serializers.SerializerMethodField()
+    can_change_phone = serializers.SerializerMethodField(
+        help_text="Until the member first signs in, their number (the first password) can change."
+    )
+
+    class Meta(MemberCardSerializer.Meta):
+        fields = [
+            *(name for name in MemberCardSerializer.Meta.fields if name != "qr_token"),
+            "can_change_phone",
+        ]
+
+    def get_photo_url(self, member) -> str | None:
+        if not member.photo:
+            return None
+        path = reverse("registered-member-photo", kwargs={"number": member.membership_number})
+        return _absolute(self, path)
+
+    def get_can_change_phone(self, member) -> bool:
+        from .services import has_signed_in
+
+        return not has_signed_in(member)
+
+
+class RegisteredMemberUpdateSerializer(MemberSelfUpdateSerializer):
+    """What the person who registered a member completes: the member's own
+    details, and corrections to the name, phone number and place they gave."""
+
+    full_name = serializers.CharField(max_length=150, required=False)
+    phone_number = serializers.CharField(max_length=20, required=False)
+    scope = ScopeField(required=False)
+
+    class Meta(MemberSelfUpdateSerializer.Meta):
+        fields = [*MemberSelfUpdateSerializer.Meta.fields, "full_name", "phone_number", "scope"]
+
+
 class CardVerificationSerializer(serializers.ModelSerializer):
     """Shown to a coordinator who scans a membership card's QR code."""
 

@@ -20,3 +20,10 @@ def normalize_ng_phone(value: str | None) -> str | None:
     if len(digits) != 10 or digits[0] not in "789":
         return None
     return f"+234{digits}"
+
+
+def local_ng_phone(value: str | None) -> str | None:
+    """Return the 11 digits people write (08031234567) for a valid Nigerian
+    mobile number, else None."""
+    phone = normalize_ng_phone(value)
+    return f"0{phone[4:]}" if phone else None
