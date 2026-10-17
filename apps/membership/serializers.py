@@ -14,6 +14,7 @@ from apps.core.permissions import Capability
 from apps.geography.scope import ScopeField, scope_contains, scope_payload, within_scope_q
 from apps.geography.serializers import NavigationSerializer, navigation_for
 
+from . import analysis
 from .card import card_missing
 from .identity import verified_automatically
 from .models import (
@@ -165,6 +166,14 @@ class MemberSerializer(serializers.ModelSerializer):
     has_app_account = serializers.SerializerMethodField()
     photo_url = serializers.SerializerMethodField()
     active_accreditation = serializers.SerializerMethodField()
+    gaps = serializers.SerializerMethodField(
+        help_text="What the profile lacks to rest on the card: vin, cardPhoto, selfie, "
+        "gender, dateOfBirth."
+    )
+    signed_in = serializers.SerializerMethodField(help_text="Has signed in to the app.")
+    verified_how = serializers.SerializerMethodField(
+        help_text="automatic, chapter (a chapter's list) or person; null unless verified."
+    )
 
     class Meta:
         model = Member
@@ -195,6 +204,9 @@ class MemberSerializer(serializers.ModelSerializer):
             "roles",
             "reason",
             "active_accreditation",
+            "gaps",
+            "signed_in",
+            "verified_how",
             "created_at",
             "updated_at",
         ]
@@ -239,6 +251,15 @@ class MemberSerializer(serializers.ModelSerializer):
     def get_sensitive_visible(self, member) -> bool:
         return may_see_sensitive(self, member)
 
+    def get_gaps(self, member) -> list[str]:
+        return analysis.gaps(member)
+
+    def get_signed_in(self, member) -> bool:
+        return bool(member.user_id and member.user.last_login)
+
+    def get_verified_how(self, member) -> str | None:
+        return analysis.verified_how(member)
+
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_roles(self, member) -> list:
         return [
@@ -256,6 +277,72 @@ class MemberSerializer(serializers.ModelSerializer):
             for field in SENSITIVE_MEMBER_FIELDS:
                 data[field] = None
         return data
+
+
+class ExcoMemberSerializer(serializers.ModelSerializer):
+    """The member holding an exco post. The phone is withheld (null) unless
+    the caller may see personal details in the member's area."""
+
+    scope = ScopeField(read_only=True, help_text="Where the member registered.")
+    phone_number = serializers.SerializerMethodField()
+    gaps = serializers.SerializerMethodField()
+    signed_in = serializers.SerializerMethodField()
+    verified_how = serializers.SerializerMethodField()
+    has_app_account = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Member
+        fields = [
+            "membership_number",
+            "full_name",
+            "phone_number",
+            "gender",
+            "verification_status",
+            "verified_how",
+            "membership_state",
+            "scope",
+            "gaps",
+            "signed_in",
+            "has_app_account",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    def get_phone_number(self, member) -> str | None:
+        return member.phone_number if may_see_sensitive(self, member) else None
+
+    def get_gaps(self, member) -> list[str]:
+        return analysis.gaps(member)
+
+    def get_signed_in(self, member) -> bool:
+        return bool(member.user_id and member.user.last_login)
+
+    def get_verified_how(self, member) -> str | None:
+        return analysis.verified_how(member)
+
+    def get_has_app_account(self, member) -> bool:
+        return member.user_id is not None
+
+
+class ExcoSerializer(serializers.Serializer):
+    """One exco post: a role held over one area, and who holds it."""
+
+    appointment = serializers.UUIDField(source="assignment.uuid")
+    role = serializers.CharField(source="assignment.role.code")
+    role_name = serializers.CharField(source="assignment.role.name")
+    appointment_state = serializers.SerializerMethodField(
+        help_text="active, suspended or scheduled."
+    )
+    area = ScopeField(read_only=True)
+    area_name = serializers.SerializerMethodField()
+    member = ExcoMemberSerializer(source="assignment.member")
+
+    def get_appointment_state(self, area) -> str:
+        return area.assignment.effective_status()
+
+    def get_area_name(self, area) -> str:
+        field = area.scope_unit_field
+        return "Nigeria" if field is None else getattr(area, field).name
 
 
 def _active_accreditation(member):

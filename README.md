@@ -65,8 +65,10 @@ apps/messaging/    bulk SMS, WhatsApp and app notifications; saved lists; the in
 | POST | `/api/v1/register/` | Public, multipart. Self-registration (phone, VIN, polling unit code, name, PIN; optionally `disabilities` as JSON text and `disability_other`); returns a signed-in member session |
 | POST | `/api/v1/register/pin-code/`, `/api/v1/register/pin/` | Public. Set or reset a member's PIN by SMS code |
 | POST | `/api/v1/members/register/` | Coordinator registers someone in person (multipart, PVC optional) |
-| GET | `/api/v1/members/` | Members in your scope; filter `status`, `registration_channel`, `gender`, scope codes; search name, phone, number |
+| GET | `/api/v1/members/` | Members in your scope; filter `status`, `registration_channel`, `gender`, scope codes, and `show` (`fullyVerified`, `notFullyVerified`, `neverSignedIn`, `withRole`, `withoutRole`); search name, phone, number. Each has `gaps` (what the profile lacks), `signed_in` and `verified_how` |
 | GET | `/api/v1/members/counts/?level=&code=&by=` | Members registered in each smaller area (`by`, e.g. `ward`) of an area wholly within your reach: `{"total", "counts": {code: n}}` |
+| GET | `/api/v1/members/analysis/?level=&code=` | Members and exco in an area wholly within your reach, with each smaller area (see **Members and exco**) |
+| GET | `/api/v1/members/exco/?level=&code=&at=&role=&show=&search=` | Exco posts in that area from the top down, with who holds each; `at` keeps only posts at some levels (`state,senatorialDistrict` for a state's own exco) |
 | GET, PATCH | `/api/v1/members/{membership_number}/` | e.g. `TGCG-000001` |
 | GET | `/api/v1/members/{membership_number}/photo/` | Member photo (scope-checked) |
 | GET | `/api/v1/members/verify/?token=` | Staff scan a membership card QR code |
@@ -220,6 +222,33 @@ state coordinator only sees Kaduna members and agents.
 | Register or edit members | `manageMembership` |
 | Accredit, approve, suspend, revoke | `accreditAgents` |
 | Update agent readiness | `accreditAgents` or `manageAgentAssignments` |
+
+## Members and exco
+
+What the National Administrator's Members & Exco page and the dashboard
+show (17 October 2026), for anyone who may find members (`MEMBER_READERS`),
+and only for an area wholly within their reach.
+
+- **Exco** are the members holding an appointment over somewhere in the
+  area: state, district, LGA, ward and polling unit executives, coordinators
+  and any other role. An appointment counts while active or suspended and
+  not ended; the protected National Administrator role is not exco.
+- **Fully verified** means a verified identity and a profile resting on the
+  card: VIN, card photo, selfie, gender and date of birth. Executives from a
+  chapter's list are verified on the chapter's word (`verified_how` is
+  `chapter`), so many are verified but not fully verified; `gaps` says what
+  is missing.
+- `analysis/` gives, for the area: members (total, new in 7 and 30 days,
+  fully verified, with a post, by verification, standing, gender, age band,
+  how they joined, what profiles hold, and new members in each of the last
+  12 weeks); exco (people and posts, posts at the area itself, suspended
+  posts, by level and by position, and the holders' profiles); and each
+  smaller area (states for Nigeria, LGAs for a state, wards for an LGA, units
+  for a ward), every one listed even with no members, with its members and
+  exco.
+- `exco/` lists posts from the top down (state, district, LGA, ward, unit),
+  each with its position, area and holder. The holder's phone is shown only
+  where the caller may see personal details.
 
 ## Member registration
 

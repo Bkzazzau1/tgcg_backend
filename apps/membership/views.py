@@ -1,5 +1,5 @@
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Count, Prefetch
+from django.db.models import Count, Prefetch, Q
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, viewsets
@@ -22,7 +22,7 @@ from apps.geography.scope import (
     within_scope_q,
 )
 
-from . import identity, services
+from . import analysis, identity, services
 from .models import (
     AccreditedAgent,
     Member,
@@ -36,6 +36,7 @@ from .serializers import (
     AccreditationEventSerializer,
     AgentSerializer,
     DecisionSerializer,
+    ExcoSerializer,
     MemberSerializer,
     PollingUnitChangeSerializer,
     PvcUpdateSerializer,
@@ -79,6 +80,22 @@ SCOPE_FILTERS = {
     "ward__code": ["exact"],
     "polling_unit__code": ["exact"],
 }
+
+
+# Narrowing a list of members (`show=`).
+_SHOW = {
+    "fullyVerified": analysis.FULLY_VERIFIED,
+    "notFullyVerified": ~analysis.FULLY_VERIFIED,
+    "neverSignedIn": Q(user__isnull=True) | Q(user__last_login__isnull=True),
+    "withRole": analysis.role_holders_q(),
+    "withoutRole": ~analysis.role_holders_q(),
+}
+AREA_PARAMETERS = [
+    OpenApiParameter(
+        "level", str, enum=GeographyLevel.values, description="The area; defaults to Nigeria"
+    ),
+    OpenApiParameter("code", str, description="The area's code"),
+]
 
 
 class MemberViewSet(
@@ -128,7 +145,7 @@ class MemberViewSet(
         user = self.request.user
         members = (
             Member.objects.filter(within_scope_any_q(user, MEMBER_READERS))
-            .select_related(*SCOPE_FIELDS)
+            .select_related("user", *SCOPE_FIELDS)
             .prefetch_related(
                 Prefetch("accreditations"),
                 Prefetch(
@@ -139,6 +156,9 @@ class MemberViewSet(
                 ),
             )
         )
+        show = self.request.query_params.get("show")
+        if show and self.action == "list":
+            members = members.filter(_SHOW.get(show, Q(pk__in=[])))
         phone = self.request.query_params.get("phone")
         if phone and self.action == "list":
             members = members.filter(
@@ -153,11 +173,97 @@ class MemberViewSet(
                 "phone",
                 str,
                 description="Exact phone number; matches only where you may see personal details.",
-            )
+            ),
+            OpenApiParameter(
+                "show",
+                str,
+                enum=[*_SHOW],
+                description="Only those fully verified or not, who never signed in, or with "
+                "or without an exco post.",
+            ),
         ]
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
+
+    def _area(self, request):
+        """The area asked for, which must lie wholly within the caller's reach."""
+        level = request.query_params.get("level") or GeographyLevel.COUNTRY
+        scope = ScopeRef.resolve(level, request.query_params.get("code"))
+        if not scope_contains_any(request.user, scope, MEMBER_READERS):
+            raise PermissionDenied("This area is outside your access.")
+        return scope
+
+    @extend_schema(parameters=AREA_PARAMETERS, responses={200: OpenApiTypes.OBJECT})
+    @action(detail=False, methods=["get"])
+    def analysis(self, request):
+        """Members and exco in an area, wholly within the caller's reach.
+
+        `members`: totals, new in 7 and 30 days, fully verified, by
+        verification, standing, gender, age, how they joined, what their
+        profiles hold, and new members week by week. `exco`: people and posts,
+        how many are here (at this area itself) or suspended, by level and
+        role, and their profiles. `parts`: each smaller area (`by`) with its
+        members and exco.
+        """
+        scope = self._area(request)
+        return Response({"scope": scope_payload(scope), **analysis.summary(scope)})
+
+    @extend_schema(
+        parameters=[
+            *AREA_PARAMETERS,
+            OpenApiParameter(
+                "at",
+                str,
+                description="Only posts at these levels, comma-separated, e.g. state,lga",
+            ),
+            OpenApiParameter("role", str, description="A role's code"),
+            OpenApiParameter("show", str, enum=[*_SHOW]),
+            OpenApiParameter("search", str, description="Name, membership number or role"),
+        ],
+        responses=ExcoSerializer(many=True),
+    )
+    @action(detail=False, methods=["get"])
+    def exco(self, request):
+        """Exco posts in an area, from the top down (state, district, LGA,
+        ward, polling unit), with whoever holds each and how complete their
+        profile is."""
+        scope = self._area(request)
+        params = request.query_params
+        posts = analysis.exco_areas(scope).select_related(
+            "assignment__role",
+            "assignment__member__user",
+            *(f"assignment__member__{field}" for field in SCOPE_FIELDS),
+            *SCOPE_FIELDS,
+        )
+        if at := [level for level in params.get("at", "").split(",") if level]:
+            posts = posts.filter(scope_level__in=at)
+        if role := params.get("role"):
+            posts = posts.filter(assignment__role__code=role)
+        if show := params.get("show"):
+            posts = posts.filter(
+                assignment__member__in=Member.objects.filter(_SHOW.get(show, Q(pk__in=[])))
+            )
+        if search := params.get("search", "").strip():
+            posts = posts.filter(
+                Q(assignment__member__full_name__icontains=search)
+                | Q(assignment__member__membership_number__iexact=search)
+                | Q(assignment__role__name__icontains=search)
+            )
+        posts = posts.annotate(depth=analysis.depth_order()).order_by(
+            "depth",
+            "state__name",
+            "senatorial_district__name",
+            "lga__name",
+            "ward__name",
+            "polling_unit__name",
+            "assignment__role__name",
+            "assignment__member__full_name",
+            "pk",
+        )
+        page = self.paginate_queryset(posts)
+        context = self.get_serializer_context()
+        return self.get_paginated_response(ExcoSerializer(page, many=True, context=context).data)
 
     @extend_schema(
         parameters=[
