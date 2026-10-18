@@ -1,3 +1,5 @@
+import re
+
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Count, Prefetch, Q
 from drf_spectacular.types import OpenApiTypes
@@ -6,7 +8,12 @@ from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.access.models import AssignmentStatus, AuditEvent, RoleAssignment
+from apps.access.models import (
+    AssignmentStatus,
+    AuditEvent,
+    RoleAssignment,
+    RoleAssignmentArea,
+)
 from apps.access.serializers import AuditEventSerializer
 from apps.accounts.phone import normalize_ng_phone
 from apps.core.choices import GeographyLevel
@@ -82,14 +89,25 @@ SCOPE_FILTERS = {
 }
 
 
+# A search made only of digits, spaces and phone punctuation is a phone number.
+PHONE_LIKE = re.compile(r"[\d\s+()-]{10,}")
 # Narrowing a list of members (`show=`).
+# Each is built when used: whether a post has ended depends on the time now.
 _SHOW = {
-    "fullyVerified": analysis.FULLY_VERIFIED,
-    "notFullyVerified": ~analysis.FULLY_VERIFIED,
-    "neverSignedIn": Q(user__isnull=True) | Q(user__last_login__isnull=True),
-    "withRole": analysis.role_holders_q(),
-    "withoutRole": ~analysis.role_holders_q(),
+    "fullyVerified": lambda: analysis.FULLY_VERIFIED,
+    "notFullyVerified": lambda: ~analysis.FULLY_VERIFIED,
+    "neverSignedIn": lambda: Q(user__isnull=True) | Q(user__last_login__isnull=True),
+    "withRole": lambda: analysis.role_holders_q(),
+    "withoutRole": lambda: ~analysis.role_holders_q(),
 }
+
+
+def _shown(show) -> Q:
+    """The filter for `show=`, or nothing for an unknown value."""
+    build = _SHOW.get(show)
+    return build() if build else Q(pk__in=[])
+
+
 AREA_PARAMETERS = [
     OpenApiParameter(
         "level", str, enum=GeographyLevel.values, description="The area; defaults to Nigeria"
@@ -150,15 +168,26 @@ class MemberViewSet(
                 Prefetch("accreditations"),
                 Prefetch(
                     "role_assignments",
-                    queryset=RoleAssignment.objects.select_related("role").filter(
-                        status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.SUSPENDED]
+                    queryset=RoleAssignment.objects.select_related("role")
+                    .filter(status__in=[AssignmentStatus.ACTIVE, AssignmentStatus.SUSPENDED])
+                    .prefetch_related(
+                        Prefetch(
+                            "areas",
+                            queryset=RoleAssignmentArea.objects.select_related(*SCOPE_FIELDS),
+                        )
                     ),
                 ),
             )
         )
-        show = self.request.query_params.get("show")
-        if show and self.action == "list":
-            members = members.filter(_SHOW.get(show, Q(pk__in=[])))
+        params = self.request.query_params
+        if self.action == "list":
+            if show := params.get("show"):
+                members = members.filter(_shown(show))
+            if role := params.get("role"):
+                holders = analysis.exco_areas().filter(assignment__role__code=role)
+                members = members.filter(pk__in=holders.values("assignment__member_id"))
+            if text := params.get("q", "").strip():
+                members = members.filter(self._matching(user, text))
         phone = self.request.query_params.get("phone")
         if phone and self.action == "list":
             members = members.filter(
@@ -181,10 +210,27 @@ class MemberViewSet(
                 description="Only those fully verified or not, who never signed in, or with "
                 "or without an exco post.",
             ),
+            OpenApiParameter(
+                "q",
+                str,
+                description="Words to find in names, membership numbers, places and current "
+                "posts, or a phone number",
+            ),
+            OpenApiParameter("role", str, description="Only those holding this post now"),
         ]
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
+
+    @staticmethod
+    def _matching(user, text):
+        """Search: a phone number finds its member where the caller may see
+        personal details; words find names, numbers, places and posts."""
+        if PHONE_LIKE.fullmatch(text) and (phone := normalize_ng_phone(text)):
+            return within_scope_q(user, permission=C.VIEW_MEMBER_SENSITIVE_DATA) & Q(
+                phone_number=phone
+            )
+        return analysis.search_q(text)
 
     def _area(self, request):
         """The area asked for, which must lie wholly within the caller's reach."""
@@ -261,9 +307,7 @@ class MemberViewSet(
         if role := params.get("role"):
             posts = posts.filter(assignment__role__code=role)
         if show := params.get("show"):
-            posts = posts.filter(
-                assignment__member__in=Member.objects.filter(_SHOW.get(show, Q(pk__in=[])))
-            )
+            posts = posts.filter(assignment__member__in=Member.objects.filter(_shown(show)))
         if search := params.get("search", "").strip():
             posts = posts.filter(
                 Q(assignment__member__full_name__icontains=search)

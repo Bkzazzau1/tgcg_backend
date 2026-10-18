@@ -171,6 +171,9 @@ class MemberSerializer(serializers.ModelSerializer):
         "gender, dateOfBirth."
     )
     signed_in = serializers.SerializerMethodField(help_text="Has signed in to the app.")
+    last_sign_in = serializers.SerializerMethodField(
+        help_text="When they last signed in to the app; null if never."
+    )
     verified_how = serializers.SerializerMethodField(
         help_text="automatic, chapter (a chapter's list) or person; null unless verified."
     )
@@ -206,6 +209,7 @@ class MemberSerializer(serializers.ModelSerializer):
             "active_accreditation",
             "gaps",
             "signed_in",
+            "last_sign_in",
             "verified_how",
             "created_at",
             "updated_at",
@@ -262,11 +266,26 @@ class MemberSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_roles(self, member) -> list:
-        return [
-            {"role": a.role.code, "role_name": a.role.name, "state": a.effective_status()}
-            for a in member.role_assignments.all()
-            if a.status in ("active", "suspended")
-        ]
+        """Each post: the position, its state, and the places it covers."""
+        posts = []
+        for assignment in member.role_assignments.all():
+            if assignment.status not in ("active", "suspended"):
+                continue
+            areas = list(assignment.areas.all())
+            posts.append(
+                {
+                    "role": assignment.role.code,
+                    "role_name": assignment.role.name,
+                    "state": assignment.effective_status(),
+                    "area_level": areas[0].scope_level if areas else None,
+                    "area_name": ", ".join(_area_name(area) for area in areas),
+                }
+            )
+        return posts
+
+    @extend_schema_field(OpenApiTypes.DATETIME)
+    def get_last_sign_in(self, member):
+        return member.user.last_login if member.user_id else None
 
     def validate_email(self, value):
         return value or ""
@@ -341,8 +360,12 @@ class ExcoSerializer(serializers.Serializer):
         return area.assignment.effective_status()
 
     def get_area_name(self, area) -> str:
-        field = area.scope_unit_field
-        return "Nigeria" if field is None else getattr(area, field).name
+        return _area_name(area)
+
+
+def _area_name(area) -> str:
+    field = area.scope_unit_field
+    return "Nigeria" if field is None else getattr(area, field).name
 
 
 def _active_accreditation(member):

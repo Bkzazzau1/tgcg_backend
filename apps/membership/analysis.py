@@ -118,6 +118,29 @@ def role_holders_q() -> Q:
     return Q(pk__in=exco_areas().values("assignment__member_id"))
 
 
+PLACE_NAMES = ("zone__name", "state__name", "lga__name", "ward__name", "polling_unit__name")
+
+
+def search_q(text: str) -> Q:
+    """Members matching every word of `text`: in their name or membership
+    number, the places where they registered, or a post they hold now (its
+    position or the place it covers). "women leader zaria" finds the women
+    leaders posted in Zaria."""
+    condition = Q()
+    for word in text.split():
+        places = Q()
+        for name in PLACE_NAMES:
+            places |= Q(**{f"{name}__icontains": word})
+        posts = exco_areas().filter(Q(assignment__role__name__icontains=word) | places)
+        condition &= (
+            Q(full_name__icontains=word)
+            | Q(membership_number__iexact=word)
+            | places
+            | Q(pk__in=posts.values("assignment__member_id"))
+        )
+    return condition
+
+
 def depth_order():
     """Exco from the top: Nigeria, then zone, state, district, LGA, ward, unit."""
     return Case(

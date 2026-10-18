@@ -204,3 +204,59 @@ def test_each_level_has_its_own_exco_zones_included(admin, exco):
     assert [p["area"]["level"] for p in everyone][:3] == ["geopoliticalZone", "state", "state"]
     states = national.get(EXCO, {"level": "geopoliticalZone", "code": "NW", "at": "state"}).json()
     assert [p["area_name"] for p in states["results"]] == ["Kaduna", "Kano"]
+
+
+def test_one_search_finds_members_by_name_post_place_or_phone(admin, exco):
+    from apps.access.models import RoleDefinition
+
+    national = client_for(admin)
+
+    def found(**params):
+        response = national.get("/api/v1/members/", {"ordering": "full_name", **params})
+        assert response.status_code == 200, response.content
+        return [member["full_name"] for member in response.json()["results"]]
+
+    assert found(q="hauwa") == ["Hauwa Musa"]
+    # A post and the place it covers.
+    assert found(q="women leader kaduna") == ["Hauwa Musa"]
+    assert found(q="secretary") == ["Aisha Bello", "Kano Officer"]
+    assert found(q="secretary kano") == ["Kano Officer"]
+    # Where they registered.
+    assert found(q="ajingi") == ["Kano Officer"]
+    assert found(q="0803 333 0003") == ["Sani Garba"]
+    assert found(q=exco["leader"].membership_number) == ["Hauwa Musa"]
+    secretary = RoleDefinition.objects.get(name="State Secretary").code
+    assert found(role=secretary) == ["Aisha Bello", "Kano Officer"]
+    assert found(role=secretary, state__code="KN") == ["Kano Officer"]
+
+    row = national.get("/api/v1/members/", {"q": "hauwa"}).json()["results"][0]
+    assert row["roles"] == [
+        {
+            "role": row["roles"][0]["role"],
+            "role_name": "LGA Women Leader",
+            "state": "active",
+            "area_level": "lga",
+            "area_name": "Kaduna North",
+        }
+    ]
+    assert row["last_sign_in"] is None
+
+
+def test_a_post_that_has_ended_stops_counting_at_once(admin, exco, monkeypatch):
+    """The filters are built per request, not when the server starts."""
+    from django.utils import timezone as django_timezone
+
+    from apps.access.models import RoleAssignment
+
+    ends = timezone.now() + timedelta(hours=1)
+    RoleAssignment.objects.filter(member=exco["coordinator"]).update(ends_at=ends)
+    national = client_for(admin)
+
+    def exco_names():
+        response = national.get("/api/v1/members/", {"show": "withRole", "ordering": "full_name"})
+        return [member["full_name"] for member in response.json()["results"]]
+
+    assert "Sani Garba" in exco_names()
+    later = ends + timedelta(hours=1)
+    monkeypatch.setattr(django_timezone, "now", lambda: later)
+    assert "Sani Garba" not in exco_names()
