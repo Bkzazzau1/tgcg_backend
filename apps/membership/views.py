@@ -194,7 +194,18 @@ class MemberViewSet(
             raise PermissionDenied("This area is outside your access.")
         return scope
 
-    @extend_schema(parameters=AREA_PARAMETERS, responses={200: OpenApiTypes.OBJECT})
+    @extend_schema(
+        parameters=[
+            *AREA_PARAMETERS,
+            OpenApiParameter(
+                "by",
+                str,
+                description="The smaller areas to list: one of `breakdowns` (Nigeria by state "
+                "or by geopoliticalZone); the first by default",
+            ),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     @action(detail=False, methods=["get"])
     def analysis(self, request):
         """Members and exco in an area, wholly within the caller's reach.
@@ -207,7 +218,16 @@ class MemberViewSet(
         members and exco.
         """
         scope = self._area(request)
-        return Response({"scope": scope_payload(scope), **analysis.summary(scope)})
+        by = request.query_params.get("by") or None
+        if by is not None and by not in analysis.breakdowns(scope):
+            raise ValidationError({"by": "This area cannot be broken down that way."})
+        return Response(
+            {
+                "scope": scope_payload(scope),
+                "breakdowns": analysis.breakdowns(scope),
+                **analysis.summary(scope, by),
+            }
+        )
 
     @extend_schema(
         parameters=[
@@ -252,6 +272,7 @@ class MemberViewSet(
             )
         posts = posts.annotate(depth=analysis.depth_order()).order_by(
             "depth",
+            "zone__name",
             "state__name",
             "senatorial_district__name",
             "lga__name",

@@ -67,7 +67,7 @@ apps/messaging/    bulk SMS, WhatsApp and app notifications; saved lists; the in
 | POST | `/api/v1/members/register/` | Coordinator registers someone in person (multipart, PVC optional) |
 | GET | `/api/v1/members/` | Members in your scope; filter `status`, `registration_channel`, `gender`, scope codes, and `show` (`fullyVerified`, `notFullyVerified`, `neverSignedIn`, `withRole`, `withoutRole`); search name, phone, number. Each has `gaps` (what the profile lacks), `signed_in` and `verified_how` |
 | GET | `/api/v1/members/counts/?level=&code=&by=` | Members registered in each smaller area (`by`, e.g. `ward`) of an area wholly within your reach: `{"total", "counts": {code: n}}` |
-| GET | `/api/v1/members/analysis/?level=&code=` | Members and exco in an area wholly within your reach, with each smaller area (see **Members and exco**) |
+| GET | `/api/v1/members/analysis/?level=&code=&by=` | Members and exco in an area wholly within your reach, with each smaller area; `by=geopoliticalZone` lists Nigeria's zones instead of its states (see **Members and exco**) |
 | GET | `/api/v1/members/exco/?level=&code=&at=&role=&show=&search=` | Exco posts in that area from the top down, with who holds each; `at` keeps only posts at some levels (`state,senatorialDistrict` for a state's own exco) |
 | GET, PATCH | `/api/v1/members/{membership_number}/` | e.g. `TGCG-000001` |
 | GET | `/api/v1/members/{membership_number}/photo/` | Member photo (scope-checked) |
@@ -229,10 +229,12 @@ What the National Administrator's Members & Exco page and the dashboard
 show (17 October 2026), for anyone who may find members (`MEMBER_READERS`),
 and only for an area wholly within their reach.
 
-- **Exco** are the members holding an appointment over somewhere in the
-  area: state, district, LGA, ward and polling unit executives, coordinators
-  and any other role. An appointment counts while active or suspended and
-  not ended; the protected National Administrator role is not exco.
+- **Exco** are the members holding an appointment, as against ordinary
+  members (the user's definition, 18 October 2026): national, zonal, state,
+  district, LGA, ward and polling unit officers, coordinators and any other
+  role. Each level has its own exco: the posts held over that area itself.
+  An appointment counts while active or suspended and not ended; the
+  protected National Administrator role is not exco.
 - **Fully verified** means a verified identity and a profile resting on the
   card: VIN, card photo, selfie, gender and date of birth. Executives from a
   chapter's list are verified on the chapter's word (`verified_how` is
@@ -243,9 +245,10 @@ and only for an area wholly within their reach.
   how they joined, what profiles hold, and new members in each of the last
   12 weeks); exco (people and posts, posts at the area itself, suspended
   posts, by level and by position, and the holders' profiles); and each
-  smaller area (states for Nigeria, LGAs for a state, wards for an LGA, units
-  for a ward), every one listed even with no members, with its members and
-  exco.
+  smaller area (states or zones for Nigeria, states for a zone, LGAs for a
+  state, wards for an LGA, units for a ward), every one listed even with no
+  members, with its members and exco. `breakdowns` names the levels the area
+  can be broken down into.
 - `exco/` lists posts from the top down (state, district, LGA, ward, unit),
   each with its position, area and holder. The holder's phone is shown only
   where the caller may see personal details.

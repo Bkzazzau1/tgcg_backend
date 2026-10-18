@@ -177,3 +177,30 @@ def test_each_sees_only_areas_wholly_theirs(exco, lga_coordinator):
     plain = client_for(member_account("08033330009", name="Bala Musa").user)
     assert plain.get(ANALYSIS).status_code == 403
     assert plain.get(EXCO).status_code == 403
+
+
+def test_each_level_has_its_own_exco_zones_included(admin, exco):
+    zonal = member_account("08033330006", name="Zainab Zonal")
+    role = custom_role(admin, "Zonal Secretary", [C.VIEW_GEOGRAPHY], levels=("geopoliticalZone",))
+    area = {"level": "geopoliticalZone", "zoneId": "NW"}
+    assert appoint(admin, zonal, role, [area]).status_code == 201
+    national = client_for(admin)
+
+    by_zone = national.get(ANALYSIS, {"by": "geopoliticalZone"}).json()
+    assert by_zone["by"] == "geopoliticalZone"
+    assert by_zone["breakdowns"] == ["state", "geopoliticalZone"]
+    zones = {part["code"]: part for part in by_zone["parts"]}
+    assert len(zones) == 6
+    assert zones["NW"]["exco"] == 5 and zones["NW"]["members"] == 6
+    assert national.get(ANALYSIS, {"by": "ward"}).status_code == 400
+
+    zone = national.get(ANALYSIS, {"level": "geopoliticalZone", "code": "NW"}).json()
+    assert zone["by"] == "state" and zone["exco"]["here"] == 1
+    assert {part["code"] for part in zone["parts"]} >= {"KD", "KN"}
+    own = national.get(EXCO, {"level": "geopoliticalZone", "code": "NW", "at": "geopoliticalZone"})
+    assert [p["role_name"] for p in own.json()["results"]] == ["Zonal Secretary"]
+    # From the top: the zone's own exco before the states'.
+    everyone = national.get(EXCO, {"level": "geopoliticalZone", "code": "NW"}).json()["results"]
+    assert [p["area"]["level"] for p in everyone][:3] == ["geopoliticalZone", "state", "state"]
+    states = national.get(EXCO, {"level": "geopoliticalZone", "code": "NW", "at": "state"}).json()
+    assert [p["area_name"] for p in states["results"]] == ["Kaduna", "Kano"]

@@ -22,7 +22,7 @@ from django.utils import timezone
 
 from apps.access.models import AssignmentStatus, RoleAssignmentArea
 from apps.core.choices import GeographyLevel, RegistrationChannel, VerificationStatus
-from apps.geography.models import Lga, PollingUnit, State, Ward
+from apps.geography.models import Lga, PollingUnit, State, Ward, Zone
 from apps.geography.scope import LEVEL_FIELD, within_scope_q
 
 from .models import Member
@@ -62,7 +62,15 @@ CHILD_LEVEL = {
     L.LGA: L.WARD,
     L.WARD: L.POLLING_UNIT,
 }
-CHILD_MODEL = {L.STATE: State, L.LGA: Lga, L.WARD: Ward, L.POLLING_UNIT: PollingUnit}
+# Nigeria can also be broken down by geopolitical zone.
+OTHER_BREAKDOWNS = {L.COUNTRY: (L.GEOPOLITICAL_ZONE,)}
+CHILD_MODEL = {
+    L.GEOPOLITICAL_ZONE: Zone,
+    L.STATE: State,
+    L.LGA: Lga,
+    L.WARD: Ward,
+    L.POLLING_UNIT: PollingUnit,
+}
 # How deep each level lies below Nigeria, for ordering exco from the top.
 DEPTH = {L.COUNTRY: 0, **{level: depth for depth, level in enumerate(LEVEL_FIELD, start=1)}}
 WEEKS = 12
@@ -263,8 +271,13 @@ def _children(scope, level):
     return units.order_by("name").values_list("code", "name")
 
 
-def _parts(members, areas, scope, now) -> tuple[str | None, list[dict]]:
-    level = CHILD_LEVEL.get(scope.scope_level)
+def breakdowns(scope) -> list[str]:
+    """The levels an area can be broken down into, the usual one first."""
+    usual = CHILD_LEVEL.get(scope.scope_level)
+    return [] if usual is None else [usual, *OTHER_BREAKDOWNS.get(scope.scope_level, ())]
+
+
+def _parts(members, areas, scope, now, level) -> tuple[str | None, list[dict]]:
     if level is None:
         return None, []
     field = LEVEL_FIELD[level]
@@ -312,12 +325,13 @@ def _parts(members, areas, scope, now) -> tuple[str | None, list[dict]]:
     return level, parts
 
 
-def summary(scope) -> dict:
-    """Everything the Members & Exco page shows about one area."""
+def summary(scope, by=None) -> dict:
+    """Everything the Members & Exco page shows about one area, with its
+    smaller areas at level `by` (one of `breakdowns`; the usual one by default)."""
     now = timezone.now()
     members = Member.objects.filter(within_scope_q(scope))
     areas = exco_areas(scope, now)
-    by, parts = _parts(members, areas, scope, now)
+    by, parts = _parts(members, areas, scope, now, by or next(iter(breakdowns(scope)), None))
     return {
         "members": _members_summary(members, now),
         "exco": _exco_summary(areas, scope),
