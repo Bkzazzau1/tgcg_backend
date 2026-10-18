@@ -104,8 +104,9 @@ def test_people_become_members_with_no_post_and_unchecked_identity(admin, tmp_pa
     for member in members.values():
         assert member.registration_channel == RegistrationChannel.IMPORT
         assert member.consent_at is not None
-        # The list's word covers consent only: a post waits for the usual check.
-        assert member.verification_status != VerificationStatus.VERIFIED
+        # The list's word covers consent only: a post waits for the usual check,
+        # and with nothing to check yet, no review is awaited.
+        assert member.verification_status == VerificationStatus.UNVERIFIED
         assert member.verified_by is None and member.verified_at is None
         assert member.state.code == "JI"
     assert not RoleAssignment.objects.exists()

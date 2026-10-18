@@ -561,8 +561,10 @@ def register_imported(
     more, with the VIN of their voter's card when the list has a valid one.
 
     With `verified=False` the list's word covers consent only: the identity
-    is left unchecked, as for anyone who joins, so a post (an agent's
-    accreditation included) waits for the usual check.
+    is left unchecked, so a post (an agent's accreditation included) waits
+    for the usual check. As for someone registered by another person, with
+    nothing to check yet the member is not verified and awaits no review
+    until a photo, their PVC or their details are added.
     """
     if polling_unit is not None:
         place = {"scope_level": GeographyLevel.POLLING_UNIT, "polling_unit": polling_unit}
@@ -596,7 +598,7 @@ def register_imported(
         member.save(
             update_fields=["verification_status", "verified_at", "verified_by", "updated_at"]
         )
-    member = identity.record_checks(member, actor=actor)
+        member = identity.record_checks(member, actor=actor)
     audit.record(
         actor=actor,
         action="member.imported",
