@@ -8,7 +8,7 @@ from apps.access.tests.test_access import appoint, client_for, custom_role, memb
 from apps.accounts.models import User
 from apps.core.choices import GeographyLevel, RegistrationChannel, Role, VerificationStatus
 from apps.core.permissions import Capability
-from apps.geography.models import Lga, PollingUnit, Ward
+from apps.geography.models import Lga, PollingUnit, Ward, Zone
 from apps.membership import analysis
 from apps.membership.models import Member
 from conftest import PASSWORD, make_member
@@ -228,7 +228,19 @@ def test_unplaced_members_follow_the_selected_child_and_not_exco_sums(
     national = _analysis(client)
     assert national["coverage"]["unplaced_members"] == 1
     assert sum(part["members"] for part in national["parts"]) + 1 == 5
-    assert _analysis(client, by="geopoliticalZone")["coverage"]["unplaced_members"] == 1
+    zone_only = make_member(phone="08035554005")
+    zone_only.scope_level = GeographyLevel.GEOPOLITICAL_ZONE
+    zone_only.zone = Zone.objects.get(code="NW")
+    zone_only.full_clean()
+    zone_only.save()
+    by_zone = _analysis(client, by="geopoliticalZone")
+    missing_zone = _rows(client, show="missingZone")
+    assert by_zone["coverage"]["unplaced_members"] == len(missing_zone) == 1
+    assert {row["membership_number"] for row in missing_zone} == {
+        varied_profiles[3].membership_number
+    }
+    assert zone_only.membership_number not in {row["membership_number"] for row in missing_zone}
+    assert "missing_zone" not in by_zone["members"]["quality"]
     state = _analysis(client, level="state", code="KD")
     assert state["coverage"]["unplaced_members"] == 1
     lga = _analysis(client, level="lga", code="KD-KADUNA-NORTH")
@@ -251,7 +263,8 @@ def test_unplaced_members_follow_the_selected_child_and_not_exco_sums(
     national = _analysis(client)
     assert national["exco"]["appointments"] == 1
     assert sum(part["exco"] for part in national["parts"]) == 2
-    assert national["coverage"]["unplaced_members"] == 1
+    # The country-level and zone-only records both lack a state.
+    assert national["coverage"]["unplaced_members"] == 2
 
 
 def test_analysis_and_new_filters_cannot_escape_readers_scope(admin, varied_profiles):
@@ -264,6 +277,7 @@ def test_analysis_and_new_filters_cannot_escape_readers_scope(admin, varied_prof
     assert client.get(ANALYSIS).status_code == 403
     assert client.get(ANALYSIS, {"level": "state", "code": "KN"}).status_code == 403
     for show in (
+        "missingZone",
         *analysis.QUALITY_FILTERS.values(),
         *analysis.ACCOUNT_FILTERS.values(),
         *analysis.VERIFICATION_FILTERS.values(),

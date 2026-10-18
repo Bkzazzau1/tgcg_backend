@@ -151,6 +151,7 @@ MEMBER_FILTER_NAMES = (
     "withRole",
     "withoutRole",
     *QUALITY_FILTERS.values(),
+    "missingZone",
     *ACCOUNT_FILTERS.values(),
     *VERIFICATION_FILTERS.values(),
 )
@@ -176,6 +177,7 @@ def member_filters(now=None) -> dict[str, Q]:
         "missingSelfie": Q(photo=""),
         "missingGender": Q(gender=""),
         "missingBirthDate": Q(date_of_birth__isnull=True),
+        "missingZone": Q(zone__isnull=True),
         "missingState": Q(state__isnull=True),
         "missingLga": Q(lga__isnull=True),
         "missingWard": Q(ward__isnull=True),
