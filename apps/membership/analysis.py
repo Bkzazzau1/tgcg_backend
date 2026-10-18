@@ -32,7 +32,7 @@ V = VerificationStatus
 
 # What a profile resting on the card has; each key names what is missing.
 GAPS = {
-    "vin": Q(vin__isnull=True),
+    "vin": Q(vin__isnull=True) | Q(vin=""),
     "cardPhoto": Q(pvc_image=""),
     "selfie": Q(photo=""),
     "gender": Q(gender=""),
@@ -113,9 +113,84 @@ def exco_areas(scope=None, now=None):
     return areas.filter(within_scope_q(scope)) if scope is not None else areas
 
 
-def role_holders_q() -> Q:
+def role_holders_q(now=None) -> Q:
     """Members who are exco anywhere."""
-    return Q(pk__in=exco_areas().values("assignment__member_id"))
+    return Q(pk__in=exco_areas(now=now).values("assignment__member_id"))
+
+
+# The same predicates drive analysis totals and the drill-down member lists.
+QUALITY_FILTERS = {
+    "missing_name": "missingName",
+    "missing_vin": "missingVin",
+    "missing_card_photo": "missingCardPhoto",
+    "missing_selfie": "missingSelfie",
+    "missing_gender": "missingGender",
+    "missing_birth_date": "missingBirthDate",
+    "missing_state": "missingState",
+    "missing_lga": "missingLga",
+    "missing_ward": "missingWard",
+    "missing_polling_unit": "missingPollingUnit",
+    "polling_unit_from_list": "pollingUnitFromList",
+}
+ACCOUNT_FILTERS = {
+    "without_account": "noAppAccount",
+    "never_signed_in": "accountNeverSignedIn",
+    "last_sign_in_7_days": "signedIn7Days",
+    "last_sign_in_30_days": "signedIn30Days",
+    "last_sign_in_older": "lastSignInOlder",
+}
+VERIFICATION_FILTERS = {
+    "automatic": "verifiedAutomatic",
+    "chapter": "verifiedChapter",
+    "person": "verifiedPerson",
+}
+MEMBER_FILTER_NAMES = (
+    "fullyVerified",
+    "notFullyVerified",
+    "neverSignedIn",
+    "withRole",
+    "withoutRole",
+    *QUALITY_FILTERS.values(),
+    *ACCOUNT_FILTERS.values(),
+    *VERIFICATION_FILTERS.values(),
+)
+
+
+def member_filters(now=None) -> dict[str, Q]:
+    """Fresh list predicates, sharing cutoffs with an area's analysis counts."""
+    now = now or timezone.now()
+    verified = Q(verification_status=V.VERIFIED)
+    reviewed = Q(verified_by__isnull=False)
+    imported = Q(registration_channel=RegistrationChannel.IMPORT)
+    with_role = role_holders_q(now)
+    return {
+        "fullyVerified": FULLY_VERIFIED,
+        "notFullyVerified": ~FULLY_VERIFIED,
+        # Existing clients include members who have no app account at all here.
+        "neverSignedIn": Q(user__isnull=True) | Q(user__last_login__isnull=True),
+        "withRole": with_role,
+        "withoutRole": ~with_role,
+        "missingName": Q(full_name=""),
+        "missingVin": GAPS["vin"],
+        "missingCardPhoto": Q(pvc_image=""),
+        "missingSelfie": Q(photo=""),
+        "missingGender": Q(gender=""),
+        "missingBirthDate": Q(date_of_birth__isnull=True),
+        "missingState": Q(state__isnull=True),
+        "missingLga": Q(lga__isnull=True),
+        "missingWard": Q(ward__isnull=True),
+        "missingPollingUnit": Q(polling_unit__isnull=True),
+        "pollingUnitFromList": Q(polling_unit_from_list=True),
+        "noAppAccount": Q(user__isnull=True),
+        "accountNeverSignedIn": Q(user__isnull=False, user__last_login__isnull=True),
+        "signedIn7Days": Q(user__last_login__gte=now - timedelta(days=7)),
+        "signedIn30Days": Q(user__last_login__gte=now - timedelta(days=30)),
+        "lastSignInOlder": Q(user__last_login__lt=now - timedelta(days=30)),
+        # Match verified_how: no reviewer takes precedence over the import channel.
+        "verifiedAutomatic": verified & ~reviewed,
+        "verifiedChapter": verified & reviewed & imported,
+        "verifiedPerson": verified & reviewed & ~imported,
+    }
 
 
 PLACE_NAMES = ("zone__name", "state__name", "lga__name", "ward__name", "polling_unit__name")
@@ -183,19 +258,42 @@ def _profile(totals: dict) -> dict:
 
 
 def _members_summary(members, now) -> dict:
-    today = timezone.localdate()
+    today = timezone.localdate(now)
+    filters = member_filters(now)
+    detail_filters = {
+        f"{group}:{key}": filters[name]
+        for group, names in (
+            ("quality", QUALITY_FILTERS),
+            ("accounts", ACCOUNT_FILTERS),
+            ("verification_sources", VERIFICATION_FILTERS),
+        )
+        for key, name in names.items()
+    }
     totals = members.aggregate(
         total=Count("pk"),
         new7=Count("pk", filter=Q(created_at__gte=now - timedelta(days=7))),
         new30=Count("pk", filter=Q(created_at__gte=now - timedelta(days=30))),
-        fullyVerified=Count("pk", filter=FULLY_VERIFIED),
-        withRole=Count("pk", filter=role_holders_q()),
+        previous7=Count(
+            "pk",
+            filter=Q(
+                created_at__gte=now - timedelta(days=14), created_at__lt=now - timedelta(days=7)
+            ),
+        ),
+        previous30=Count(
+            "pk",
+            filter=Q(
+                created_at__gte=now - timedelta(days=60), created_at__lt=now - timedelta(days=30)
+            ),
+        ),
+        fullyVerified=Count("pk", filter=filters["fullyVerified"]),
+        withRole=Count("pk", filter=filters["withRole"]),
         phoneConfirmed=Count("pk", filter=Q(phone_verified_at__isnull=False)),
         appAccount=Count("pk", filter=Q(user__isnull=False)),
         signedIn=Count("pk", filter=SIGNED_IN),
         disability=Count("pk", filter=~Q(disabilities=[])),
         **{f"has:{key}": Count("pk", filter=~gap) for key, gap in GAPS.items()},
         **_age_counts(today),
+        **{key: Count("pk", filter=condition) for key, condition in detail_filters.items()},
     )
     monday = today - timedelta(days=today.weekday())
     first = monday - timedelta(weeks=WEEKS - 1)
@@ -211,6 +309,8 @@ def _members_summary(members, now) -> dict:
         "total": totals["total"],
         "new_7_days": totals["new7"],
         "new_30_days": totals["new30"],
+        "previous_7_days": totals["previous7"],
+        "previous_30_days": totals["previous30"],
         "fully_verified": totals["fullyVerified"],
         "with_role": totals["withRole"],
         "with_disability": totals["disability"],
@@ -221,6 +321,14 @@ def _members_summary(members, now) -> dict:
         "age": {label: totals[f"age:{label}"] for label, *_ in AGE_BANDS}
         | {"unknown": totals["age:unknown"]},
         "profile": _profile(totals),
+        **{
+            group: {key: totals[f"{group}:{key}"] for key in names}
+            for group, names in (
+                ("quality", QUALITY_FILTERS),
+                ("accounts", ACCOUNT_FILTERS),
+                ("verification_sources", VERIFICATION_FILTERS),
+            )
+        },
         "weekly": [
             {"week": week.isoformat(), "count": weekly.get(week, 0)}
             for week in (first + timedelta(weeks=n) for n in range(WEEKS))
@@ -364,5 +472,8 @@ def summary(scope, by=None) -> dict:
             "areas": len(parts),
             "with_members": sum(1 for part in parts if part["members"]),
             "with_exco": sum(1 for part in parts if part["exco"]),
+            "unplaced_members": members.filter(**{f"{LEVEL_FIELD[by]}__isnull": True}).count()
+            if by is not None
+            else 0,
         },
     }

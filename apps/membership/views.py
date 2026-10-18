@@ -91,21 +91,13 @@ SCOPE_FILTERS = {
 
 # A search made only of digits, spaces and phone punctuation is a phone number.
 PHONE_LIKE = re.compile(r"[\d\s+()-]{10,}")
-# Narrowing a list of members (`show=`).
-# Each is built when used: whether a post has ended depends on the time now.
-_SHOW = {
-    "fullyVerified": lambda: analysis.FULLY_VERIFIED,
-    "notFullyVerified": lambda: ~analysis.FULLY_VERIFIED,
-    "neverSignedIn": lambda: Q(user__isnull=True) | Q(user__last_login__isnull=True),
-    "withRole": lambda: analysis.role_holders_q(),
-    "withoutRole": lambda: ~analysis.role_holders_q(),
-}
+# Narrowing a list of members (`show=`); built fresh for every request.
+_SHOW = analysis.MEMBER_FILTER_NAMES
 
 
 def _shown(show) -> Q:
     """The filter for `show=`, or nothing for an unknown value."""
-    build = _SHOW.get(show)
-    return build() if build else Q(pk__in=[])
+    return analysis.member_filters().get(show, Q(pk__in=[]))
 
 
 AREA_PARAMETERS = [
@@ -207,8 +199,8 @@ class MemberViewSet(
                 "show",
                 str,
                 enum=[*_SHOW],
-                description="Only those fully verified or not, who never signed in, or with "
-                "or without an exco post.",
+                description="Filter by profile gaps, verification source, recorded sign-in, "
+                "app account or exco appointment.",
             ),
             OpenApiParameter(
                 "q",

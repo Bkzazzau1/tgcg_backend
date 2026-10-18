@@ -103,7 +103,12 @@ def test_the_national_view_counts_members_and_exco_state_by_state(admin, exco):
     assert states["KD"]["members"] == 4 and states["KD"]["exco"] == 3
     assert states["KD"]["women"] == 2 and states["KD"]["fully_verified"] == 1
     assert states["KN"]["exco"] == 1 and states["LA"]["members"] == 0
-    assert body["coverage"] == {"areas": 37, "with_members": 2, "with_exco": 2}
+    assert body["coverage"] == {
+        "areas": 37,
+        "with_members": 2,
+        "with_exco": 2,
+        "unplaced_members": 0,
+    }
 
 
 def test_a_state_shows_its_own_exco_and_each_lga(admin, exco):

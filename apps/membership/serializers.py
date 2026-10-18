@@ -56,6 +56,7 @@ def masked_vin(member: Member) -> str | None:
 # Personal details shown only with viewMemberSensitiveData for the member's area.
 SENSITIVE_MEMBER_FIELDS = (
     "phone_number",
+    "whatsapp_number",
     "email",
     "vin",
     "date_of_birth",
@@ -185,6 +186,7 @@ class MemberSerializer(serializers.ModelSerializer):
             "membership_number",
             "full_name",
             "phone_number",
+            "whatsapp_number",
             "email",
             "vin",
             "has_pvc",
@@ -211,12 +213,17 @@ class MemberSerializer(serializers.ModelSerializer):
             "signed_in",
             "last_sign_in",
             "verified_how",
+            "verified_at",
+            "polling_unit_from_list",
             "created_at",
             "updated_at",
         ]
         read_only_fields = [
             "membership_number",
             "phone_number",
+            "whatsapp_number",
+            "verified_at",
+            "polling_unit_from_list",
             "disability_other",
             "verification_status",
             "membership_state",
