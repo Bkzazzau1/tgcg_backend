@@ -547,6 +547,7 @@ def register_imported(
     lga=None,
     state=None,
     vin=None,
+    verified: bool = True,
 ) -> Member:
     """A member from a chapter's own list, imported by a National Administrator.
 
@@ -558,6 +559,10 @@ def register_imported(
     written on the list; the member changes it later. The member is placed at
     their polling unit, or at the ward, LGA or state when the list gives no
     more, with the VIN of their voter's card when the list has a valid one.
+
+    With `verified=False` the list's word covers consent only: the identity
+    is left unchecked, as for anyone who joins, so a post (an agent's
+    accreditation included) waits for the usual check.
     """
     if polling_unit is not None:
         place = {"scope_level": GeographyLevel.POLLING_UNIT, "polling_unit": polling_unit}
@@ -584,10 +589,13 @@ def register_imported(
     member.full_clean(exclude=["membership_number"])
     _save_member(member)
     _member_account(member, password)
-    member.verification_status = VerificationStatus.VERIFIED
-    member.verified_at = now
-    member.verified_by = actor
-    member.save(update_fields=["verification_status", "verified_at", "verified_by", "updated_at"])
+    if verified:
+        member.verification_status = VerificationStatus.VERIFIED
+        member.verified_at = now
+        member.verified_by = actor
+        member.save(
+            update_fields=["verification_status", "verified_at", "verified_by", "updated_at"]
+        )
     member = identity.record_checks(member, actor=actor)
     audit.record(
         actor=actor,
@@ -596,7 +604,10 @@ def register_imported(
         target_id=member.membership_number,
         target_label=member.full_name,
         reason=source,
-        changes={"identity": "checked manually by the chapter", "consent": "through the chapter"},
+        changes={
+            "identity": "checked manually by the chapter" if verified else "not checked yet",
+            "consent": "through the chapter",
+        },
     )
     return member
 

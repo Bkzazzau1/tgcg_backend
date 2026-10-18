@@ -284,17 +284,7 @@ class Command(BaseCommand):
         )
 
     def _place(self, code: str, state) -> dict | None:
-        """The polling unit, ward or LGA a place code names, or the state
-        itself, if it is in [state]."""
-        if code == state.code:
-            return {"state": state}
-        if unit := PollingUnit.objects.filter(code=code).select_related("ward__lga").first():
-            return {"polling_unit": unit} if unit.ward.lga.state_id == state.pk else None
-        if ward := Ward.objects.filter(code=code).select_related("lga").first():
-            return {"ward": ward} if ward.lga.state_id == state.pk else None
-        if lga := Lga.objects.filter(code=code).first():
-            return {"lga": lga} if lga.state_id == state.pk else None
-        return None
+        return place_in(code, state)
 
     def _area(self, code: str, state) -> dict | None:
         """The whole state, or a senatorial district, LGA, ward or polling unit of it."""
@@ -302,7 +292,7 @@ class Command(BaseCommand):
             return {"scope_level": L.STATE, "state": state}
         if district := SenatorialDistrict.objects.filter(code=code, state=state).first():
             return {"scope_level": L.SENATORIAL_DISTRICT, "senatorial_district": district}
-        place = self._place(code, state)
+        place = place_in(code, state)
         if place is None or "state" in place:
             return None
         ((field, unit),) = place.items()
@@ -401,6 +391,20 @@ class Command(BaseCommand):
                 continue
             held.append((row.line, row.sn, reason))
         return accepted, held, {key: allowed[key] for key in levels}
+
+
+def place_in(code: str, state) -> dict | None:
+    """The polling unit, ward or LGA a place code names, or the state itself,
+    if it is in [state]."""
+    if code == state.code:
+        return {"state": state}
+    if unit := PollingUnit.objects.filter(code=code).select_related("ward__lga").first():
+        return {"polling_unit": unit} if unit.ward.lga.state_id == state.pk else None
+    if ward := Ward.objects.filter(code=code).select_related("lga").first():
+        return {"ward": ward} if ward.lga.state_id == state.pk else None
+    if lga := Lga.objects.filter(code=code).first():
+        return {"lga": lga} if lga.state_id == state.pk else None
+    return None
 
 
 def _place_key(place: dict) -> tuple:

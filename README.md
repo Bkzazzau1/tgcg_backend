@@ -407,6 +407,25 @@ uv run python manage.py import_state_officers officers.csv --state KE \
   S/N only, the phone as written is the first password, and the officers are
   recorded as verified on the chapter's word.
 
+**People listed without a post.** `import_members` takes a CSV file with the
+columns `sn`, `name`, `phone`, `place` and `hold`, and registers each person
+as a member at their place, with no post:
+
+```bash
+uv run python manage.py import_members agents.csv --state JI \
+    --by <NA access ID> --source "APC Jigawa State: Buji polling unit agents"
+```
+
+- First used for the Jigawa polling unit agent lists (18 October 2026). Their
+  consent is recorded on the chapter's word, but their identity is not: an
+  agent's accreditation, like any post, waits for the usual check.
+- `place` works as for officers. The same person listed again at the same
+  place is imported once; listed at two places, both rows are held. Rows are
+  also held for a missing name, an invalid, shared or registered phone
+  number, or a place outside the state. As above: a dry run until
+  `--commit`, rows named by line and S/N only, and the phone as written is
+  the first password.
+
 **Signing in.** Members sign in at `/auth/login/` with their phone and a
 6-digit PIN. Obvious PINs (`123456`, `111111` and so on) are refused. After
 5 failed attempts (members and staff alike), the account locks for
