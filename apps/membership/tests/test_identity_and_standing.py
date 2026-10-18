@@ -255,9 +255,18 @@ def test_anything_short_of_the_policy_goes_to_review(monkeypatch, kd_units):
 
     read_as(monkeypatch, card_text(name="UMAR\nSANI"))  # another VIN on the card
     other_card = make_member(phone="08033330025", full_name="Sani Umar")
-    other_card = complete(other_card, kd_units[0], vin="90F5B0E8D0295847099")
+    other_card = complete(other_card, kd_units[0], vin="ABCDEFGHJKMNPQRSTUV")
     detail = identity.record_checks(other_card).verification_checks.get(kind="cardMatch").detail
     assert detail == "The VIN given could not be found on the card photo."
+    # Three characters apart: probably the card's own VIN, misread when joining.
+    misread = make_member(phone="08033330031", full_name="Sani Umar")
+    misread = identity.record_checks(complete(misread, kd_units[0], vin=VIN[:-3] + "999"))
+    card = misread.verification_checks.get(kind="cardMatch")
+    assert card.result == "pending" and misread.verification_status == "pendingReview"
+    assert card.detail == (
+        "The VIN on the card photo differs from the one given in 3 characters: "
+        "compare them, as one may have been misread."
+    )
 
     no_gender = make_member(phone="08033330026", full_name="Ada Obi")
     no_gender = complete(no_gender, kd_units[1], vin="90F5B0E8D0295847026")
@@ -339,6 +348,7 @@ def test_members_awaiting_a_decision_are_checked_again_by_command(monkeypatch, k
     assert out.getvalue().splitlines() == [
         "Recorded checks for 1 member(s).",
         "Read 1 card photo(s); 0 could not be read this time.",
+        "Card comparisons: matched 1.",
         "1 member(s) verified automatically.",
     ]
     assert reads == [waiting.pk]
@@ -346,6 +356,33 @@ def test_members_awaiting_a_decision_are_checked_again_by_command(monkeypatch, k
     assert waiting.verification_status == "verified"
     verified.refresh_from_db()
     assert not verified.verification_checks.exists()  # a decided member is not selected
+
+
+def test_cards_that_did_not_match_are_compared_again_on_request(monkeypatch, kd_units):
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    read_as(monkeypatch, card_text(vin=VIN[:-3] + "999"))  # a reading three characters off
+    member = identity.record_checks(complete(make_member(phone="08033330033"), kd_units[0]))
+    assert member.verification_status == "pendingReview"
+
+    reads = read_as(monkeypatch, card_text())  # the card read again, after a better comparison
+    out = StringIO()
+    call_command("record_verification_checks", "--awaiting", stdout=out)
+    assert reads == []  # the comparison on record still covers the same details
+
+    out = StringIO()
+    call_command("record_verification_checks", "--awaiting", "--recompare", "--dry-run", stdout=out)
+    assert out.getvalue().splitlines()[0] == "1 card(s) that did not match would be read again."
+    assert reads == []
+
+    out = StringIO()
+    call_command("record_verification_checks", "--awaiting", "--recompare", stdout=out)
+    assert reads == [member.pk]
+    assert "Card comparisons: matched 1." in out.getvalue().splitlines()
+    member.refresh_from_db()
+    assert member.verification_status == "verified"
 
 
 # --- review ----------------------------------------------------------------------

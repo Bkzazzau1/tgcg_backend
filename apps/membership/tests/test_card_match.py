@@ -1,6 +1,6 @@
 """Comparing the details a member gave with the text read from their card photo."""
 
-from apps.membership.card_match import compare, name_on_card, vin_on_card
+from apps.membership.card_match import compare, name_on_card, vin_edits, vin_on_card
 
 VIN = "90F5B0E8D0295847001"
 CARD = "VOTER'S CARD\nBELLO\nMUSA ABDULLAHI\nVIN: 90F5 B0E8 D029 5847 001\nM 14-05-1990"
@@ -9,10 +9,23 @@ CARD = "VOTER'S CARD\nBELLO\nMUSA ABDULLAHI\nVIN: 90F5 B0E8 D029 5847 001\nM 14-
 def test_the_vin_is_found_despite_spaces_and_misread_characters():
     assert vin_on_card(CARD, VIN)
     assert vin_on_card(CARD.replace("90F5", "9OF5").replace("B0E8", "80E8"), VIN)
-    assert vin_on_card(CARD.replace("001", "007"), VIN)  # one character wrong
-    assert not vin_on_card(CARD.replace("001", "077"), VIN)
+    # Two readers, the phone's and the server's, may differ in two characters:
+    # misread, missed or added.
+    assert vin_on_card(CARD.replace("001", "007"), VIN)
+    assert vin_on_card(CARD.replace("001", "077"), VIN)
+    assert vin_on_card(CARD.replace("B0E8 D029", "B0E8X D029"), VIN)
+    assert vin_on_card(CARD.replace("D029", "D29"), VIN)
+    assert not vin_on_card(CARD.replace("001", "777"), VIN)
     assert not vin_on_card(CARD, "90F5B0E8D0295847")  # not a VIN at all
     assert not vin_on_card("", VIN)
+
+
+def test_how_far_the_card_vin_is_from_the_one_given():
+    assert vin_edits(CARD, VIN) == 0
+    assert vin_edits(CARD.replace("001", "777"), VIN) == 3
+    # A card without this VIN: its other numbers are nowhere near it.
+    assert vin_edits(CARD.replace("90F5 B0E8 D029 5847 001", ""), VIN) > 6
+    assert vin_edits(CARD, "90F5") is None
 
 
 def test_every_word_of_the_name_is_on_the_card_in_any_order():
@@ -37,7 +50,13 @@ def test_the_result_names_what_was_missing_never_the_details():
         True,
         "The name and VIN given match the text read from the card photo.",
     )
-    matched, detail = compare(CARD, "Ada Obi", "90F5B0E8D0295847999")
+    matched, detail = compare(CARD, "Ada Obi", "ABCDEFGHJKMNPQRSTUV")
     assert not matched
     assert detail == "The name and VIN given could not be found on the card photo."
-    assert "Ada" not in detail and "999" not in detail
+    assert "Ada" not in detail and "ABCD" not in detail
+    matched, detail = compare(CARD, "Musa Bello", "90F5B0E8D0295847999")
+    assert not matched
+    assert detail == (
+        "The VIN on the card photo differs from the one given in 3 characters: "
+        "compare them, as one may have been misread."
+    )

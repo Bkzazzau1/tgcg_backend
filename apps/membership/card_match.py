@@ -23,23 +23,47 @@ HONORIFICS = frozenset(
 # How alike a name on the card and a name given must be: a reader may get a
 # letter or two of a long name wrong.
 NAME_LIKENESS = 0.8
+VIN_LENGTH = 19
+# Two readers see the VIN: the phone when the member joined, and this server
+# now. Between them they may misread, miss or add a character or two; another
+# card's VIN differs in many more, and the name must be on the card as well.
+VIN_EDITS = 2
+# Beyond that but this close, the card's own VIN was probably misread when
+# the member joined: a reviewer compares the two.
+VIN_CLOSE = 6
 
 
 def _compact(text: str) -> str:
     return re.sub(r"[^A-Z0-9]", "", text.upper()).translate(_LOOKALIKES)
 
 
-def vin_on_card(text: str, vin: str) -> bool:
-    """The VIN, give or take one misread character, anywhere in the text."""
+def vin_edits(text: str, vin: str) -> int | None:
+    """How many characters stand between the VIN given and its closest
+    likeness in the text: each misread, missed or added character counts one.
+    None when what was given is not a VIN."""
     wanted = _compact(vin)
-    if len(wanted) != 19:
-        return False
+    if len(wanted) != VIN_LENGTH:
+        return None
     compact = _compact(text)
-    for start in range(len(compact) - len(wanted) + 1):
-        window = compact[start : start + len(wanted)]
-        if sum(a != b for a, b in zip(window, wanted, strict=True)) <= 1:
-            return True
-    return False
+    # The cheapest way to match the VIN's first i characters ending at each
+    # place in the text; it may start anywhere.
+    previous = [0] * (len(compact) + 1)
+    for i, char in enumerate(wanted, start=1):
+        current = [i] + [0] * len(compact)
+        for j, seen in enumerate(compact, start=1):
+            current[j] = min(
+                previous[j - 1] + (char != seen),  # read right, or misread
+                previous[j] + 1,  # missed by the reader
+                current[j - 1] + 1,  # added by the reader
+            )
+        previous = current
+    return min(previous)
+
+
+def vin_on_card(text: str, vin: str) -> bool:
+    """The VIN, give or take two characters, in the text."""
+    edits = vin_edits(text, vin)
+    return edits is not None and edits <= VIN_EDITS
 
 
 def name_words(name: str) -> list[str]:
@@ -72,11 +96,31 @@ def name_on_card(text: str, full_name: str) -> bool:
     return all(found)
 
 
+MATCHED = "The name and VIN given match the text read from the card photo."
+
+
 def compare(text: str, full_name: str, vin: str) -> tuple[bool, str]:
     """(matched, detail): whether both the name and the VIN appear on the card.
-    The detail names what was not found, never the details themselves."""
-    vin_found, name_found = vin_on_card(text, vin), name_on_card(text, full_name)
+    The detail says what was not found, or how far the card's VIN is from the
+    one given, never the details themselves."""
+    edits = vin_edits(text, vin)
+    vin_found = edits is not None and edits <= VIN_EDITS
+    name_found = name_on_card(text, full_name)
     if vin_found and name_found:
-        return True, "The name and VIN given match the text read from the card photo."
-    missing = [what for what, found in (("name", name_found), ("VIN", vin_found)) if not found]
-    return False, f"The {' and '.join(missing)} given could not be found on the card photo."
+        return True, MATCHED
+    close = not vin_found and edits is not None and edits <= VIN_CLOSE
+    missing = [
+        what for what, found in (("name", name_found), ("VIN", vin_found or close)) if not found
+    ]
+    found = (
+        f"The {' and '.join(missing)} given could not be found on the card photo."
+        if missing
+        else ""
+    )
+    if close:
+        differs = (
+            f"The VIN on the card photo differs from the one given in {edits} characters: "
+            "compare them, as one may have been misread."
+        )
+        found = f"{found} {differs}".strip()
+    return False, found

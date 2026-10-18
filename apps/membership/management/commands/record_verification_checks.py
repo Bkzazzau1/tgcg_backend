@@ -5,6 +5,8 @@
     python manage.py record_verification_checks --all       # every member again
 
 Add --dry-run to count what would happen, without recording or reading anything.
+Add --recompare (with --awaiting) after the comparison itself changed: cards
+that did not match are read and compared again.
 
 Decisions already made (verified by a coordinator or automatically, or
 rejected) are kept. A member awaiting one has their card photo read when no
@@ -37,6 +39,33 @@ def _card_to_read(member) -> bool:
     )
 
 
+# What came of reading a card, in the order they are reported.
+OUTCOMES = (
+    "matched",
+    "VIN a few characters off",
+    "name not found",
+    "VIN not found",
+    "name and VIN not found",
+    "not read",
+)
+
+
+def _outcome(check) -> str:
+    """What the comparison found, from its recorded result (never the details)."""
+    detail = check.detail
+    if check.result == R.PASSED:
+        return "matched"
+    if "differs from the one given" in detail and "name" not in detail:
+        return "VIN a few characters off"
+    if detail.startswith("The name and VIN given could not be found"):
+        return "name and VIN not found"
+    if detail.startswith("The name given could not be found"):
+        return "name not found"
+    if detail.startswith("The VIN given could not be found"):
+        return "VIN not found"
+    return "not read"
+
+
 class Command(BaseCommand):
     help = "Record identity checks for members (by default, those without any)."
 
@@ -49,6 +78,11 @@ class Command(BaseCommand):
         parser.add_argument(
             "--dry-run", action="store_true", help="Count only: record and read nothing."
         )
+        parser.add_argument(
+            "--recompare",
+            action="store_true",
+            help="Read again the cards of members awaiting a decision whose card did not match.",
+        )
 
     def handle(self, *args, **options):
         members = Member.objects.order_by("pk")
@@ -56,10 +90,21 @@ class Command(BaseCommand):
             members = members.exclude(verification_status__in=DECIDED)
         elif not options["all"]:
             members = members.filter(verification_checks__isnull=True)
+        unmatched = VerificationCheck.objects.filter(
+            member__in=members.exclude(verification_status__in=DECIDED), kind=K.CARD_MATCH
+        ).exclude(result=R.PASSED)
+        if options["recompare"] and options["dry_run"]:
+            self.stdout.write(
+                f"{unmatched.count()} card(s) that did not match would be read again."
+            )
+        elif options["recompare"]:
+            # No comparison covers them any more, so their cards are read again.
+            unmatched.update(basis="")
         if options["dry_run"]:
             self._count(members)
             return
         count = read = unread = verified = 0
+        outcomes: dict[str, int] = {}
         for member in members.iterator():
             to_read, awaiting = _card_to_read(member), _awaiting(member)
             member = identity.record_checks(member)
@@ -67,10 +112,17 @@ class Command(BaseCommand):
             if to_read:
                 read += 1
                 unread += not identity.card_compared(member)
+                outcome = _outcome(member.verification_checks.get(kind=K.CARD_MATCH))
+                outcomes[outcome] = outcomes.get(outcome, 0) + 1
             verified += awaiting and member.verification_status == VerificationStatus.VERIFIED
         self.stdout.write(self.style.SUCCESS(f"Recorded checks for {count} member(s)."))
         if read:
             self.stdout.write(f"Read {read} card photo(s); {unread} could not be read this time.")
+            self.stdout.write(
+                "Card comparisons: "
+                + "; ".join(f"{label} {outcomes[label]}" for label in OUTCOMES if label in outcomes)
+                + "."
+            )
         if verified:
             self.stdout.write(f"{verified} member(s) verified automatically.")
 
