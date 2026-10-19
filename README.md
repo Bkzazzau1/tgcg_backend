@@ -69,6 +69,7 @@ apps/messaging/    bulk SMS, WhatsApp and app notifications; saved lists; the in
 | GET | `/api/v1/members/counts/?level=&code=&by=` | Members registered in each smaller area (`by`, e.g. `ward`) of an area wholly within your reach: `{"total", "counts": {code: n}}` |
 | GET | `/api/v1/members/analysis/?level=&code=&by=` | Members and exco in an area wholly within your reach, with each smaller area; `by=geopoliticalZone` lists Nigeria's zones instead of its states (see **Members and exco**) |
 | GET | `/api/v1/members/exco/?level=&code=&at=&role=&show=&search=` | Exco posts in that area from the top down, with who holds each; `at` keeps only posts at some levels (`state,senatorialDistrict` for a state's own exco) |
+| GET | `/api/v1/members/list-pdf/?level=&code=` | Everyone in that area as one printable list (PDF, A4 landscape): grouped by state, LGA and ward, exco first under their highest post there, then members by polling unit. Each row has the full name, membership number, polling unit and posts, never a phone number. Each download is recorded (`members.list_downloaded`) |
 | GET, PATCH | `/api/v1/members/{membership_number}/` | e.g. `TGCG-000001` |
 | GET | `/api/v1/members/{membership_number}/photo/` | Member photo (scope-checked) |
 | GET | `/api/v1/members/verify/?token=` | Staff scan a membership card QR code |

@@ -2,12 +2,15 @@ import re
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Count, Prefetch, Q
+from django.http import HttpResponse
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.access import audit
 from apps.access.models import (
     AssignmentStatus,
     AuditEvent,
@@ -29,7 +32,7 @@ from apps.geography.scope import (
     within_scope_q,
 )
 
-from . import analysis, identity, services
+from . import analysis, identity, members_list_pdf, services
 from .models import (
     AccreditedAgent,
     Member,
@@ -321,6 +324,33 @@ class MemberViewSet(
         page = self.paginate_queryset(posts)
         context = self.get_serializer_context()
         return self.get_paginated_response(ExcoSerializer(page, many=True, context=context).data)
+
+    @extend_schema(parameters=AREA_PARAMETERS, responses={(200, "application/pdf"): bytes})
+    @action(detail=False, methods=["get"], url_path="list-pdf")
+    def list_pdf(self, request):
+        """Members and exco in an area as one printable list (PDF), for an area
+        wholly within the caller's reach: grouped by place, exco first, each
+        row with the full name, membership number, polling unit and posts. No
+        phone numbers. Each download is recorded in the audit log."""
+        scope = self._area(request)
+        listing = members_list_pdf.collect(scope)
+        made_at = timezone.localtime()
+        pdf = members_list_pdf.render(listing, made_by=request.user.access_id, made_at=made_at)
+        field = scope.scope_unit_field
+        audit.record(
+            actor=request.user,
+            action="members.list_downloaded",
+            target_type="area",
+            target_id=getattr(scope, field).code if field else "NG",
+            target_label=listing.title,
+            scope=[scope_payload(scope)],
+            changes={"people": listing.people, "exco": listing.exco},
+        )
+        response = HttpResponse(pdf, content_type="application/pdf")
+        name = members_list_pdf.filename(listing, made_at)
+        response["Content-Disposition"] = f'attachment; filename="{name}"'
+        response["Cache-Control"] = "no-store"
+        return response
 
     @extend_schema(
         parameters=[

@@ -503,7 +503,9 @@ Registered members per area (`GET /members/counts/`) are for whoever may
 find members (`MEMBER_READERS`: the administrator, coordinators, and those
 who verify identities), and only for an area wholly within their reach, so a
 count is never a partial one. The same rule covers members and exco per area
-(`GET /members/analysis/` and `/members/exco/`, 17 October 2026). The Members
+(`GET /members/analysis/` and `/members/exco/`, 17 October 2026), and the
+printable list of an area's members and exco (`GET /members/list-pdf/`, 19 October
+2026), whose every download is recorded in the audit log. The Members
 & Exco screen (`membershipNetwork`) is the National Administrator's, through
 `manageMembership`; the dashboard shows each account's own area when it may
 see all of it.
