@@ -6,7 +6,10 @@ Columns:
 - role: the position's role name, e.g. "State Treasurer". "State
   Coordinator", "LGA Coordinator" and "Ward Coordinator" are the system
   roles. "Deputy State Coordinator" is created, when missing, with the State
-  Coordinator's permissions, for a senatorial district. Any other missing role
+  Coordinator's permissions, for a senatorial district; "Federal Constituency
+  Coordinator", with the LGA Coordinator's permissions, for the LGAs of a
+  federal constituency (agreed with the user on 19 October 2026, for
+  Adamawa's list; the app has no federal constituency level). Any other missing role
   is created for the level of the areas it is given over here: an officer role
   for a state, district, LGA or ward, whose holders see their area's incident
   counts, results and collation, meet and use the forum, and change nothing
@@ -17,7 +20,9 @@ Columns:
   unit code (21-03-03-018), a ward code (21-20-05), an LGA code (KE-ARGUNGU),
   or the state's own code (KD) when the list gives no place;
 - area (optional): what the role covers: a senatorial district (SD/049/JG),
-  LGA, ward or polling unit code; empty for the whole state (--state);
+  LGA, ward or polling unit code, or several of one level separated by ";"
+  (a federal constituency's LGAs: AD-YOLA-NORTH;AD-YOLA-SOUTH;AD-GIREI);
+  empty for the whole state (--state);
 - vin (optional): the VIN of their voter's card, stored on the membership;
 - hold: a reason to hold the row back, e.g. while the chapter confirms it.
 
@@ -27,9 +32,10 @@ once, at the place their rows share, and appointed to each role. The same
 phone number under different names holds all those rows back.
 
 Each person becomes a member at their place, with an app account, and an
-appointment to each role over its area. State, Deputy State, LGA and Ward
-Coordinators also receive, from --by, the power to appoint and manage the
-roles below them in their area, as no system role carries it
+appointment to each role over its area. State, Deputy State, Federal
+Constituency, LGA and Ward Coordinators also receive, from --by, the power to
+appoint and manage the roles below them in their area (a Federal Constituency
+Coordinator from LGA level down), as no system role carries it
 (docs/access-control.md, section 5). As with import_executives, the chapter
 checked these people and holds their agreement to TGCG keeping their details,
 so --by, a National Administrator, records both on its word.
@@ -77,9 +83,11 @@ STATE_OFFICER_PERMISSIONS = sorted(
     }
 )
 DEPUTY = "Deputy State Coordinator"
+FEDERAL = "Federal Constituency Coordinator"
 # The roles whose holders also appoint the roles below them in their area.
 COORDINATORS = {
-    name_key(name) for name in ("State Coordinator", DEPUTY, "LGA Coordinator", "Ward Coordinator")
+    name_key(name)
+    for name in ("State Coordinator", DEPUTY, FEDERAL, "LGA Coordinator", "Ward Coordinator")
 }
 # The levels a coordinator over an area of each level appoints at.
 BELOW = {
@@ -88,6 +96,8 @@ BELOW = {
     L.LGA: [L.WARD, L.POLLING_UNIT],
     L.WARD: [L.POLLING_UNIT],
 }
+# A Federal Constituency Coordinator appoints in their LGAs from LGA level down.
+FEDERAL_BELOW = [L.LGA, L.WARD, L.POLLING_UNIT]
 # The field roles a coordinator appoints in their area.
 APPOINTED = (Role.LGA_COORDINATOR, Role.WARD_COORDINATOR, Role.OBSERVER)
 # Who a new role reports to, by the highest level it serves.
@@ -111,12 +121,12 @@ class Row:
     role: str
     phone: str  # as written: 11 digits, also the first password
     place: dict  # polling_unit, ward, lga or state for registration.register_imported
-    area: dict  # the appointment's area
+    areas: list[dict] | None  # the appointment's areas, all of one level
     vin: str | None
 
     @property
     def level(self) -> str:
-        return self.area["scope_level"]
+        return self.areas[0]["scope_level"]
 
 
 def new_role_levels(name: str, levels: set) -> list[str]:
@@ -124,6 +134,8 @@ def new_role_levels(name: str, levels: set) -> list[str]:
     areas it is given over in the file."""
     if name_key(name) == name_key(DEPUTY):
         return [L.SENATORIAL_DISTRICT, L.STATE]
+    if name_key(name) == name_key(FEDERAL):
+        return [L.LGA]
     if levels <= {L.POLLING_UNIT}:
         return [L.POLLING_UNIT]
     top = min(levels, key=ORDER.index)
@@ -146,6 +158,17 @@ def ensure_role(actor, name: str, levels: list[str]) -> RoleDefinition:
             category=coordinator.category,
             permitted_levels=levels,
             permissions=sorted(coordinator.permissions),
+            supervising_role=coordinator,
+        )
+    if name_key(name) == name_key(FEDERAL):
+        lga_coordinator = RoleDefinition.objects.get(code=Role.LGA_COORDINATOR.value)
+        return create_role(
+            actor=actor,
+            name=name,
+            description="Coordinates a federal constituency's LGAs for the State Coordinator.",
+            category=lga_coordinator.category,
+            permitted_levels=[L.LGA],
+            permissions=sorted(lga_coordinator.permissions),
             supervising_role=coordinator,
         )
     supervisor = RoleDefinition.objects.get(code=SUPERVISORS[levels[0]].value)
@@ -261,17 +284,17 @@ class Command(BaseCommand):
                         actor=actor,
                         member=member,
                         role=roles[key],
-                        areas=[row.area],
+                        areas=row.areas,
                         reason=source,
                     )
                     if key in COORDINATORS:
                         delegate(
                             actor=actor,
                             recipient=member,
-                            areas=[row.area],
+                            areas=row.areas,
                             permissions=appointing_power(),
                             categories=[RoleCategory.FIELD],
-                            levels=BELOW[row.level],
+                            levels=FEDERAL_BELOW if key == name_key(FEDERAL) else BELOW[row.level],
                             reason=source,
                         )
                         powers += 1
@@ -285,6 +308,14 @@ class Command(BaseCommand):
 
     def _place(self, code: str, state) -> dict | None:
         return place_in(code, state)
+
+    def _areas(self, codes: str, state) -> list[dict] | None:
+        """The whole state, or the areas ";"-separated codes name; None when
+        one of them is not in the state."""
+        areas = [self._area(code.strip(), state) for code in codes.split(";") if code.strip()]
+        if not areas:
+            return [self._area("", state)]
+        return None if any(area is None for area in areas) else areas
 
     def _area(self, code: str, state) -> dict | None:
         """The whole state, or a senatorial district, LGA, ward or polling unit of it."""
@@ -317,7 +348,7 @@ class Command(BaseCommand):
                         role=" ".join((record.get("role") or "").split()),
                         phone=re.sub(r"\D", "", record.get("phone") or ""),
                         place=self._place((record.get("place") or "").strip(), state),
-                        area=self._area((record.get("area") or "").strip(), state),
+                        areas=self._areas(record.get("area") or "", state),
                         vin="".join((record.get("vin") or "").split()).upper() or None,
                     ),
                 )
@@ -347,7 +378,7 @@ class Command(BaseCommand):
         # Rows the list holds back do not shape a new role.
         levels = defaultdict(set)
         for hold, row in rows:
-            if row.role and row.area and not hold:
+            if row.role and row.areas and not hold:
                 levels[name_key(row.role)].add(row.level)
         allowed = {}
         for key, used in levels.items():
@@ -356,7 +387,11 @@ class Command(BaseCommand):
 
         accepted, held, given = [], [], set()
         for hold, row in rows:
-            appointment = row.area and (row.phone, name_key(row.role), _area_key(row.area))
+            appointment = row.areas and (
+                row.phone,
+                name_key(row.role),
+                tuple(sorted(_area_key(area) for area in row.areas)),
+            )
             if hold:
                 reason = f"held by the list: {hold}"
             elif not row.name:
@@ -369,8 +404,10 @@ class Command(BaseCommand):
                 reason = "phone number shared with another row"
             elif row.place is None:
                 reason = "place not in this state's INEC register"
-            elif row.area is None:
+            elif row.areas is None:
                 reason = "area not in this state"
+            elif len({area["scope_level"] for area in row.areas}) > 1:
+                reason = "areas of different levels"
             elif row.phone in moved:
                 reason = "the same person has another place on another row"
             elif row.level not in allowed[name_key(row.role)]:

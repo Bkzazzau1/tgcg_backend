@@ -378,7 +378,9 @@ uv run python manage.py import_state_officers officers.csv --state KE \
 - `role` names the position, e.g. "State Treasurer". "State Coordinator",
   "LGA Coordinator" and "Ward Coordinator" are the system roles. "Deputy
   State Coordinator", created when missing, carries the State Coordinator's
-  permissions for a senatorial district. Any other missing role is created
+  permissions for a senatorial district, and "Federal Constituency
+  Coordinator" the LGA Coordinator's for the LGAs of a federal constituency
+  (the app has no constituency level). Any other missing role is created
   for the level of its areas. An officer role for a state, district, LGA or
   ward lets its holders see their area's incident counts, results and
   collation, start and join meetings, and use the forum. They cannot
@@ -386,24 +388,27 @@ uv run python manage.py import_state_officers officers.csv --state KE \
   A role for polling units is an executive role like those of
   `import_executives`. Each new role reports to the coordinator of its level;
   administrators change them in Role Management.
-- State, Deputy State, LGA and Ward Coordinators also receive, from the
-  administrator, the power to appoint and manage the roles below them in
-  their area: a state's or district's coordinators at LGAs, wards and units,
-  an LGA's at wards and units, a ward's at its units. No system role carries
+- State, Deputy State, Federal Constituency, LGA and Ward Coordinators also
+  receive, from the administrator, the power to appoint and manage the roles
+  below them in their area: a state's, district's or federal constituency's
+  coordinators at LGAs, wards and units, an LGA's at wards and units, a
+  ward's at its units. No system role carries
   that power (see docs/access-control.md, section 5).
 - `place` is where the officer votes, as precisely as the list allows: a
   polling unit code (`21-03-03-018`), a ward code (`21-20-05`), an LGA code
   (`KE-ARGUNGU`), or the state's code (`KD`) when the list gives no place.
   It must be in the state. The member is registered there.
 - `area` is what the role covers: a senatorial district (`SD/049/JG`), an
-  LGA, a ward or a polling unit code, or empty for the whole state.
+  LGA, a ward or a polling unit code, several of one level separated by `;`
+  (a federal constituency's LGAs: `AD-YOLA-NORTH;AD-YOLA-SOUTH;AD-GIREI`),
+  or empty for the whole state.
 - `vin` is the voter's card VIN, stored on the membership when valid.
 - Rows with the same phone number and the same name are one person with
   several roles: one member, one place, an appointment for each role. The
   same number under different names holds all those rows back.
 - `hold` holds a row back with its reason, for example while the chapter
   confirms it. Rows are also held for an invalid, shared or registered phone
-  number or VIN, an area outside the state, or a role that does not serve
+  number or VIN, an area outside the state, areas of different levels, or a role that does not serve
   that level. As above: a dry run until `--commit`, rows named by line and
   S/N only, the phone as written is the first password, and the officers are
   recorded as verified on the chapter's word.

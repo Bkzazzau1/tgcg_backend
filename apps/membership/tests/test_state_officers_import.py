@@ -386,3 +386,90 @@ def test_lga_ward_and_unit_officers_with_their_coordinators(admin, tmp_path):
         {"level": "pollingUnit", "pollingUnitId": "18-23-13-002"},
     )
     assert inside.status_code == 201, inside.content
+
+
+FEDERAL = [
+    # sn, name, role, phone, place, area, vin, hold
+    (
+        "FC 1",
+        "MUSA FEDERAL",
+        "Federal Constituency Coordinator",
+        "08030000041",
+        "KD-ZARIA",
+        "KD-ZARIA; KD-SOBA",
+        "",
+        "",
+    ),
+    (
+        "FC 2",
+        "ADA MIXED",
+        "Federal Constituency Coordinator",
+        "08030000042",
+        "KD-ZARIA",
+        "KD-ZARIA;18-21-01",
+        "",
+        "",
+    ),
+    (
+        "FC 3",
+        "SANI ELSEWHERE",
+        "Federal Constituency Coordinator",
+        "08030000043",
+        "KD",
+        "JI-BUJI",
+        "",
+        "",
+    ),
+    ("Zaria 3", "ANAS ZUBAIRU", "LGA Secretary", "08030000024", "KD-ZARIA", "KD-ZARIA", "", ""),
+]
+
+
+def test_a_federal_constituency_coordinator_coordinates_their_lgas(admin, tmp_path):
+    path = csv_file(tmp_path, FEDERAL, header="sn,name,role,phone,place,area,vin,hold")
+    report = run(path, "--commit", state="KD")
+    assert "line 3 (S/N FC 2): areas of different levels" in report
+    assert "line 4 (S/N FC 3): area not in this state" in report
+    assert "2 to import, 2 held back." in report
+    assert "2 roles, 2 of them new." in report
+    assert "1 coordinators may appoint in their areas." in report
+
+    # One appointment over both LGAs, with an LGA Coordinator's powers.
+    coordinator = Member.objects.get(full_name="Musa Federal")
+    assignment = RoleAssignment.objects.select_related("role").get(member=coordinator)
+    role = assignment.role
+    lga_coordinator = RoleDefinition.objects.get(code=Role.LGA_COORDINATOR)
+    assert role.name == "Federal Constituency Coordinator"
+    assert role.permitted_levels == [GeographyLevel.LGA]
+    assert sorted(role.permissions) == sorted(lga_coordinator.permissions)
+    assert role.supervising_role.code == Role.STATE_COORDINATOR
+    assert sorted(area.lga.code for area in assignment.areas.all()) == ["KD-SOBA", "KD-ZARIA"]
+    grant = DelegationGrant.objects.get(recipient=coordinator)
+    assert grant.levels == ["lga", "ward", "pollingUnit"]
+    assert sorted(area.lga.code for area in grant.areas.all()) == ["KD-SOBA", "KD-ZARIA"]
+
+    # They appoint an LGA Coordinator in either of their LGAs, not outside them.
+    cache.clear()
+    login = APIClient().post(
+        "/api/v1/auth/login/",
+        {"username": "08030000041", "password": "08030000041"},
+        format="json",
+    )
+    assert login.status_code == 200, login.content
+    client = APIClient()
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}")
+    candidate = Member.objects.get(full_name="Anas Zubairu")
+
+    def appoint(lga):
+        return client.post(
+            "/api/v1/access/assignments/",
+            {
+                "member": candidate.membership_number,
+                "role": Role.LGA_COORDINATOR.value,
+                "areas": [{"level": "lga", "lgaId": lga}],
+            },
+            format="json",
+        )
+
+    assert appoint("KD-KADUNA-NORTH").status_code == 403
+    inside = appoint("KD-SOBA")
+    assert inside.status_code == 201, inside.content
