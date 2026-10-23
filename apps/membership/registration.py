@@ -703,4 +703,9 @@ def set_pin(*, phone_number, code, pin):
         if member.phone_verified_at is None:
             member.phone_verified_at = timezone.now()
             member.save(update_fields=["phone_verified_at", "updated_at"])
+    # The member proved the phone and is signed in: whoever registered them
+    # earns credits, if they have not already.
+    from apps.wallets.services import reward_registration_quietly
+
+    reward_registration_quietly(member, proof="smsCode")
     return member, user

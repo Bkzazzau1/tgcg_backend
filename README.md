@@ -43,7 +43,8 @@ apps/announcements/ news for members, addressed to an area
 apps/tracking/     agent GPS: check-ins, on-duty live location, coverage
 apps/field/        incidents, field reports, evidence uploads, incident audit trail
 apps/results/      parties, elections, result submissions, integrity checks, collation
-apps/wallets/      members' wallets: payments with a second approver, payout accounts
+apps/wallets/      members' wallets: payments with a second approver, payout accounts,
+                   credits for registering members, withdrawals through Paystack
 apps/projects/     scheduled field work (elections, assignments): who takes part, where
 apps/messaging/    bulk SMS, WhatsApp and app notifications; saved lists; the inbox
 ```
@@ -136,9 +137,14 @@ apps/messaging/    bulk SMS, WhatsApp and app notifications; saved lists; the in
 | POST | `/api/v1/mapping/pins/{id}/accept/` | Resolve a conflict with this pin |
 | GET | `/api/v1/mapping/progress/?level=&code=` | Mapped, confirmed, conflict and problem counts, with a child breakdown |
 | GET | `/api/v1/collation/?election=...&level=...&code=...` | Unofficial totals from verified results, with a child breakdown |
-| GET | `/api/v1/me/wallet/` | Member home: the wallet (what TGCG owes, its history, the payout account). `has_wallet` only for a verified member; `account_name` is always the member's name |
+| GET | `/api/v1/me/wallet/` | Member home: the wallet (the naira TGCG owes, `credits` and their `credits_worth` today, the `rate`, its history, the payout account). `has_wallet` only for a verified member; `account_name` is always the member's name |
 | PUT | `/api/v1/me/wallet/bank-account/` | `{"bank", "account_number"}` (bank from `/wallets/banks/`, 10 digits). The account name cannot be sent |
-| GET | `/api/v1/wallets/banks/` | Banks a wallet can be paid into |
+| POST | `/api/v1/me/wallet/convert/` | `{"credits"}`: converts them to naira at today's rate; returns the wallet. Verified members only |
+| GET, POST | `/api/v1/me/wallet/withdrawals/` | The member's withdrawals. POST `{"amount"}` (naira) takes it out of the wallet at once, to be paid into the payout account once approved; one at a time. `.../{id}/cancel/` until approved |
+| GET | `/api/v1/wallets/banks/` | Banks a wallet can be paid into; `payable`: withdrawals can be paid into it |
+| GET, POST | `/api/v1/wallets/credit-rates/` | `{"current", "history"}` (`viewWallets` or `manageCreditRates`). POST `{"credits_per_registration", "naira_per_credit", "min_withdrawal", "reason"}` with `manageCreditRates` (National Administrators) |
+| GET | `/api/v1/withdrawals/` | Withdrawals in your area (`viewWallets` or `approveWithdrawals`), the account number masked. `.../{id}/approve/` (paid through Paystack at once) or `reject/` (reason required) by someone else with `approveWithdrawals` |
+| POST | `/api/v1/paystack/webhook/` | Transfer outcomes Paystack posts, signed with the secret key |
 | GET | `/api/v1/wallets/{membership_number}/` | `viewWallets`: a member's wallet in your area, the account number masked |
 | GET, POST | `/api/v1/wallet-payments/` | Payments in your area (`viewWallets`, `creditWallets` or `approveWalletCredits`). POST `{"member", "amount" (naira), "purpose"}` with `creditWallets`; `.../{id}/approve/` or `reject/` (reason required) by another person with `approveWalletCredits`; `cancel/` by the requester |
 
@@ -805,10 +811,51 @@ TGCG credits it; members do not deposit, and the money stays in TGCG's bank.
 - The member names their payout account: a bank and a 10-digit account
   number. The account name is always the member's name from their PVC; it
   is not stored and cannot be sent. One account belongs to one member.
-- Withdrawals wait for a bank API, which will pay out and confirm that the
-  bank's name for the account matches the member's.
 - Every request, decision and account change is audited, with only the last
   four digits of the account number.
+
+**Credits for registering members** (decided on 23 October 2026). A wallet
+holds credits beside the naira.
+
+- **Earning:** whoever registered a member at `POST /me/registered/` earns
+  credits once, when that member first signs in. Other registrations
+  (self-registration, coordinators in person, imports) earn nothing, nor
+  does a staff account with no membership.
+- **Which sign-in:** `CREDITS_EARNED_ON` decides. `signIn` (for now, while
+  SMS is not working) counts any first sign-in, including with the
+  phone-number password the registrar knows, so a registrar can earn for a
+  made-up number. Set `smsCode` once SMS works: then only setting a PIN with
+  an SMS code (`/register/pin-code/`, `/register/pin/`) counts, which proves
+  the member holds the phone. The app should send members still on their
+  phone-number password to that screen.
+- **Rates:** a National Administrator (`manageCreditRates`, protected) sets
+  the credits per registration, the naira a credit is worth and the smallest
+  withdrawal, with a reason, at `/wallets/credit-rates/`. Until then: 1
+  credit per registration, ₦100 a credit, ₦1,000. New rates apply from then
+  on; 0 credits per registration pauses the incentive.
+- **Converting:** credits are kept before the earner is verified; a verified
+  member converts them to naira at the rate of the day
+  (`POST /me/wallet/convert/`).
+
+**Withdrawals** are paid through Paystack.
+
+- A verified member asks to withdraw at least the minimum, at most their
+  balance, into their payout account. The amount leaves the wallet at once,
+  and comes back as a new entry if the withdrawal is cancelled, rejected or
+  not paid. One withdrawal at a time.
+- A different person holding `approveWithdrawals` for the member's area
+  approves it (or rejects it, with a reason). The server then asks the bank,
+  through Paystack, whose name the account is in, and sends the money only
+  if it is the member's: at least two words of their name, in any order. A
+  name that does not match fails the withdrawal and returns the money.
+- Paystack posts the outcome to `/api/v1/paystack/webhook/` (paid, failed,
+  or reversed, which returns the money). `manage.py check_withdrawals`, run
+  every 15 minutes, asks Paystack about any still being paid.
+- Setting up: `PAYSTACK_SECRET_KEY` in `.env`; the webhook URL in the
+  Paystack dashboard; OTP for transfers turned off there; TGCG's Paystack
+  balance funded. Without a key, members can ask but nothing is approved.
+- Paystack pays every bank on the list except LAPO and AB Microfinance Bank
+  (`payable` in `/wallets/banks/`); their account holders choose another.
 
 ## Quality checks
 

@@ -64,6 +64,8 @@ router.register("meetings", MeetingViewSet, basename="meeting")
 router.register("forum/posts", forum.PostViewSet, basename="forum-post")
 router.register("forum/replies", forum.ReplyViewSet, basename="forum-reply")
 router.register("wallet-payments", wallets.PaymentViewSet, basename="wallet-payment")
+router.register("withdrawals", wallets.WithdrawalViewSet, basename="withdrawal")
+router.register("me/wallet/withdrawals", wallets.MyWithdrawalViewSet, basename="my-withdrawal")
 router.register("projects", projects.ProjectViewSet, basename="project")
 router.register("broadcasts", messaging.BroadcastViewSet, basename="broadcast")
 router.register("message-lists", messaging.MessageListViewSet, basename="message-list")
@@ -101,6 +103,8 @@ api_v1 = [
     path("forum/settings/", forum.ForumSettingsView.as_view(), name="forum-settings"),
     path("forum/assignments/", forum.AssignmentTagsView.as_view(), name="forum-assignments"),
     path("wallets/banks/", wallets.BanksView.as_view(), name="wallet-banks"),
+    path("wallets/credit-rates/", wallets.CreditRatesView.as_view(), name="credit-rates"),
+    path("paystack/webhook/", wallets.PaystackWebhookView.as_view(), name="paystack-webhook"),
     path(
         "wallets/<str:membership_number>/",
         wallets.MemberWalletView.as_view(),
@@ -213,6 +217,7 @@ api_v1 = [
         wallets.MyBankAccountView.as_view(),
         name="my-wallet-bank-account",
     ),
+    path("me/wallet/convert/", wallets.ConvertCreditsView.as_view(), name="my-wallet-convert"),
     path("me/projects/", projects.MyProjectsView.as_view(), name="my-projects"),
     path("me/messages/", messaging.MyMessagesView.as_view(), name="my-messages"),
     path("me/devices/", messaging.MyDevicesView.as_view(), name="my-devices"),

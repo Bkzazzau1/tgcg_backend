@@ -69,6 +69,10 @@ class Capability(models.TextChoices):
     VIEW_WALLETS = "viewWallets"
     CREDIT_WALLETS = "creditWallets"
     APPROVE_WALLET_CREDITS = "approveWalletCredits"
+    # Withdrawals to members' bank accounts, paid through Paystack once a
+    # second person approves; and the credit rates, set by an administrator.
+    APPROVE_WITHDRAWALS = "approveWithdrawals"
+    MANAGE_CREDIT_RATES = "manageCreditRates"
     # Projects (apps.projects): scheduled periods of field work, such as an
     # election. Coordinators assign people to them.
     ASSIGN_PROJECT_PARTICIPANTS = "assignProjectParticipants"

@@ -3,40 +3,11 @@
 import pytest
 
 from apps.access.models import AuditEvent
-from apps.access.tests.test_access import KD, KN, appoint, client_for, custom_role, member_account
+from apps.access.tests.test_access import client_for, member_account
 from apps.accounts.models import User
-from apps.core.choices import Role
-from apps.core.permissions import Capability
 from apps.wallets.models import Wallet, WalletEntry
-from conftest import PASSWORD
 
 pytestmark = pytest.mark.django_db
-C = Capability
-FINANCE = [C.VIEW_WALLETS, C.CREDIT_WALLETS, C.APPROVE_WALLET_CREDITS]
-
-
-@pytest.fixture
-def admin():
-    return User.objects.create_user(
-        "NA-1", PASSWORD, full_name="National Admin", role=Role.NATIONAL_ADMINISTRATOR
-    )
-
-
-@pytest.fixture
-def finance(admin):
-    """Finance officers: two in Kaduna, one in Kano."""
-    role = custom_role(admin, "Finance Officer", FINANCE)
-
-    def officer(phone, name, area):
-        member = member_account(phone, name=name)
-        assert appoint(admin, member, role, [area]).status_code == 201
-        return client_for(member.user)
-
-    return {
-        "kaduna": officer("08035550001", "Kaduna Finance One", KD),
-        "kaduna2": officer("08035550002", "Kaduna Finance Two", KD),
-        "kano": officer("08035550003", "Kano Finance", KN),
-    }
 
 
 def test_a_verified_member_names_the_account_their_wallet_is_paid_into():
@@ -46,7 +17,9 @@ def test_a_verified_member_names_the_account_their_wallet_is_paid_into():
     assert wallet["has_wallet"] is True and wallet["balance"] == "0.00"
     assert wallet["account_name"] == "Musa Bello" and wallet["bank_account"] is None
     banks = client.get("/api/v1/wallets/banks/").json()
-    assert {"code": "gtbank", "name": "Guaranty Trust Bank (GTBank)"} in banks
+    assert {"code": "gtbank", "name": "Guaranty Trust Bank (GTBank)", "payable": True} in banks
+    # Paystack pays into nearly every bank on the list, not all.
+    assert {"code": "lapo", "name": "LAPO Microfinance Bank", "payable": False} in banks
 
     # The account name is the member's own and cannot be sent.
     account = {"bank": "gtbank", "account_number": "0123 456 789", "account_name": "Someone Else"}
@@ -57,6 +30,7 @@ def test_a_verified_member_names_the_account_their_wallet_is_paid_into():
         "bank": "gtbank",
         "bank_name": "Guaranty Trust Bank (GTBank)",
         "account_number": "0123456789",
+        "payable": True,
     }
     event = AuditEvent.objects.get(action="wallet.bankAccountSet")
     assert event.changes == {"bank": "gtbank", "account": "******6789", "replaced": False}

@@ -8,6 +8,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -159,7 +160,8 @@ SIMPLE_JWT = {
         days=env.int("JWT_REFRESH_DAYS", default=7),
     ),
     "ROTATE_REFRESH_TOKENS": True,
-    "UPDATE_LAST_LOGIN": True,
+    # LoginSerializer records the sign-in itself, to notice a member's first.
+    "UPDATE_LAST_LOGIN": False,
 }
 
 SPECTACULAR_SETTINGS = {
@@ -194,6 +196,7 @@ SPECTACULAR_SETTINGS = {
         "ForumAttachmentKind": "apps.forum.models.Attachment.Kind",
         "WalletPaymentStatus": "apps.wallets.models.Payment.Status",
         "WalletEntryKind": "apps.wallets.models.WalletEntry.Kind",
+        "WithdrawalStatus": "apps.wallets.models.Withdrawal.Status",
         "ParticipationStatus": "apps.projects.models.ParticipationStatus",
         "MessageChannel": "apps.messaging.models.Channel",
         "BroadcastStatus": "apps.messaging.models.Broadcast.Status",
@@ -263,6 +266,19 @@ FIREBASE_SERVICE_ACCOUNT_FILE = env("FIREBASE_SERVICE_ACCOUNT_FILE", default="")
 
 # --- Member registration ---------------------------------------------------------
 MEMBER_PHOTO_MAX_MB = env.int("MEMBER_PHOTO_MAX_MB", default=8)
+
+# --- Wallets (apps.wallets) ----------------------------------------------------------
+# When the person who registered a member (POST /me/registered/) earns credits:
+# "signIn" at the member's first sign-in of any kind, including with the
+# phone-number password the registrar knows (decided on 23 October 2026, until
+# SMS works); "smsCode" only once the member proves the phone with an SMS code.
+CREDITS_EARNED_ON = env("CREDITS_EARNED_ON", default="signIn")
+if CREDITS_EARNED_ON not in ("signIn", "smsCode"):
+    raise ImproperlyConfigured('CREDITS_EARNED_ON must be "signIn" or "smsCode".')
+# Withdrawals are paid through Paystack. Without a key, members can ask for
+# withdrawals but none can be approved. See apps/wallets/paystack.py.
+PAYSTACK_SECRET_KEY = env("PAYSTACK_SECRET_KEY", default="")
+PAYSTACK_BASE_URL = env("PAYSTACK_BASE_URL", default="https://api.paystack.co")
 
 # --- Reading PVC photos for browsers (see apps/membership/pvc_reading.py) ----------
 # Google Cloud Vision when a key is set (the photo goes to Google); otherwise

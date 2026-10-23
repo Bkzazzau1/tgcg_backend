@@ -8,17 +8,19 @@ from apps.core.permissions import Capability
 from apps.geography.scope import scope_contains
 
 from .banks import BANK_CHOICES, BANKS
-from .models import KOBO, MAX_PAYMENT_KOBO, Payment, WalletEntry, masked
-from .services import has_wallet, naira
+from .models import KOBO, MAX_PAYMENT_KOBO, CreditRate, Payment, WalletEntry, Withdrawal, masked
+from .services import current_rate, has_wallet, naira, payable
 
 C = Capability
 # How much history a wallet shows at once.
 ENTRIES_SHOWN = 100
+NAIRA = {"max_digits": 10, "decimal_places": 2, "min_value": Decimal("0.01")}
 
 
 class BankSerializer(serializers.Serializer):
     code = serializers.CharField()
     name = serializers.CharField()
+    payable = serializers.BooleanField(help_text="Withdrawals can be paid into this bank.")
 
 
 class BankAccountSerializer(serializers.Serializer):
@@ -27,6 +29,9 @@ class BankAccountSerializer(serializers.Serializer):
     bank = serializers.CharField()
     bank_name = serializers.SerializerMethodField()
     account_number = serializers.SerializerMethodField()
+    payable = serializers.SerializerMethodField(
+        help_text="Withdrawals can be paid into this account's bank."
+    )
 
     def get_bank_name(self, account) -> str:
         return BANKS.get(account.bank, account.bank)
@@ -36,21 +41,75 @@ class BankAccountSerializer(serializers.Serializer):
             return masked(account.account_number)
         return account.account_number
 
+    def get_payable(self, account) -> bool:
+        return payable(account.bank)
+
 
 class BankAccountInputSerializer(serializers.Serializer):
     bank = serializers.ChoiceField(choices=BANK_CHOICES)
     account_number = serializers.CharField(max_length=20)
 
 
+class CreditRateSerializer(serializers.ModelSerializer):
+    """What registering a member earns, what a credit is worth, and the
+    smallest withdrawal. `set_by` and `created_at` are null for the starting
+    rates, before an administrator sets any."""
+
+    naira_per_credit = serializers.SerializerMethodField()
+    min_withdrawal = serializers.SerializerMethodField()
+    set_by = serializers.CharField(source="set_by.access_id", default=None, read_only=True)
+    created_at = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CreditRate
+        fields = [
+            "credits_per_registration",
+            "naira_per_credit",
+            "min_withdrawal",
+            "reason",
+            "set_by",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    def get_naira_per_credit(self, rate) -> str:
+        return naira(rate.kobo_per_credit)
+
+    def get_min_withdrawal(self, rate) -> str:
+        return naira(rate.min_withdrawal_kobo)
+
+    @extend_schema_field(serializers.DateTimeField(allow_null=True))
+    def get_created_at(self, rate):
+        return serializers.DateTimeField().to_representation(rate.created_at) if rate.pk else None
+
+
+class CreditRateInputSerializer(serializers.Serializer):
+    credits_per_registration = serializers.IntegerField(
+        min_value=0, max_value=1000, help_text="0 pauses the incentive."
+    )
+    naira_per_credit = serializers.DecimalField(**NAIRA, max_value=Decimal(MAX_PAYMENT_KOBO) / KOBO)
+    min_withdrawal = serializers.DecimalField(**NAIRA, max_value=Decimal(MAX_PAYMENT_KOBO) / KOBO)
+    reason = serializers.CharField(max_length=1000)
+
+
 class WalletEntrySerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(source="uuid", read_only=True)
-    amount = serializers.SerializerMethodField()
+    amount = serializers.SerializerMethodField(help_text="Naira in (positive) or out (negative).")
     balance_after = serializers.SerializerMethodField()
-    purpose = serializers.CharField(source="payment.purpose", default="", read_only=True)
+    purpose = serializers.SerializerMethodField()
 
     class Meta:
         model = WalletEntry
-        fields = ["id", "kind", "amount", "balance_after", "purpose", "created_at"]
+        fields = [
+            "id",
+            "kind",
+            "amount",
+            "balance_after",
+            "credits",
+            "credits_after",
+            "purpose",
+            "created_at",
+        ]
         read_only_fields = fields
 
     def get_amount(self, entry) -> str:
@@ -59,24 +118,68 @@ class WalletEntrySerializer(serializers.ModelSerializer):
     def get_balance_after(self, entry) -> str:
         return naira(entry.balance_after_kobo)
 
+    def get_purpose(self, entry) -> str:
+        K = WalletEntry.Kind
+        if entry.kind == K.CREDIT:
+            return entry.payment.purpose if entry.payment else ""
+        if entry.kind == K.REWARD:
+            registered = entry.registered_member
+            # Staff see the membership number; the member, the name they registered.
+            masked_view = self.context.get("masked")
+            shown = registered.membership_number if masked_view else registered.full_name
+            return f"Registered {shown}"
+        if entry.kind == K.CONVERSION:
+            return f"Converted {-entry.credits} credits"
+        withdrawal = entry.withdrawal
+        if entry.kind == K.WITHDRAWAL:
+            bank = BANKS.get(withdrawal.bank, withdrawal.bank)
+            return f"Withdrawal to {bank} {masked(withdrawal.account_number)}"
+        why = withdrawal.failure_reason or withdrawal.decision_reason
+        return f"Withdrawal {withdrawal.get_status_display().lower()}" + (f": {why}" if why else "")
+
 
 class WalletSerializer(serializers.Serializer):
-    """A member's wallet: the balance TGCG owes them, its history, and the
-    account it is paid into, in the name on their PVC."""
+    """A member's wallet: the naira TGCG owes them, their credits and what
+    the credits are worth today, its history, and the account it is paid
+    into, in the name on their PVC."""
 
     membership_number = serializers.CharField()
-    has_wallet = serializers.SerializerMethodField()
+    has_wallet = serializers.SerializerMethodField(
+        help_text="Verified: the member may convert credits and withdraw."
+    )
     account_name = serializers.CharField(source="full_name")
     balance = serializers.SerializerMethodField()
+    credits = serializers.SerializerMethodField()
+    credits_worth = serializers.SerializerMethodField(help_text="Naira, at today's rate.")
+    rate = serializers.SerializerMethodField()
     bank_account = serializers.SerializerMethodField()
     entries = serializers.SerializerMethodField()
 
     def get_has_wallet(self, member) -> bool:
         return has_wallet(member)
 
+    def _wallet(self, member):
+        return getattr(member, "wallet", None)
+
+    def _rate(self):
+        if "rate" not in self.context:
+            self.context["rate"] = current_rate()
+        return self.context["rate"]
+
     def get_balance(self, member) -> str:
-        wallet = getattr(member, "wallet", None)
+        wallet = self._wallet(member)
         return naira(wallet.balance_kobo if wallet else 0)
+
+    def get_credits(self, member) -> int:
+        wallet = self._wallet(member)
+        return wallet.credits if wallet else 0
+
+    def get_credits_worth(self, member) -> str:
+        return naira(self.get_credits(member) * self._rate().kobo_per_credit)
+
+    @extend_schema_field(CreditRateSerializer)
+    def get_rate(self, member):
+        return CreditRateSerializer(self._rate()).data
 
     @extend_schema_field(BankAccountSerializer(allow_null=True))
     def get_bank_account(self, member):
@@ -85,11 +188,11 @@ class WalletSerializer(serializers.Serializer):
 
     @extend_schema_field(WalletEntrySerializer(many=True))
     def get_entries(self, member):
-        wallet = getattr(member, "wallet", None)
+        wallet = self._wallet(member)
         if wallet is None:
             return []
-        entries = wallet.entries.select_related("payment")[:ENTRIES_SHOWN]
-        return WalletEntrySerializer(entries, many=True).data
+        entries = wallet.entries.select_related("payment", "registered_member", "withdrawal")
+        return WalletEntrySerializer(entries[:ENTRIES_SHOWN], many=True, context=self.context).data
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -150,14 +253,91 @@ class PaymentSerializer(serializers.ModelSerializer):
 class PaymentCreateSerializer(serializers.Serializer):
     member = serializers.CharField(max_length=16, help_text="Membership number.")
     amount = serializers.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        min_value=Decimal("0.01"),
-        max_value=Decimal(MAX_PAYMENT_KOBO) / KOBO,
-        help_text="Naira.",
+        **NAIRA, max_value=Decimal(MAX_PAYMENT_KOBO) / KOBO, help_text="Naira."
     )
     purpose = serializers.CharField(max_length=200)
 
 
 class PaymentDecisionSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, max_length=1000)
+
+
+class ConvertCreditsSerializer(serializers.Serializer):
+    credits = serializers.IntegerField(min_value=1)
+
+
+class WithdrawalCreateSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(
+        **NAIRA, max_value=Decimal(MAX_PAYMENT_KOBO) / KOBO, help_text="Naira."
+    )
+
+
+class WithdrawalSerializer(serializers.ModelSerializer):
+    """A withdrawal. Staff see only the last four digits of the account.
+    `bank_account_name` is the bank's own name for the account, once asked;
+    `failure_reason` says why one was not paid."""
+
+    id = serializers.UUIDField(source="uuid", read_only=True)
+    member = serializers.CharField(source="member.membership_number", read_only=True)
+    member_name = serializers.CharField(source="member.full_name", read_only=True)
+    amount = serializers.SerializerMethodField()
+    bank_name = serializers.SerializerMethodField()
+    account_number = serializers.SerializerMethodField()
+    decided_by = serializers.CharField(source="decided_by.access_id", default=None, read_only=True)
+    can_decide = serializers.SerializerMethodField()
+    can_cancel = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Withdrawal
+        fields = [
+            "id",
+            "member",
+            "member_name",
+            "amount",
+            "bank",
+            "bank_name",
+            "account_number",
+            "status",
+            "created_at",
+            "decided_by",
+            "decided_at",
+            "decision_reason",
+            "bank_account_name",
+            "failure_reason",
+            "finished_at",
+            "can_decide",
+            "can_cancel",
+        ]
+        read_only_fields = fields
+
+    def _user(self):
+        request = self.context.get("request")
+        return request.user if request else None
+
+    def get_amount(self, withdrawal) -> str:
+        return naira(withdrawal.amount_kobo)
+
+    def get_bank_name(self, withdrawal) -> str:
+        return BANKS.get(withdrawal.bank, withdrawal.bank)
+
+    def get_account_number(self, withdrawal) -> str:
+        if self.context.get("masked"):
+            return masked(withdrawal.account_number)
+        return withdrawal.account_number
+
+    def get_can_decide(self, withdrawal) -> bool:
+        user = self._user()
+        return bool(
+            user
+            and withdrawal.status == Withdrawal.Status.PENDING
+            and withdrawal.member.user_id != user.pk
+            and scope_contains(user, withdrawal.member, permission=C.APPROVE_WITHDRAWALS)
+        )
+
+    def get_can_cancel(self, withdrawal) -> bool:
+        user = self._user()
+        return bool(
+            user
+            and withdrawal.status == Withdrawal.Status.PENDING
+            and withdrawal.member.user_id == user.pk
+        )

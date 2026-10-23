@@ -1,3 +1,4 @@
+from django.contrib.auth.models import update_last_login
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -72,6 +73,14 @@ class LoginSerializer(TokenObtainPairSerializer):
 
     def validate(self, attrs):
         data = super().validate(attrs)
+        first = self.user.last_login is None
+        update_last_login(None, self.user)
+        member = getattr(self.user, "member", None)
+        if first and member is not None:
+            # A member's first sign-in earns credits for whoever registered them.
+            from apps.wallets.services import reward_registration_quietly
+
+            reward_registration_quietly(member, proof="signIn")
         data["user"] = UserProfileSerializer(self.user).data
         return data
 

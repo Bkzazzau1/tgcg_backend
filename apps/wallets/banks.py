@@ -1,9 +1,8 @@
 """The banks a member's wallet can be paid into.
 
 Commercial and non-interest banks licensed by the CBN, and the payment
-service and microfinance banks members use most. A bank is named by a slug:
-the bank API, once connected, maps it to its own code and supplies the full
-list.
+service and microfinance banks members use most. A bank is named by a slug,
+which PAYSTACK_CODES maps to the code Paystack pays it by.
 """
 
 BANKS = {
@@ -52,3 +51,51 @@ BANKS = {
 }
 
 BANK_CHOICES = sorted(BANKS.items(), key=lambda bank: bank[1].casefold())
+
+# Paystack's code for each bank, from its list of Nigerian banks
+# (GET https://api.paystack.co/bank?country=nigeria, 23 October 2026). Paystack
+# does not pay LAPO or AB Microfinance Bank: members with those accounts
+# choose another before withdrawing.
+PAYSTACK_CODES = {
+    "access": "044",
+    "citibank": "023",
+    "ecobank": "050",
+    "fidelity": "070",
+    "first-bank": "011",
+    "fcmb": "214",
+    "globus": "00103",
+    "gtbank": "058",
+    "jaiz": "301",
+    "keystone": "082",
+    "lotus": "303",
+    "optimus": "107",
+    "parallex": "104",
+    "polaris": "076",
+    "premiumtrust": "105",
+    "providus": "101",
+    "signature": "106",
+    "stanbic-ibtc": "221",
+    "standard-chartered": "068",
+    "sterling": "232",
+    "suntrust": "100",
+    "taj": "302",
+    "titan-trust": "102",
+    "union": "032",
+    "uba": "033",
+    "unity": "215",
+    "wema": "035",
+    "zenith": "057",
+    "opay": "999992",
+    "palmpay": "999991",
+    "moniepoint": "50515",
+    "kuda": "50211",
+    "fairmoney": "51318",
+    "carbon": "565",
+    "vfd": "566",
+    "momo-psb": "120003",
+    "9psb": "120001",
+    "smartcash-psb": "120004",
+    "hope-psb": "120002",
+    "accion": "602",
+}
+assert set(PAYSTACK_CODES) <= set(BANKS)

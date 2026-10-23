@@ -168,6 +168,19 @@ PERMISSIONS: dict[str, PermissionInfo] = {
         _p(C.CREDIT_WALLETS, M.WALLETS, "create", "Request payments to members' wallets"),
         _p(C.APPROVE_WALLET_CREDITS, M.WALLETS, "approve", "Approve payments to members' wallets"),
         _p(
+            C.APPROVE_WITHDRAWALS,
+            M.WALLETS,
+            "approve",
+            "Approve withdrawals to members' bank accounts",
+        ),
+        _p(
+            C.MANAGE_CREDIT_RATES,
+            M.WALLETS,
+            "manage",
+            "Set what a registration earns and what a credit is worth",
+            protected=True,
+        ),
+        _p(
             C.MANAGE_PROJECTS,
             M.PROJECTS,
             "manage",
