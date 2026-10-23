@@ -3,14 +3,16 @@ member at /me/registered/ earns them at that member's first sign-in, and
 converts them to naira at the rate a National Administrator sets."""
 
 import re
+from unittest.mock import patch
 
 import pytest
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
 
 from apps.access.models import AuditEvent
 from apps.access.tests.test_access import client_for, member_account
 from apps.membership.models import Member
-from apps.wallets.models import WalletEntry
+from apps.wallets.models import Wallet, WalletEntry
 from conftest import PASSWORD
 
 pytestmark = pytest.mark.django_db
@@ -207,3 +209,52 @@ def test_the_member_converts_credits_to_naira_at_the_days_rate(registrant):
         "amount": "200.00",
         "balance": "200.00",
     }
+
+
+
+@pytest.mark.django_db(transaction=True, serialized_rollback=True)
+def test_a_reward_failure_rolls_back_sign_in_and_the_retry_earns_once(registrant):
+    number = register(client_for(registrant.user), "08051234591")["membership_number"]
+    member = Member.objects.select_related("user").get(membership_number=number)
+    body = {"username": "08051234591", "password": "08051234591"}
+    before_tokens = OutstandingToken.objects.filter(user=member.user).count()
+    with patch("apps.wallets.services._audit", side_effect=RuntimeError("Synthetic audit failure")):
+        failed = APIClient().post("/api/v1/auth/login/", body, format="json")
+    assert failed.status_code == 503
+    assert "access" not in failed.json() and "refresh" not in failed.json()
+    member.user.refresh_from_db()
+    assert member.user.last_login is None
+    assert not Wallet.objects.filter(member=registrant).exists()
+    assert not WalletEntry.objects.filter(registered_member=member).exists()
+    assert OutstandingToken.objects.filter(user=member.user).count() == before_tokens
+
+    retried = APIClient().post("/api/v1/auth/login/", body, format="json")
+    assert retried.status_code == 200, retried.content
+    assert "access" in retried.json() and "refresh" in retried.json()
+    member.user.refresh_from_db()
+    assert member.user.last_login is not None
+    assert wallet(registrant)["credits"] == 1
+    sign_in("08051234591")
+    assert wallet(registrant)["credits"] == 1
+    assert WalletEntry.objects.filter(registered_member=member).count() == 1
+
+
+def test_a_paused_first_sign_in_does_not_earn_after_the_rate_resumes(registrant, admin):
+    settings = {
+        "credits_per_registration": 0,
+        "naira_per_credit": "100",
+        "min_withdrawal": "1000",
+        "reason": "Synthetic pause",
+    }
+    assert client_for(admin).post(RATES, settings, format="json").status_code == 201
+    number = register(client_for(registrant.user), "08051234592")["membership_number"]
+    sign_in("08051234592")
+    member = Member.objects.select_related("user").get(membership_number=number)
+    assert member.user.last_login is not None
+    assert wallet(registrant)["credits"] == 0
+
+    resumed = {**settings, "credits_per_registration": 1, "reason": "Synthetic resume"}
+    assert client_for(admin).post(RATES, resumed, format="json").status_code == 201
+    sign_in("08051234592")
+    assert wallet(registrant)["credits"] == 0
+    assert not WalletEntry.objects.filter(registered_member=member).exists()

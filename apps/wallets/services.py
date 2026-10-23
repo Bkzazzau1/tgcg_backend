@@ -392,16 +392,40 @@ def names_match(bank_name: str, member_name: str) -> bool:
     of the member's name (one if it has only one) among the bank's, in any
     order, a misread letter allowed. Banks order names their own way and
     may leave out a middle name."""
-    wanted = name_words(member_name)
-    held = set(name_words(bank_name))
-    found = sum(
-        any(
-            word == other or difflib.SequenceMatcher(None, word, other).ratio() >= NAME_LIKENESS
-            for other in held
-        )
-        for word in wanted
-    )
-    return bool(wanted) and found >= min(2, len(wanted))
+    words = name_words(member_name)
+    wanted = list(dict.fromkeys(words))
+    held = list(dict.fromkeys(name_words(bank_name)))
+    required = min(2, len(words))
+    if not required or len(wanted) < required or len(held) < required:
+        return False
+
+    # A bank word can prove only one member word. Reassign an earlier fuzzy
+    # match when needed, so matching order does not reject a valid name.
+    matched = {}
+
+    def match(word, seen):
+        for index, other in enumerate(held):
+            if index in seen:
+                continue
+            alike = word == other or (
+                difflib.SequenceMatcher(None, word, other).ratio() >= NAME_LIKENESS
+            )
+            if not alike:
+                continue
+            seen.add(index)
+            previous = matched.get(index)
+            if previous is None or match(previous, seen):
+                matched[index] = word
+                return True
+        return False
+
+    found = 0
+    for word in wanted:
+        if match(word, set()):
+            found += 1
+            if found >= required:
+                return True
+    return False
 
 
 @transaction.atomic

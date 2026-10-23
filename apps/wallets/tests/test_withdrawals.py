@@ -304,6 +304,41 @@ def test_the_banks_name_for_the_account_is_the_members():
     assert not names_match("IBRAHIM MUSA", "Ibrahim Bashir Yahaya")
     assert not names_match("MUSA BELLO", "Hauwa Sani")
     assert not names_match("", "Hauwa Sani")
+    # Distinct words, including reassignment of an earlier fuzzy match.
+    assert names_match("MUSA MUSSA", "Musa Musaab")
+    assert names_match("SANI", "Sani")
+    assert not names_match("HASSAN MUSA", "Hassan Hassani")
+    assert not names_match("BELLO MUSA", "Bello Bello")
+    assert not names_match("HASSAN HASSAN", "Hassan Hassani")
+
+
+@pytest.mark.parametrize(
+    ("member_name", "bank_name"),
+    [
+        ("Hassan Hassani", "HASSAN MUSA"),
+        ("Bello Bello", "BELLO MUSA"),
+        ("Hassan Hassani", "HASSAN HASSAN"),
+    ],
+)
+def test_one_bank_word_cannot_authorize_a_two_word_members_payout(
+    payee, finance, bank, member_name, bank_name
+):
+    payee.full_name = member_name
+    payee.save(update_fields=["full_name"])
+    bank.names[ACCOUNT] = bank_name
+    asked = withdraw(payee).json()
+
+    response = finance["kaduna"].post(
+        f"{STAFF}{asked['id']}/approve/", {}, format="json"
+    )
+    assert response.status_code == 200, response.content
+    assert response.json()["status"] == "failed"
+    assert bank.transfers == []
+    assert balance(payee) == "5000.00"
+    withdrawal = Withdrawal.objects.get(uuid=asked["id"])
+    assert withdrawal.status == "failed"
+    assert withdrawal.entries.filter(kind="withdrawal").count() == 1
+    assert withdrawal.entries.filter(kind="refund").count() == 1
 
 
 def test_the_paystack_client_sends_the_secret_key_and_reads_the_answer(settings, monkeypatch):
