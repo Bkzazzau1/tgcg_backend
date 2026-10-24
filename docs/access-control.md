@@ -481,12 +481,16 @@ and Agents on the Ground through `viewLiveOperations` (the agent check-in
 list also accepts `confirmAgentLocation`, which they hold). The polling unit
 executive roles imported that day lost it too (`remove_role_permission`).
 
-The forum (15 October 2026) is for everyone with a role. Agents and
-observers now start discussions too (`createDiscussionThread`), since
-anyone with a role at a polling unit may post. A post made at a polling unit
-waits for the ward coordinator, who holds the new `moderateDiscussion` for
-their ward (approve, refuse, hide), while the forum's one approval switch is
-on; only a National Administrator changes it.
+The forum (15 October 2026) was for everyone with a role, with polling
+unit posts waiting for the ward coordinator. Since 24 October 2026 it is
+the Social Forum, for every member: anyone with an active membership (or a
+role) posts, comments, likes and reports, and posts appear at once. Editors
+are everyone holding a role or position, and hide or restore any post or
+comment anywhere; nobody edits another person's words. The forum no longer
+checks the discussion permissions (`viewDiscussionRoom`,
+`createDiscussionThread`, `postDiscussionReply`, `moderateDiscussion`); roles
+keep them, and the app still uses `viewDiscussionRoom` to show the forum in
+the operations app.
 
 Field duty (15 October 2026): checking in at a polling unit and sharing
 location on duty now go by the `fieldDuty` permission instead of the agent

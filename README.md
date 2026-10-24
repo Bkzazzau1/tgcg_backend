@@ -719,28 +719,40 @@ pin each unit on site before election day:
 - **Progress:** `/mapping/progress/` reports what share of each area is
   mapped.
 
-## Forum
+## Social Forum
 
-The discussion forum is for everyone with a role (`viewDiscussionRoom`),
-never ordinary members. Published posts are seen across Nigeria.
+The Social Forum is for every member (decided on 24 October 2026; before,
+the discussion forum was for role holders only). Every member with an
+active membership, and every account with a role, posts, comments, answers
+comments, likes and reports; posts and comments appear at once, from all of
+Nigeria. A suspended or deactivated membership keeps a person out.
+
+**Editors** are everyone holding a role or position (a role on their
+account, or an appointment, which needs a checked identity). They hide any
+post or comment anywhere, with a reason, and restore it; nobody changes
+another person's words. The author still sees what was hidden, with the
+reason.
 
 | Method | Path | Notes |
 |---|---|---|
-| GET | `/api/v1/forum/posts/` | The feed, newest first. `?show=mine` (own posts, any status), `?show=review` (posts waiting for you), `?assignment=` or `?assignments=true`, scope codes |
-| POST | `/api/v1/forum/posts/` | Multipart: `body`, `assignment` (a tag), `files` (repeat for each picture or video), optional `level`/`code`, `client_id` |
-| DELETE | `/api/v1/forum/posts/{id}/` | Its author deletes it: words and files go |
-| POST | `/api/v1/forum/posts/{id}/approve/`, `reject/`, `hide/` | Moderators (`moderateDiscussion`) of the post's area; `reject` and `hide` need a `reason` |
-| GET, POST | `/api/v1/forum/posts/{id}/replies/` | Replies, oldest first; a new one appears at once |
-| POST, DELETE | `/api/v1/forum/replies/{id}/hide/`, `/api/v1/forum/replies/{id}/` | A moderator hides a reply (with a reason); its author deletes it |
+| GET | `/api/v1/forum/posts/` | The feed, newest first. `?show=mine` (own posts, any status), `?show=hidden` (editors), `?assignment=` or `?assignments=true`, scope codes. Each post has `likes`, `liked`, `replies` and what this account may do (`can_edit`, `can_hide`, `can_restore`, `can_report`) |
+| POST | `/api/v1/forum/posts/` | Multipart: `body`, `assignment` (a tag), `files` (repeat for each picture or video), `client_id`. It is from the author's own area (`level`/`code` are ignored) |
+| PATCH, DELETE | `/api/v1/forum/posts/{id}/` | Its author edits `body` or `assignment` (`edited_at`; pictures and videos stay) or deletes it: words and files go |
+| POST, DELETE | `/api/v1/forum/posts/{id}/like/` | Like it, once, or take the like back: `{"liked", "likes"}` |
+| POST | `/api/v1/forum/posts/{id}/report/` | `{"reason"}`: report it to the editors (not one's own) |
+| POST | `/api/v1/forum/posts/{id}/hide/`, `restore/` | Editors; `hide` needs a `reason` and closes the post's open reports |
+| GET, POST | `/api/v1/forum/posts/{id}/replies/` | Comments, oldest first, each with `parent` (the comment it answers, or null); POST `{"body", "parent"}`. An answer to an answer joins the same comment |
+| PATCH, DELETE | `/api/v1/forum/replies/{id}/` | Its author edits or deletes a comment |
+| POST, DELETE | `/api/v1/forum/replies/{id}/like/` | Like a comment, or take it back |
+| POST | `/api/v1/forum/replies/{id}/report/`, `hide/`, `restore/` | As for posts |
+| GET | `/api/v1/forum/reports/` | Editors: open reports, newest first (`?status=closed` for the others); `.../{id}/dismiss/` closes one with nothing wrong |
+| GET | `/api/v1/forum/me/` | `takes_part` and `editor` for this account |
 | GET | `/api/v1/forum/attachments/{id}/` | A picture or video, for whoever sees its post |
-| GET, PATCH | `/api/v1/forum/settings/` | `approval_required`; only a National Administrator changes it |
+| GET | `/api/v1/forum/settings/` | Kept for older apps: `approval_required` is always false |
 | GET | `/api/v1/forum/assignments/` | Assignment tags on published posts, most recent first |
 
-- **Approval:** while `approval_required` is on (the default), a post made at
-  a polling unit waits for the coordinator of that ward. Ward coordinators
-  hold `moderateDiscussion` for their ward, and the National Administrator
-  holds every permission. Posts made at a ward or above, and every reply,
-  appear at once. Waiting posts stay waiting when approval is switched off.
+- **No approval:** the approval switch of the first forum is gone. Posts
+  that were still waiting were published by migration `forum.0002`.
 - **Assignments:** a post may name the job it shows ("Market rally"); posts
   with the same tag, in any case, are listed together.
 - **Files:** pictures (`.jpg`, `.jpeg`, `.png`, `.webp`, `.heic`) up to
@@ -750,8 +762,9 @@ never ordinary members. Published posts are seen across Nigeria.
   their type. They are stored under `forum/` in private storage and served
   only through the attachment endpoint. Nginx's `client_max_body_size` must
   allow a whole post (for example `110m` at the defaults).
-- **Record:** approvals, refusals, hidden posts and replies, deleted posts
-  and settings changes are in the audit log.
+- **Record:** edits (with the words before and after), hidden and restored
+  posts and comments, deleted posts, reports and dismissed reports are in
+  the audit log.
 
 ## Bulk messages
 

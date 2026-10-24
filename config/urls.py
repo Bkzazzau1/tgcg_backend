@@ -63,6 +63,7 @@ router.register("results", ResultViewSet, basename="result")
 router.register("meetings", MeetingViewSet, basename="meeting")
 router.register("forum/posts", forum.PostViewSet, basename="forum-post")
 router.register("forum/replies", forum.ReplyViewSet, basename="forum-reply")
+router.register("forum/reports", forum.ReportViewSet, basename="forum-report")
 router.register("wallet-payments", wallets.PaymentViewSet, basename="wallet-payment")
 router.register("withdrawals", wallets.WithdrawalViewSet, basename="withdrawal")
 router.register("me/wallet/withdrawals", wallets.MyWithdrawalViewSet, basename="my-withdrawal")
@@ -101,6 +102,7 @@ api_v1 = [
         name="forum-attachment",
     ),
     path("forum/settings/", forum.ForumSettingsView.as_view(), name="forum-settings"),
+    path("forum/me/", forum.ForumMeView.as_view(), name="forum-me"),
     path("forum/assignments/", forum.AssignmentTagsView.as_view(), name="forum-assignments"),
     path("wallets/banks/", wallets.BanksView.as_view(), name="wallet-banks"),
     path("wallets/credit-rates/", wallets.CreditRatesView.as_view(), name="credit-rates"),
