@@ -306,11 +306,14 @@ def set_credit_rate(
     return rate
 
 
-def reward_registration(member: Member, *, proof: str) -> WalletEntry | None:
+def reward_registration(
+    member: Member, *, proof: str, backfill: bool = False
+) -> WalletEntry | None:
     """The person who registered `member` at /me/registered/ earns credits,
     once. `proof` is how the member showed up: "signIn" (any first sign-in)
     or "smsCode" (they proved the phone with an SMS code). Under
-    CREDITS_EARNED_ON = "smsCode" only the second earns."""
+    CREDITS_EARNED_ON = "smsCode" only the second earns. `backfill`: credited
+    later by credit_past_registrations, for a sign-in before credits started."""
     if settings.CREDITS_EARNED_ON == "smsCode" and proof != "smsCode":
         return None
     if member.registration_channel != RegistrationChannel.REFERRED or not member.created_by_id:
@@ -337,6 +340,7 @@ def reward_registration(member: Member, *, proof: str) -> WalletEntry | None:
                 "credits_after": wallet.credits,
                 "registered": member.membership_number,
                 "proof": proof,
+                **({"backfill": True} if backfill else {}),
             },
         )
     return entry

@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -13,11 +13,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core.permissions import Capability, requires
-from apps.geography.scope import any_of, within_scope_q
+from apps.geography.scope import SCOPE_FIELDS, any_of, within_scope_q
 from apps.membership.models import Member
 from apps.membership.registration_views import IsMember
 
-from . import paystack, services
+from . import paystack, registrars, services
 from .banks import BANK_CHOICES
 from .models import KOBO, CreditRate, Payment, Withdrawal
 from .serializers import (
@@ -29,6 +29,9 @@ from .serializers import (
     PaymentCreateSerializer,
     PaymentDecisionSerializer,
     PaymentSerializer,
+    RegisteredMemberRowSerializer,
+    RegistrarSerializer,
+    RegistrarTotalsSerializer,
     WalletSerializer,
     WithdrawalCreateSerializer,
     WithdrawalSerializer,
@@ -157,6 +160,87 @@ class CreditRatesView(APIView):
             reason=fields["reason"],
         )
         return Response(CreditRateSerializer(rate).data, status=status.HTTP_201_CREATED)
+
+
+class RegistrarViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """Everyone who registered members at /me/registered/, with how many,
+    how many have signed in (each first sign-in earns the registrar a credit)
+    and how many are still waiting. For the National Administrator and
+    finance staff (any wallet power), in their area: a registrar's area is
+    their member's place, or an account's own area.
+
+    `?search=` name, access ID or membership number; `?state=` / `?lga=`
+    codes; `?ordering=` registered (default, most first), waiting,
+    signed_in, credited, full_name or last_registered_at.
+    """
+
+    serializer_class = RegistrarSerializer
+    lookup_field = "access_id"
+    lookup_value_regex = "[^/]+"
+    permission_classes = [requires(*registrars.SEEING)]
+    search_fields = ["full_name", "access_id", "member__full_name", "member__membership_number"]
+    ordering_fields = [
+        "registered",
+        "waiting",
+        "signed_in",
+        "credited",
+        "full_name",
+        "last_registered_at",
+    ]
+    ordering = ["-registered", "access_id"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return registrars.registrars().none()
+        params = self.request.query_params
+        return registrars.registrars().filter(
+            registrars.visible_q(self.request.user),
+            registrars.in_area_q(state=params.get("state", ""), lga=params.get("lga", "")),
+        )
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("state", str, description="State code"),
+            OpenApiParameter("lga", str, description="LGA code"),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(responses=RegistrarTotalsSerializer)
+    @action(detail=False, methods=["get"])
+    def summary(self, request):
+        """Totals for the registrars listed with the same filters."""
+        listed = self.filter_queryset(self.get_queryset()).order_by().values("pk")
+        totals = registrars.counts(registrars.referred().filter(created_by__in=listed))
+        return Response({"registrars": listed.count(), **totals})
+
+    @extend_schema(
+        parameters=[OpenApiParameter("signed_in", bool, description="Signed in, or not yet")],
+        responses=RegisteredMemberRowSerializer(many=True),
+    )
+    @action(detail=True, methods=["get"])
+    def registered(self, request, access_id=None):
+        """The people this registrar registered, newest first: those in the
+        viewer's area, and those registered without a place. People placed in
+        another area are left out (the registrar's `registered` counts them)."""
+        registrar = self.get_object()
+        rows = (
+            registrars.referred()
+            .filter(created_by=registrar)
+            .filter(registrars.people_seen_by_q(request.user))
+            .select_related("user", "registration_reward", *SCOPE_FIELDS)
+            .order_by("-created_at", "-pk")
+        )
+        wanted = request.query_params.get("signed_in")
+        if wanted in ("true", "false"):
+            rows = (
+                rows.filter(registrars.SIGNED_IN)
+                if wanted == "true"
+                else rows.exclude(registrars.SIGNED_IN)
+            )
+        page = self.paginate_queryset(rows)
+        return self.get_paginated_response(RegisteredMemberRowSerializer(page, many=True).data)
 
 
 class PaymentViewSet(

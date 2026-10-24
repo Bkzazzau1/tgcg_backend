@@ -849,6 +849,28 @@ holds credits beside the naira.
 - **Converting:** credits are kept before the earner is verified; a verified
   member converts them to naira at the rate of the day
   (`POST /me/wallet/convert/`).
+- **Own progress:** `GET /me/wallet/` has `registrations`: how many the
+  member registered, how many have signed in, how many are still to sign in
+  (`waiting`, no credit yet) and how many earned a credit.
+- **Registrars list** (24 October 2026): `GET /wallets/registrars/` lists
+  everyone who registered members, most registrations first. Each row has
+  `registered`, `signed_in`, `waiting`, `credited`, `credits_earned` and
+  `credits` (in the wallet now).
+  - Who sees it: the National Administrator, and holders of any wallet
+    power in their area. A registrar's area is their member's place, or the
+    account's own area for staff without a membership.
+  - Options: `?search=`, `?state=`, `?lga=`, and `?ordering=` (`registered`,
+    `waiting`, `signed_in`, `credited`, `full_name`, `last_registered_at`).
+  - `.../summary/` gives the totals.
+  - `.../{access_id}/registered/` lists the registrar's people, with
+    `signed_in`, `last_sign_in` and `credited`, but no phone numbers.
+    `?signed_in=false` shows those still to sign in. People placed in
+    another area are left out; people registered without a place are shown.
+- **Catch-up:** members who signed in before credits started earned
+  nothing. On 24 October 2026 the user decided to credit those once.
+  - `manage.py credit_past_registrations` prints the counts (a dry run).
+  - `--commit` credits them at today's rate, audited as `backfill`.
+  - It refuses to run if credits were ever paused.
 
 **Withdrawals** are paid through Paystack.
 

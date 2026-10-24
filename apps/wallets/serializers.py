@@ -4,11 +4,13 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.access.services import same_person
+from apps.core.choices import VerificationStatus
 from apps.core.permissions import Capability
-from apps.geography.scope import scope_contains
+from apps.geography.scope import scope_contains, scope_payload
 
 from .banks import BANK_CHOICES, BANKS
 from .models import KOBO, MAX_PAYMENT_KOBO, CreditRate, Payment, WalletEntry, Withdrawal, masked
+from .registrars import own_counts
 from .services import current_rate, has_wallet, naira, payable
 
 C = Capability
@@ -138,6 +140,98 @@ class WalletEntrySerializer(serializers.ModelSerializer):
         return f"Withdrawal {withdrawal.get_status_display().lower()}" + (f": {why}" if why else "")
 
 
+class RegistrationCountsSerializer(serializers.Serializer):
+    registered = serializers.IntegerField()
+    signed_in = serializers.IntegerField(help_text="Have signed in at least once.")
+    waiting = serializers.IntegerField(help_text="Not signed in yet: no credit until they do.")
+    credited = serializers.IntegerField(help_text="Earned their registrar a credit.")
+
+
+class RegistrarSerializer(serializers.Serializer):
+    """Someone who registers members, with how many and how far each got."""
+
+    access_id = serializers.CharField()
+    full_name = serializers.SerializerMethodField()
+    membership_number = serializers.SerializerMethodField(
+        help_text="Null for an account without a membership, which earns no credits."
+    )
+    scope = serializers.SerializerMethodField(
+        help_text="The member's place, or the account's area."
+    )
+    identity_verified = serializers.SerializerMethodField(
+        help_text="Credits turn into naira only once the registrar's identity is checked."
+    )
+    registered = serializers.IntegerField()
+    signed_in = serializers.IntegerField()
+    waiting = serializers.IntegerField()
+    credited = serializers.IntegerField()
+    credits_earned = serializers.IntegerField()
+    credits = serializers.SerializerMethodField(help_text="Credits in the wallet now.")
+    last_registered_at = serializers.DateTimeField()
+
+    def _member(self, user):
+        return getattr(user, "member", None)
+
+    def get_full_name(self, user) -> str:
+        member = self._member(user)
+        return member.full_name if member else user.full_name
+
+    def get_membership_number(self, user) -> str | None:
+        member = self._member(user)
+        return member.membership_number if member else None
+
+    @extend_schema_field(serializers.DictField())
+    def get_scope(self, user):
+        return scope_payload(self._member(user) or user)
+
+    def get_identity_verified(self, user) -> bool:
+        member = self._member(user)
+        return bool(member) and member.verification_status == VerificationStatus.VERIFIED
+
+    def get_credits(self, user) -> int:
+        wallet = getattr(self._member(user), "wallet", None)
+        return wallet.credits if wallet else 0
+
+
+class RegistrarTotalsSerializer(serializers.Serializer):
+    registrars = serializers.IntegerField()
+    registered = serializers.IntegerField()
+    signed_in = serializers.IntegerField()
+    waiting = serializers.IntegerField()
+    credited = serializers.IntegerField()
+
+
+class RegisteredMemberRowSerializer(serializers.Serializer):
+    """One person a registrar registered: whether they signed in, and whether
+    the registrar was credited. No phone numbers."""
+
+    membership_number = serializers.CharField()
+    full_name = serializers.CharField()
+    scope = serializers.SerializerMethodField()
+    registered_at = serializers.DateTimeField(source="created_at")
+    signed_in = serializers.SerializerMethodField()
+    last_sign_in = serializers.SerializerMethodField()
+    credited = serializers.SerializerMethodField()
+    verification_status = serializers.CharField()
+    membership_state = serializers.CharField()
+
+    @extend_schema_field(serializers.DictField())
+    def get_scope(self, member):
+        return scope_payload(member)
+
+    def get_signed_in(self, member) -> bool:
+        return bool(member.user_id and member.user.last_login)
+
+    @extend_schema_field(serializers.DateTimeField(allow_null=True))
+    def get_last_sign_in(self, member):
+        if not self.get_signed_in(member):
+            return None
+        return serializers.DateTimeField().to_representation(member.user.last_login)
+
+    def get_credited(self, member) -> bool:
+        return hasattr(member, "registration_reward")
+
+
 class WalletSerializer(serializers.Serializer):
     """A member's wallet: the naira TGCG owes them, their credits and what
     the credits are worth today, its history, and the account it is paid
@@ -154,6 +248,9 @@ class WalletSerializer(serializers.Serializer):
     rate = serializers.SerializerMethodField()
     bank_account = serializers.SerializerMethodField()
     entries = serializers.SerializerMethodField()
+    registrations = serializers.SerializerMethodField(
+        help_text="People this member registered: a credit comes when each first signs in."
+    )
 
     def get_has_wallet(self, member) -> bool:
         return has_wallet(member)
@@ -193,6 +290,12 @@ class WalletSerializer(serializers.Serializer):
             return []
         entries = wallet.entries.select_related("payment", "registered_member", "withdrawal")
         return WalletEntrySerializer(entries[:ENTRIES_SHOWN], many=True, context=self.context).data
+
+    @extend_schema_field(RegistrationCountsSerializer)
+    def get_registrations(self, member):
+        if not member.user_id:
+            return {"registered": 0, "signed_in": 0, "waiting": 0, "credited": 0}
+        return own_counts(member.user_id)
 
 
 class PaymentSerializer(serializers.ModelSerializer):

@@ -107,6 +107,22 @@ api_v1 = [
     path("wallets/banks/", wallets.BanksView.as_view(), name="wallet-banks"),
     path("wallets/credit-rates/", wallets.CreditRatesView.as_view(), name="credit-rates"),
     path("paystack/webhook/", wallets.PaystackWebhookView.as_view(), name="paystack-webhook"),
+    # Before wallets/<membership_number>/, which would take "registrars".
+    path(
+        "wallets/registrars/",
+        wallets.RegistrarViewSet.as_view({"get": "list"}),
+        name="registrar-list",
+    ),
+    path(
+        "wallets/registrars/summary/",
+        wallets.RegistrarViewSet.as_view({"get": "summary"}),
+        name="registrar-summary",
+    ),
+    path(
+        "wallets/registrars/<str:access_id>/registered/",
+        wallets.RegistrarViewSet.as_view({"get": "registered"}),
+        name="registrar-registered",
+    ),
     path(
         "wallets/<str:membership_number>/",
         wallets.MemberWalletView.as_view(),
