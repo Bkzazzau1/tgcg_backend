@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.projects",
     "apps.messaging",
     "apps.security",
+    "apps.askme",
 ]
 
 MIDDLEWARE = [
@@ -320,3 +321,15 @@ LOCATION_PING_RETENTION_DAYS = env.int("LOCATION_PING_RETENTION_DAYS", default=3
 # --- Polling unit mapping --------------------------------------------------------
 PIN_MAX_ACCURACY_M = env.int("PIN_MAX_ACCURACY_M", default=30)
 PIN_CONFIRM_RADIUS_M = env.int("PIN_CONFIRM_RADIUS_M", default=50)
+
+# --- Ask Me (apps.askme) -----------------------------------------------------------
+# Answers only from TGCG's approved library. Gemini writes them: a paid-tier
+# key (Google does not use paid prompts to improve its products). Without
+# one, questions wait for a reviewer, whose answers are reused.
+GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
+GEMINI_BASE_URL = env("GEMINI_BASE_URL", default="https://generativelanguage.googleapis.com/v1beta")
+ASKME_GEMINI_MODEL = env("ASKME_GEMINI_MODEL", default="gemini-3.8-flash")
+ASKME_GEMINI_TIMEOUT = env.int("ASKME_GEMINI_TIMEOUT", default=30)
+# Pages read from trusted official websites.
+ASKME_PAGE_MAX_BYTES = env.int("ASKME_PAGE_MAX_BYTES", default=3 * 1024 * 1024)
+ASKME_PAGE_MAX_CHARS = env.int("ASKME_PAGE_MAX_CHARS", default=60000)

@@ -84,6 +84,10 @@ class Capability(models.TextChoices):
     # Security officers (apps.security): members whose role holds this answer
     # the incidents the Situation Room sends them.
     RESPOND_TO_SECURITY = "respondToSecurity"
+    # Ask Me (apps.askme): reviewers draft the library and review answers;
+    # only a National Administrator approves what Ask Me may say.
+    REVIEW_ASK_ME = "reviewAskMe"
+    APPROVE_ASK_ME = "approveAskMe"
     # Protected: only National Administrators, never delegable.
     APPOINT_NATIONAL_ADMINISTRATOR = "appointNationalAdministrator"
     APPROVE_ADMINISTRATOR_REMOVAL = "approveAdministratorRemoval"

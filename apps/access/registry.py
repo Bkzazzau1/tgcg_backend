@@ -36,6 +36,7 @@ class Module:
     SYSTEM_MONITORING = "systemMonitoring"
     WALLETS = "wallets"
     PROJECTS = "projects"
+    ASK_ME = "askMe"
 
 
 @dataclass(frozen=True)
@@ -195,6 +196,19 @@ PERMISSIONS: dict[str, PermissionInfo] = {
             M.COMMUNICATIONS,
             "publish",
             "Send app notifications to members",
+        ),
+        _p(
+            C.REVIEW_ASK_ME,
+            M.ASK_ME,
+            "review",
+            "Draft Ask Me's library and review its answers",
+        ),
+        _p(
+            C.APPROVE_ASK_ME,
+            M.ASK_ME,
+            "approve",
+            "Approve what Ask Me may say, and its settings",
+            protected=True,
         ),
         _p(C.VIEW_AUDIT, M.GOVERNANCE, "view", "View the audit log"),
         _p(C.MANAGE_USERS, M.SYSTEM_MONITORING, "manage", "Support user accounts"),

@@ -892,6 +892,57 @@ holds credits beside the naira.
 - Paystack pays every bank on the list except LAPO and AB Microfinance Bank
   (`payable` in `/wallets/banks/`); their account holders choose another.
 
+## Ask Me
+
+Members ask in English, Hausa, Yoruba, Igbo or Nigerian Pidgin, and Ask Me
+answers **only from TGCG's approved library** (decided on 25 October 2026).
+It explains the government's work and how to take part in voting.
+
+- **The library:** items with a fact, the argument for it, the approved replies
+  to common complaints, keywords in any language, and the official page they
+  come from.
+  - Reviewers (`reviewAskMe`) import pages from trusted websites, which the
+    server keeps as copies, and write the items.
+  - They can have the AI draft items from a page. A drafted fact with a number
+    the page doesn't have is dropped.
+  - A National Administrator (`approveAskMe`, protected) approves each item.
+    Any edit sends an item back for approval.
+  - `manage.py check_askme_sources`, run weekly, re-reads the pages. Items of a
+    changed page are marked for review and keep answering until then.
+- **Answering:** a reviewed answer to the same question is reused, needing no
+  AI. Otherwise Gemini (`GEMINI_API_KEY`, `ASKME_GEMINI_MODEL`) gets only the
+  approved items, with no web search, and answers in the asker's language.
+  - The server then checks the answer: it must cite items it was given, and
+    every number in it must appear in those items or in the question. If not,
+    the member is told "not yet", and the reason is kept for reviewers.
+  - Without a key, every new question waits for a reviewer.
+  - It refuses vote buying, multiple voting, violence and rigging. It never
+    claims to be a person, the President or INEC.
+- **Settings** (a National Administrator):
+  - open to members (reviewers can always test);
+  - the tone (calm or passionate);
+  - a daily limit per member and a monthly cap on AI answers;
+  - the "not yet" wording in each language;
+  - a campaign-silence window, during which achievements are left out and only
+    voting help is given.
+- **Review and training:** reviewers see questions without the asker's name:
+  new ones, "not yet", flagged as unhelpful, or held back by the server. They
+  approve an answer, correct it, or reject it.
+  - `manage.py export_askme_training --out FILE` writes the reviewed answers of
+    members who allowed it (`PATCH /askme/me/ {"training_ok"}`) as JSON lines,
+    for TGCG's own model, with no names or numbers.
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/api/v1/askme/ask/` | `{"text", "language"}` (`en`, `ha`, `yo`, `ig`, `pcm`, or blank to detect): the answer, its status and its sources |
+| GET, PATCH | `/api/v1/askme/me/` | What this account may do; PATCH sets the training consent |
+| GET | `/api/v1/askme/questions/` | The account's own questions; `.../{id}/rate/` `{"rating": 1 or -1, "reason"}` |
+| GET, POST, PATCH | `/api/v1/askme/sites/` | Trusted websites; adding or switching one off needs `approveAskMe` |
+| GET, POST | `/api/v1/askme/pages/` | Page copies; POST `{"url"}` imports one; `.../recheck/`, `.../suggest/` |
+| GET, POST, PATCH | `/api/v1/askme/items/` | The library; `.../approve/`, `.../retire/` (`approveAskMe`) |
+| GET | `/api/v1/askme/review/` | `?kind=` unreviewed, not_yet, flagged, held or reviewed; `.../decide/` `{"decision", "corrected_answer"}` |
+| GET, PATCH | `/api/v1/askme/settings/` | PATCH needs `approveAskMe` |
+
 ## Quality checks
 
 ```bash

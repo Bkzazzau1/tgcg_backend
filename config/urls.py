@@ -8,6 +8,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from apps.access import views as access
 from apps.accounts.views import LoginView, LogoutView, MeView, PasswordChangeView
 from apps.announcements.views import AnnouncementViewSet
+from apps.askme import views as askme
 from apps.core.views import HealthView
 from apps.field.views import (
     EvidenceDownloadView,
@@ -66,6 +67,11 @@ router.register("forum/replies", forum.ReplyViewSet, basename="forum-reply")
 router.register("forum/reports", forum.ReportViewSet, basename="forum-report")
 router.register("wallet-payments", wallets.PaymentViewSet, basename="wallet-payment")
 router.register("withdrawals", wallets.WithdrawalViewSet, basename="withdrawal")
+router.register("askme/questions", askme.MyQuestionViewSet, basename="askme-question")
+router.register("askme/sites", askme.TrustedSiteViewSet, basename="askme-site")
+router.register("askme/pages", askme.SourcePageViewSet, basename="askme-page")
+router.register("askme/items", askme.KnowledgeItemViewSet, basename="askme-item")
+router.register("askme/review", askme.ReviewViewSet, basename="askme-review")
 router.register("me/wallet/withdrawals", wallets.MyWithdrawalViewSet, basename="my-withdrawal")
 router.register("projects", projects.ProjectViewSet, basename="project")
 router.register("broadcasts", messaging.BroadcastViewSet, basename="broadcast")
@@ -103,6 +109,9 @@ api_v1 = [
     ),
     path("forum/settings/", forum.ForumSettingsView.as_view(), name="forum-settings"),
     path("forum/me/", forum.ForumMeView.as_view(), name="forum-me"),
+    path("askme/ask/", askme.AskView.as_view(), name="askme-ask"),
+    path("askme/me/", askme.MeView.as_view(), name="askme-me"),
+    path("askme/settings/", askme.AskMeSettingsView.as_view(), name="askme-settings"),
     path("forum/assignments/", forum.AssignmentTagsView.as_view(), name="forum-assignments"),
     path("wallets/banks/", wallets.BanksView.as_view(), name="wallet-banks"),
     path("wallets/credit-rates/", wallets.CreditRatesView.as_view(), name="credit-rates"),

@@ -492,6 +492,14 @@ checks the discussion permissions (`viewDiscussionRoom`,
 keep them, and the app still uses `viewDiscussionRoom` to show the forum in
 the operations app.
 
+Ask Me (25 October 2026) is for everyone who takes part in the Social Forum
+(an active membership, or a role). Two new permissions run it:
+`reviewAskMe`, which can go to any role (reviewers draft the library, import
+pages from trusted sites and review answers), and the protected
+`approveAskMe` (only a National Administrator approves what Ask Me may say,
+adds trusted websites and changes its settings). Reviewers see members'
+questions without the asker's name.
+
 Field duty (15 October 2026): checking in at a polling unit and sharing
 location on duty now go by the `fieldDuty` permission instead of the agent
 and observer account types. Those accounts hold it, and so do roles such as
