@@ -22,7 +22,7 @@ from apps.accounts.phone import normalize_ng_phone
 from apps.core.choices import MembershipState, RegistrationChannel, VerificationStatus
 from apps.geography.models import Lga, PollingUnit, Ward
 
-from . import registration
+from . import referrals, registration
 from .models import Member, UssdSession
 from .models import UssdRegistrationDraft as Draft
 
@@ -94,10 +94,31 @@ def _menu(phone):
     else:
         choice = "Join TGCG"
     return Screen(
-        f"Welcome to TGCG\n1. {choice}\n2. My membership\n"
+        f"Welcome to TGCG\n1. {choice}\n2. My membership\n3. Referral code\n"
         f"Progress saved {max(1, settings.USSD_DRAFT_TTL_DAYS)} days. "
         "Redial to continue. 0 cancels."
     )
+
+
+def _referral(phone, answers):
+    """Menu 3: a member who joined by USSD gives the code of who invited
+    them, once. Stateless: the provider repeats the earlier answers."""
+    member = Member.objects.filter(phone_number=phone).first()
+    if member is None:
+        return _end("Join TGCG first: dial again and choose 1.")
+    if member.registration_channel != RegistrationChannel.USSD:
+        return _end("Referral codes are given when joining.")
+    if member.referred_by_id:
+        return _end("Your referral code is already recorded. Thank you.")
+    if not answers or answers == [""]:
+        return Screen("Enter the 7-digit referral code of the member who invited you:\n0. Cancel")
+    if answers[0].strip() == "0":
+        return _end("No referral code recorded.")
+    try:
+        referrals.record_later(member=member, code=answers[0])
+    except ValidationError:
+        return _end("That referral code was not found. Dial again and choose 3.")
+    return _end("Thank you. Your referral code is recorded.")
 
 
 class _Flow:
@@ -352,6 +373,8 @@ def respond(*, phone, session_id, text, service_code=""):
             return _end("Saved progress cancelled. Your existing membership, if any, is unchanged.")
         if text == "1":
             return _start(phone, session_id, service_code)
+        if parts[0] == "3":
+            return _referral(phone, parts[1:])
         return _end("Please redial and choose 1 to start or continue.")
     # Lock progress before its session consistently, including new openings.
     draft = Draft.objects.select_for_update().filter(pk=session.draft_id).first()

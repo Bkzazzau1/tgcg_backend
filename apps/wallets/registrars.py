@@ -27,22 +27,28 @@ SEEING = (
     C.MANAGE_CREDIT_RATES,
 )
 
-SIGNED_IN = Q(user__last_login__isnull=False)
+# Joining in the app signs a member in; others sign in later with the
+# phone-number password or the PIN they were given.
+SIGNED_IN = Q(user__last_login__isnull=False) | Q(
+    registration_channel=RegistrationChannel.SELF, user__isnull=False
+)
+WITH_CODE = Q(referred_by__isnull=False)
 
 
 def referred():
-    """Members someone registered at /me/registered/."""
+    """Members someone registered at /me/registered/, or who joined with a
+    member's referral code; `registrar` is that someone's account."""
     return Member.objects.filter(
-        registration_channel=RegistrationChannel.REFERRED, created_by__isnull=False
-    )
+        Q(registration_channel=RegistrationChannel.REFERRED, created_by__isnull=False) | WITH_CODE
+    ).annotate(registrar=Coalesce("referred_by", "created_by"))
 
 
 def _count(condition=None):
     rows = (
         referred()
-        .filter(condition or Q(), created_by=OuterRef("pk"))
+        .filter(condition or Q(), registrar=OuterRef("pk"))
         .order_by()
-        .values("created_by")
+        .values("registrar")
         .annotate(n=Count("pk"))
         .values("n")
     )
@@ -52,19 +58,22 @@ def _count(condition=None):
 def registrars():
     """Every account that registered someone, with its counts."""
     earned = (
-        WalletEntry.objects.filter(
-            kind=WalletEntry.Kind.REWARD, registered_member__created_by=OuterRef("pk")
+        WalletEntry.objects.filter(kind=WalletEntry.Kind.REWARD)
+        .annotate(
+            registrar=Coalesce("registered_member__referred_by", "registered_member__created_by")
         )
+        .filter(registrar=OuterRef("pk"))
         .order_by()
-        .values("registered_member__created_by")
+        .values("registrar")
         .annotate(n=Sum("credits"))
         .values("n")
     )
-    latest = referred().filter(created_by=OuterRef("pk")).order_by().values("created_by")
+    latest = referred().filter(registrar=OuterRef("pk")).order_by().values("registrar")
     return (
-        User.objects.filter(Exists(referred().filter(created_by=OuterRef("pk"))))
+        User.objects.filter(Exists(referred().filter(registrar=OuterRef("pk"))))
         .annotate(
             registered=_count(),
+            with_code=_count(WITH_CODE),
             signed_in=_count(SIGNED_IN),
             credited=_count(Q(registration_reward__isnull=False)),
             credits_earned=Coalesce(Subquery(earned[:1], output_field=IntegerField()), Value(0)),
@@ -116,16 +125,22 @@ def people_seen_by_q(user) -> Q:
 
 
 def counts(people) -> dict:
-    """How many of these registered members signed in, are waiting, and
-    earned a credit."""
+    """How many of these registered members joined with a code, signed in,
+    are waiting, and earned a credit."""
     totals = people.aggregate(
         registered=Count("pk"),
+        with_code=Count("pk", filter=WITH_CODE),
         signed_in=Count("pk", filter=SIGNED_IN),
         credited=Count("pk", filter=Q(registration_reward__isnull=False)),
     )
     return {**totals, "waiting": totals["registered"] - totals["signed_in"]}
 
 
+def people_of(user):
+    """Everyone this account registered or brought in with its code."""
+    return referred().filter(registrar=getattr(user, "pk", user))
+
+
 def own_counts(user) -> dict:
     """What a registrar sees in their own wallet."""
-    return counts(referred().filter(created_by=user))
+    return counts(people_of(user))

@@ -189,6 +189,19 @@ class Member(TimeStampedModel, ScopedModel):
         blank=True,
         related_name="+",
     )
+    # Referral codes (25 October 2026): a member's own 7-digit code, made when
+    # first asked for, and who invited a member who joined with a code.
+    referral_code = models.CharField(  # noqa: DJ001 - NULL keeps the unique index sparse
+        max_length=7, unique=True, null=True, blank=True, editable=False
+    )
+    referred_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="The member whose referral code this member joined with.",
+    )
 
     class Meta:
         ordering = ["-created_at"]

@@ -27,10 +27,11 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from apps.accounts.phone import normalize_ng_phone
 from apps.announcements.serializers import AnnouncementSerializer
 from apps.announcements.views import announcements_for
+from apps.core.choices import MembershipState
 from apps.core.permissions import Capability, has_capability, is_staff_operator
 from apps.geography.models import Lga, PollingUnit, State, Ward
 
-from . import card_pdf, pvc_reading, registration, services
+from . import card_pdf, pvc_reading, referrals, registration, services
 from .card import card_missing, missing_message
 from .models import Member, PollingUnitChangeRequest
 from .serializers import (
@@ -499,6 +500,43 @@ class MyPollingUnitView(MemberHomeMixin, APIView):
                 "members_in_ward": (
                     Member.objects.filter(ward_id=member.ward_id).count() if member.ward_id else 0
                 ),
+            }
+        )
+
+
+REFERRAL = inline_serializer(
+    "MyReferral",
+    {
+        "code": serializers.CharField(help_text="7 digits, to type when joining."),
+        "link": serializers.CharField(help_text="Opens joining in the web app with the code in."),
+        "joined": serializers.IntegerField(help_text="People who joined with the code."),
+        "signed_in": serializers.IntegerField(),
+        "credited": serializers.IntegerField(),
+    },
+)
+
+
+class MyReferralView(MemberHomeMixin, APIView):
+    """The member's referral code and link, and how many joined with them.
+    Each one earns the member registration credits at their first sign-in
+    (joining in the app is one)."""
+
+    @extend_schema(responses=REFERRAL)
+    def get(self, request):
+        member = self.member()
+        if member.membership_state != MembershipState.ACTIVE:
+            raise PermissionDenied("Your membership is not active.")
+        from apps.wallets.registrars import SIGNED_IN
+
+        code = referrals.code_for(member)
+        joined = Member.objects.filter(referred_by=request.user)
+        return Response(
+            {
+                "code": code,
+                "link": referrals.link_for(code),
+                "joined": joined.count(),
+                "signed_in": joined.filter(SIGNED_IN).count(),
+                "credited": joined.filter(registration_reward__isnull=False).count(),
             }
         )
 

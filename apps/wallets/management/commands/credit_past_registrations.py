@@ -46,16 +46,16 @@ class Command(BaseCommand):
             .exclude(Exists(WalletEntry.objects.filter(registered_member=OuterRef("pk"))))
         )
         earners = set(
-            Member.objects.filter(user_id__in=due.values("created_by_id")).values_list(
+            Member.objects.filter(user_id__in=due.values("registrar")).values_list(
                 "user_id", flat=True
             )
         )
-        payable = due.filter(created_by_id__in=earners)
+        payable = due.filter(registrar__in=earners)
         skipped = due.count() - payable.count()
         self.stdout.write(
             f"{due.count()} signed in without a credit; {payable.count()} to credit "
             f"({payable.count() * rate.credits_per_registration} credits) to "
-            f"{payable.values('created_by_id').distinct().count()} registrars; "
+            f"{payable.values('registrar').distinct().count()} registrars; "
             f"{skipped} skipped (registrar has no membership)."
         )
         if not commit:

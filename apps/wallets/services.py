@@ -309,16 +309,21 @@ def set_credit_rate(
 def reward_registration(
     member: Member, *, proof: str, backfill: bool = False
 ) -> WalletEntry | None:
-    """The person who registered `member` at /me/registered/ earns credits,
-    once. `proof` is how the member showed up: "signIn" (any first sign-in)
-    or "smsCode" (they proved the phone with an SMS code). Under
+    """The person who registered `member` at /me/registered/, or whose
+    referral code `member` joined with, earns credits, once. `proof` is how
+    the member showed up: "signIn" (any first sign-in) or "smsCode" (they
+    proved the phone with an SMS code). Under
     CREDITS_EARNED_ON = "smsCode" only the second earns. `backfill`: credited
     later by credit_past_registrations, for a sign-in before credits started."""
     if settings.CREDITS_EARNED_ON == "smsCode" and proof != "smsCode":
         return None
-    if member.registration_channel != RegistrationChannel.REFERRED or not member.created_by_id:
+    if member.referred_by_id:  # joined with this member's referral code
+        earner_account = member.referred_by_id
+    elif member.registration_channel == RegistrationChannel.REFERRED and member.created_by_id:
+        earner_account = member.created_by_id
+    else:
         return None
-    earner = Member.objects.filter(user_id=member.created_by_id).first()
+    earner = Member.objects.filter(user_id=earner_account).first()
     if earner is None:  # a staff account with no membership has no wallet
         return None
     rate = current_rate()

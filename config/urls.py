@@ -254,6 +254,7 @@ api_v1 = [
         name="my-project-answer",
     ),
     path("me/volunteer/", reg.MyVolunteerView.as_view(), name="my-volunteer"),
+    path("me/referral/", reg.MyReferralView.as_view(), name="my-referral"),
     path(
         "me/volunteer/<uuid:uuid>/withdraw/",
         reg.MyVolunteerWithdrawView.as_view(),

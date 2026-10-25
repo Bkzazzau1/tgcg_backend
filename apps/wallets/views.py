@@ -226,8 +226,7 @@ class RegistrarViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         another area are left out (the registrar's `registered` counts them)."""
         registrar = self.get_object()
         rows = (
-            registrars.referred()
-            .filter(created_by=registrar)
+            registrars.people_of(registrar)
             .filter(registrars.people_seen_by_q(request.user))
             .select_related("user", "registration_reward", *SCOPE_FIELDS)
             .order_by("-created_at", "-pk")

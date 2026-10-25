@@ -67,6 +67,7 @@ def test_the_national_administrator_sees_every_registrar_most_registered_first(r
     assert summary == {
         "registrars": 2,
         "registered": 4,
+        "with_code": 0,
         "signed_in": 1,
         "waiting": 3,
         "credited": 1,
@@ -121,6 +122,7 @@ def test_people_placed_in_another_area_stay_with_that_area(registrars, finance):
 def test_a_registrars_wallet_says_how_many_are_still_to_sign_in(registrars):
     assert wallet(registrars["kaduna"])["registrations"] == {
         "registered": 3,
+        "with_code": 0,
         "signed_in": 1,
         "waiting": 2,
         "credited": 1,

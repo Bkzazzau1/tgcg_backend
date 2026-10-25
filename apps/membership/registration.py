@@ -33,7 +33,7 @@ from apps.core.permissions import Capability
 from apps.geography.models import PollingUnit
 from apps.geography.scope import SCOPE_FIELDS, scope_contains_any
 
-from . import identity
+from . import identity, referrals
 from .models import Member
 
 PURPOSE = PhoneVerification.Purpose
@@ -200,6 +200,7 @@ def self_register(
     pvc_image=None,
     disabilities=(),
     disability_other="",
+    referral_code="",
 ):
     """Register a member in the app. Returns (member, user).
 
@@ -210,8 +211,13 @@ def self_register(
     be where INEC registered them. A given SMS code is checked and confirms
     the phone. Without SMS (REGISTRATION_PHONE_CODE_REQUIRED off) the member
     joins with no code and the phone stays unconfirmed, as its check records.
+
+    A `referral_code` makes the member whose code it is their referrer, who
+    earns registration credits at once: joining in the app signs the new
+    member in, which is the first sign-in that earns (decided 24 October).
     """
     _require_consent(consent)
+    inviter = referrals.referrer_or_error(referral_code) if referrals.clean(referral_code) else None
     phone = require_phone(phone_number)
     vin = _clean_vin(vin)
     if not vin:
@@ -241,6 +247,7 @@ def self_register(
         scope_level=GeographyLevel.POLLING_UNIT,
         polling_unit=unit,
         polling_unit_from_list=from_list,
+        referred_by=inviter,
     )
     member.full_clean(exclude=["membership_number"])
 
@@ -254,6 +261,10 @@ def self_register(
         _save_member(member)
         user = _member_account(member, pin)
         member = identity.record_checks(member)
+    if inviter is not None:
+        from apps.wallets.services import reward_registration_quietly
+
+        reward_registration_quietly(member, proof="smsCode" if code else "signIn")
     return member, user
 
 

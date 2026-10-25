@@ -142,6 +142,7 @@ class WalletEntrySerializer(serializers.ModelSerializer):
 
 class RegistrationCountsSerializer(serializers.Serializer):
     registered = serializers.IntegerField()
+    with_code = serializers.IntegerField(help_text="Of them, joined with the referral code.")
     signed_in = serializers.IntegerField(help_text="Have signed in at least once.")
     waiting = serializers.IntegerField(help_text="Not signed in yet: no credit until they do.")
     credited = serializers.IntegerField(help_text="Earned their registrar a credit.")
@@ -162,6 +163,7 @@ class RegistrarSerializer(serializers.Serializer):
         help_text="Credits turn into naira only once the registrar's identity is checked."
     )
     registered = serializers.IntegerField()
+    with_code = serializers.IntegerField(help_text="Of them, joined with the referral code.")
     signed_in = serializers.IntegerField()
     waiting = serializers.IntegerField()
     credited = serializers.IntegerField()
@@ -196,6 +198,7 @@ class RegistrarSerializer(serializers.Serializer):
 class RegistrarTotalsSerializer(serializers.Serializer):
     registrars = serializers.IntegerField()
     registered = serializers.IntegerField()
+    with_code = serializers.IntegerField()
     signed_in = serializers.IntegerField()
     waiting = serializers.IntegerField()
     credited = serializers.IntegerField()
@@ -294,7 +297,7 @@ class WalletSerializer(serializers.Serializer):
     @extend_schema_field(RegistrationCountsSerializer)
     def get_registrations(self, member):
         if not member.user_id:
-            return {"registered": 0, "signed_in": 0, "waiting": 0, "credited": 0}
+            return {"registered": 0, "with_code": 0, "signed_in": 0, "waiting": 0, "credited": 0}
         return own_counts(member.user_id)
 
 

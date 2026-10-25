@@ -866,6 +866,19 @@ holds credits beside the naira.
     `signed_in`, `last_sign_in` and `credited`, but no phone numbers.
     `?signed_in=false` shows those still to sign in. People placed in
     another area are left out; people registered without a place are shown.
+- **Referral codes** (25 October 2026): every member has a 7-digit code
+  (digits only, for USSD) and a link, `GET /me/referral/`:
+  `{"code", "link", "joined", "signed_in", "credited"}`. The link is
+  `APP_PUBLIC_URL/?ref=CODE`, and it opens joining in the web app with the
+  code filled in.
+  - Someone joining in the app gives it as `referral_code` (optional). A
+    wrong code, or the code of a member who is not active, is refused.
+  - Joining in the app signs the new member in, so the member whose code it
+    was earns their credits at once.
+  - Someone who joined by USSD gives the code afterwards, with menu option
+    3, once. Their inviter earns when they first sign in to the app.
+  - People who joined with a member's code count among that member's people
+    in the registrars list and My wallet (`with_code`).
 - **Catch-up:** members who signed in before credits started earned
   nothing. On 24 October 2026 the user decided to credit those once.
   - `manage.py credit_past_registrations` prints the counts (a dry run).

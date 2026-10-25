@@ -431,6 +431,12 @@ class SelfRegistrationSerializer(DisabilitySerializerMixin, serializers.Serializ
         help_text="Instead of `delim`: the code of a unit found by name in `register/places/`.",
     )
     full_name = serializers.CharField(max_length=150)
+    referral_code = serializers.CharField(
+        max_length=12,
+        required=False,
+        allow_blank=True,
+        help_text="The 7-digit code of the member who invited them (optional).",
+    )
     gender = serializers.ChoiceField(choices=Gender.choices, required=False, allow_blank=True)
     date_of_birth = serializers.DateField(required=False, allow_null=True)
     occupation = serializers.CharField(max_length=100, required=False, allow_blank=True)

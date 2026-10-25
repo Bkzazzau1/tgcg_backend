@@ -333,3 +333,7 @@ ASKME_GEMINI_TIMEOUT = env.int("ASKME_GEMINI_TIMEOUT", default=30)
 # Pages read from trusted official websites.
 ASKME_PAGE_MAX_BYTES = env.int("ASKME_PAGE_MAX_BYTES", default=3 * 1024 * 1024)
 ASKME_PAGE_MAX_CHARS = env.int("ASKME_PAGE_MAX_CHARS", default=60000)
+
+# --- Referral codes (apps/membership/referrals.py) -----------------------------------
+# A member's link opens joining in the web app with their code filled in.
+APP_PUBLIC_URL = env("APP_PUBLIC_URL", default="https://app.tgcg.online")
