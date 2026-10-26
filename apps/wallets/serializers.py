@@ -9,7 +9,16 @@ from apps.core.permissions import Capability
 from apps.geography.scope import scope_contains, scope_payload
 
 from .banks import BANK_CHOICES, BANKS
-from .models import KOBO, MAX_PAYMENT_KOBO, CreditRate, Payment, WalletEntry, Withdrawal, masked
+from .models import (
+    KOBO,
+    MAX_PAYMENT_KOBO,
+    CreditRate,
+    Payment,
+    WalletEntry,
+    Withdrawal,
+    masked,
+    tgc_tokens,
+)
 from .registrars import own_counts
 from .services import current_rate, has_wallet, naira, payable
 
@@ -131,7 +140,7 @@ class WalletEntrySerializer(serializers.ModelSerializer):
             shown = registered.membership_number if masked_view else registered.full_name
             return f"Registered {shown}"
         if entry.kind == K.CONVERSION:
-            return f"Converted {-entry.credits} credits"
+            return f"Converted {tgc_tokens(-entry.credits)}"
         withdrawal = entry.withdrawal
         if entry.kind == K.WITHDRAWAL:
             bank = BANKS.get(withdrawal.bank, withdrawal.bank)
@@ -144,8 +153,8 @@ class RegistrationCountsSerializer(serializers.Serializer):
     registered = serializers.IntegerField()
     with_code = serializers.IntegerField(help_text="Of them, joined with the referral code.")
     signed_in = serializers.IntegerField(help_text="Have signed in at least once.")
-    waiting = serializers.IntegerField(help_text="Not signed in yet: no credit until they do.")
-    credited = serializers.IntegerField(help_text="Earned their registrar a credit.")
+    waiting = serializers.IntegerField(help_text="Not signed in yet: no TGC tokens until they do.")
+    credited = serializers.IntegerField(help_text="Earned their registrar TGC tokens.")
 
 
 class RegistrarSerializer(serializers.Serializer):
@@ -154,13 +163,13 @@ class RegistrarSerializer(serializers.Serializer):
     access_id = serializers.CharField()
     full_name = serializers.SerializerMethodField()
     membership_number = serializers.SerializerMethodField(
-        help_text="Null for an account without a membership, which earns no credits."
+        help_text="Null for an account without a membership, which earns no TGC tokens."
     )
     scope = serializers.SerializerMethodField(
         help_text="The member's place, or the account's area."
     )
     identity_verified = serializers.SerializerMethodField(
-        help_text="Credits turn into naira only once the registrar's identity is checked."
+        help_text="TGC tokens turn into naira only once the registrar's identity is checked."
     )
     registered = serializers.IntegerField()
     with_code = serializers.IntegerField(help_text="Of them, joined with the referral code.")
@@ -168,7 +177,7 @@ class RegistrarSerializer(serializers.Serializer):
     waiting = serializers.IntegerField()
     credited = serializers.IntegerField()
     credits_earned = serializers.IntegerField()
-    credits = serializers.SerializerMethodField(help_text="Credits in the wallet now.")
+    credits = serializers.SerializerMethodField(help_text="TGC tokens in the wallet now.")
     last_registered_at = serializers.DateTimeField()
 
     def _member(self, user):
@@ -242,7 +251,7 @@ class WalletSerializer(serializers.Serializer):
 
     membership_number = serializers.CharField()
     has_wallet = serializers.SerializerMethodField(
-        help_text="Verified: the member may convert credits and withdraw."
+        help_text="Verified: the member may convert TGC tokens and withdraw."
     )
     account_name = serializers.CharField(source="full_name")
     balance = serializers.SerializerMethodField()
@@ -252,7 +261,7 @@ class WalletSerializer(serializers.Serializer):
     bank_account = serializers.SerializerMethodField()
     entries = serializers.SerializerMethodField()
     registrations = serializers.SerializerMethodField(
-        help_text="People this member registered: a credit comes when each first signs in."
+        help_text="People this member registered: TGC tokens come when each first signs in."
     )
 
     def get_has_wallet(self, member) -> bool:

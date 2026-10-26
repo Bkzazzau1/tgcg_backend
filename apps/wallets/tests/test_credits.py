@@ -190,7 +190,7 @@ def test_the_member_converts_credits_to_naira_at_the_days_rate(registrant):
     convert = f"{WALLET}convert/"
     assert client.post(convert, {"credits": 0}, format="json").status_code == 400
     too_many = client.post(convert, {"credits": 4}, format="json")
-    assert too_many.status_code == 400 and "You have 3 credits." in str(too_many.json())
+    assert too_many.status_code == 400 and "You have 3 TGC tokens." in str(too_many.json())
 
     converted = client.post(convert, {"credits": 2}, format="json")
     assert converted.status_code == 200, converted.content
@@ -201,7 +201,7 @@ def test_the_member_converts_credits_to_naira_at_the_days_rate(registrant):
         "conversion",
         "200.00",
         -2,
-        "Converted 2 credits",
+        "Converted 2 TGC tokens",
     )
     assert AuditEvent.objects.get(action="wallet.creditsConverted").changes == {
         "credits": 2,

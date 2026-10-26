@@ -44,7 +44,7 @@ apps/tracking/     agent GPS: check-ins, on-duty live location, coverage
 apps/field/        incidents, field reports, evidence uploads, incident audit trail
 apps/results/      parties, elections, result submissions, integrity checks, collation
 apps/wallets/      members' wallets: payments with a second approver, payout accounts,
-                   credits for registering members, withdrawals through Paystack
+                   TGC tokens for registering members, withdrawals through Paystack
 apps/projects/     scheduled field work (elections, assignments): who takes part, where
 apps/messaging/    bulk SMS, WhatsApp and app notifications; saved lists; the inbox
 ```
@@ -837,11 +837,17 @@ TGCG credits it; members do not deposit, and the money stays in TGCG's bank.
 - Every request, decision and account change is audited, with only the last
   four digits of the account number.
 
-**Credits for registering members** (decided on 23 October 2026). A wallet
-holds credits beside the naira.
+**TGC tokens for registering members** (decided on 23 October 2026). A
+wallet holds TGC tokens beside the naira. They were called credits until 26
+October 2026, and the API, database and audit log still use that name
+(`credits`, `credits_per_registration`, `naira_per_credit`, `credited`,
+`/wallets/credit-rates/`, `wallet.creditsEarned`), so apps already on
+phones keep working. Only the words members and staff read changed. They
+are not on a blockchain: they are entries in TGCG's own wallet ledger, worth
+naira at the rate of the day.
 
 - **Earning:** whoever registered a member at `POST /me/registered/` earns
-  credits once, when that member first signs in. Other registrations
+  TGC tokens once, when that member first signs in. Other registrations
   (self-registration, coordinators in person, imports) earn nothing, nor
   does a staff account with no membership.
 - **Which sign-in:** `CREDITS_EARNED_ON` decides. `signIn` (for now, while
@@ -852,20 +858,20 @@ holds credits beside the naira.
   the member holds the phone. The app should send members still on their
   phone-number password to that screen.
 - **Rates:** a National Administrator (`manageCreditRates`, protected) sets
-  the credits per registration, the naira a credit is worth and the smallest
-  withdrawal, with a reason, at `/wallets/credit-rates/`. Until then: 1
-  credit per registration, ₦100 a credit, ₦1,000. New rates apply from then
-  on; 0 credits per registration pauses the incentive.
-- **Converting:** credits are kept before the earner is verified; a verified
+  the TGC tokens per registration, the naira a token is worth and the
+  smallest withdrawal, with a reason, at `/wallets/credit-rates/`. Until
+  then: 1 token per registration, ₦100 a token, ₦1,000. New rates apply
+  from then on; 0 tokens per registration pauses the incentive.
+- **Converting:** TGC tokens are kept before the earner is verified; a verified
   member converts them to naira at the rate of the day
   (`POST /me/wallet/convert/`).
 - **Own progress:** `GET /me/wallet/` has `registrations`: how many the
   member registered, how many have signed in, how many are still to sign in
-  (`waiting`, no credit yet) and how many earned a credit.
+  (`waiting`, no tokens yet) and how many earned TGC tokens (`credited`).
 - **Registrars list** (24 October 2026): `GET /wallets/registrars/` lists
   everyone who registered members, most registrations first. Each row has
   `registered`, `signed_in`, `waiting`, `credited`, `credits_earned` and
-  `credits` (in the wallet now).
+  `credits` (TGC tokens in the wallet now).
   - Who sees it: the National Administrator, and holders of any wallet
     power in their area. A registrar's area is their member's place, or the
     account's own area for staff without a membership.

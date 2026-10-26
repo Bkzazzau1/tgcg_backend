@@ -46,6 +46,7 @@ from .models import (
     WalletEntry,
     Withdrawal,
     masked,
+    tgc_tokens,
 )
 
 logger = logging.getLogger(__name__)
@@ -280,7 +281,7 @@ def set_credit_rate(
     """A National Administrator sets the rates. They apply from now on:
     credits already earned keep their number, and are worth the new rate."""
     if not has_capability(actor, C.MANAGE_CREDIT_RATES):
-        raise PermissionDenied("Only a National Administrator sets the credit rates.")
+        raise PermissionDenied("Only a National Administrator sets the TGC token rates.")
     reason = " ".join((reason or "").split())
     if not reason:
         raise ValidationError({"reason": "Say why the rates change."})
@@ -367,11 +368,11 @@ def convert_credits(*, member: Member, credits: int) -> WalletEntry:
     member = Member.objects.select_related("user").get(pk=member.pk)
     _require_own_wallet(member)
     if credits < 1:
-        raise ValidationError({"credits": "Convert at least one credit."})
+        raise ValidationError({"credits": "Convert at least one TGC token."})
     rate = current_rate()
     wallet = _locked_wallet(member)
     if credits > wallet.credits:
-        raise ValidationError({"credits": f"You have {wallet.credits} credits."})
+        raise ValidationError({"credits": f"You have {tgc_tokens(wallet.credits)}."})
     amount_kobo = credits * rate.kobo_per_credit
     entry = _add_entry(wallet, K.CONVERSION, amount_kobo=amount_kobo, credits=-credits)
     _audit(

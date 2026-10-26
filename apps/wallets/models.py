@@ -184,13 +184,20 @@ class Withdrawal(TimeStampedModel):
         return f"{self.member.membership_number}: {self.amount_kobo / KOBO:.2f} ({self.status})"
 
 
+def tgc_tokens(count: int) -> str:
+    """Credits as members see them, since 26 October 2026: TGC tokens. The API
+    and the database still call them credits."""
+    return f"{count} TGC token" + ("" if abs(count) == 1 else "s")
+
+
 class WalletEntry(models.Model):
-    """One change to a wallet's naira or credits. Entries are only ever added."""
+    """One change to a wallet's naira or credits (TGC tokens). Entries are only
+    ever added."""
 
     class Kind(models.TextChoices):
         CREDIT = "credit", "Payment from TGCG"
-        REWARD = "reward", "Credits for registering a member"
-        CONVERSION = "conversion", "Credits converted to naira"
+        REWARD = "reward", "TGC tokens for registering a member"
+        CONVERSION = "conversion", "TGC tokens converted to naira"
         WITHDRAWAL = "withdrawal", "Withdrawal to the bank account"
         REFUND = "refund", "Withdrawal returned to the wallet"
 
@@ -223,7 +230,8 @@ class WalletEntry(models.Model):
 
     def __str__(self):
         member = self.wallet.member.membership_number
-        return f"{member}: {self.amount_kobo / KOBO:+.2f}, {self.credits:+d} credits"
+        sign = "+" if self.credits >= 0 else "-"
+        return f"{member}: {self.amount_kobo / KOBO:+.2f}, {sign}{tgc_tokens(abs(self.credits))}"
 
     def save(self, *args, **kwargs):
         if self.pk is not None:

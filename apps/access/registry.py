@@ -178,7 +178,7 @@ PERMISSIONS: dict[str, PermissionInfo] = {
             C.MANAGE_CREDIT_RATES,
             M.WALLETS,
             "manage",
-            "Set what a registration earns and what a credit is worth",
+            "Set what a registration earns and what a TGC token is worth",
             protected=True,
         ),
         _p(
