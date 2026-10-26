@@ -96,10 +96,14 @@ def test_recordings_are_kept_only_with_consent_and_feed_training(
     assert queued["channel"] == "voice" and queued["has_recording"] is True
     played = client_for(reviewer).get(f"/api/v1/askme/review/{asked['id']}/recording/")
     assert played.status_code == 200 and b"".join(played.streaming_content) == WAV
-    client_for(reviewer).post(
-        f"/api/v1/askme/review/{asked['id']}/decide/",
-        {"decision": "approve", "corrected_text": "Me gwamnati ta yi wa ɗalibai?"},
+    fixed = client_for(reviewer).post(
+        f"/api/v1/askme/review/{asked['id']}/heard/",
+        {"text": "Me gwamnati ta yi wa ɗalibai?"},
         format="json",
+    )
+    assert fixed.status_code == 200 and fixed.json()["corrected_text"].endswith("ɗalibai?")
+    client_for(reviewer).post(
+        f"/api/v1/askme/review/{asked['id']}/decide/", {"decision": "approve"}, format="json"
     )
 
     out, audio_dir = tmp_path / "training.jsonl", tmp_path / "audio"

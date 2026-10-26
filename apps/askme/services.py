@@ -763,6 +763,21 @@ def review(
     return question
 
 
+def correct_heard(*, actor, question: Question, text: str) -> Question:
+    """A reviewer writes what a spoken question really said, where the voice
+    service misheard it, for training TGCG's listening AI."""
+    _require(can_review(actor), "Only Ask Me reviewers correct what was heard.")
+    if question.channel != Question.Channel.VOICE:
+        raise ValidationError({"text": "Only spoken questions are heard."})
+    text = (text or "").strip()
+    if not text:
+        raise ValidationError({"text": "Write what was really said."})
+    question.corrected_text = text[:1000]
+    question.save(update_fields=["corrected_text", "updated_at"])
+    _audit(actor, "askme.heardCorrected", "askmeQuestion", question.uuid)
+    return question
+
+
 SETTING_FIELDS = (
     "enabled",
     "tone",

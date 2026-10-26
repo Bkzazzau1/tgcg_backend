@@ -241,6 +241,10 @@ class ReviewDecisionSerializer(serializers.Serializer):
     )
 
 
+class HeardSerializer(serializers.Serializer):
+    text = serializers.CharField(max_length=1000, help_text="What was really said.")
+
+
 class AskMeSettingsSerializer(serializers.ModelSerializer):
     in_silence = serializers.SerializerMethodField()
     ai_answers_this_month = serializers.SerializerMethodField()

@@ -18,6 +18,7 @@ from .serializers import (
     AskMeSettingsSerializer,
     AskSerializer,
     ConsentSerializer,
+    HeardSerializer,
     ImportPageSerializer,
     KnowledgeItemSerializer,
     MeSerializer,
@@ -353,6 +354,17 @@ class ReviewViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
         data = ReviewDecisionSerializer(data=request.data)
         data.is_valid(raise_exception=True)
         services.review(actor=request.user, question=self.get_object(), **data.validated_data)
+        return Response(ReviewQuestionSerializer(self.get_object()).data)
+
+    @extend_schema(request=HeardSerializer, responses=ReviewQuestionSerializer)
+    @action(detail=True, methods=["post"])
+    def heard(self, request, uuid=None):
+        """Write what a spoken question really said."""
+        data = HeardSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        services.correct_heard(
+            actor=request.user, question=self.get_object(), text=data.validated_data["text"]
+        )
         return Response(ReviewQuestionSerializer(self.get_object()).data)
 
     @extend_schema(responses={(200, "application/octet-stream"): bytes})
