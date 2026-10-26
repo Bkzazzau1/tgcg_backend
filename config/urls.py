@@ -110,6 +110,7 @@ api_v1 = [
     path("forum/settings/", forum.ForumSettingsView.as_view(), name="forum-settings"),
     path("forum/me/", forum.ForumMeView.as_view(), name="forum-me"),
     path("askme/ask/", askme.AskView.as_view(), name="askme-ask"),
+    path("askme/ask/voice/", askme.VoiceAskView.as_view(), name="askme-ask-voice"),
     path("askme/me/", askme.MeView.as_view(), name="askme-me"),
     path("askme/settings/", askme.AskMeSettingsView.as_view(), name="askme-settings"),
     path("forum/assignments/", forum.AssignmentTagsView.as_view(), name="forum-assignments"),

@@ -13,13 +13,18 @@ reviewer, whose answer becomes the ready answer. Reviewers see questions
 without the asker's name.
 """
 
+import hashlib
 import re
 import time
 import unicodedata
+import uuid
 from datetime import date
+from pathlib import Path
 
+from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.core.files.base import ContentFile
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
@@ -27,7 +32,7 @@ from apps.access import audit
 from apps.core.permissions import Capability, has_capability
 from apps.forum.services import takes_part
 
-from . import gemini, pages
+from . import gemini, pages, spitch
 from .models import (
     AskMeSettings,
     KnowledgeItem,
@@ -35,6 +40,7 @@ from .models import (
     Preference,
     Question,
     SourcePage,
+    SpokenAnswer,
     Topic,
     TrustedSite,
 )
@@ -280,7 +286,26 @@ def ai_answers_this_month() -> int:
     return Question.objects.filter(route=R.AI, created_at__gte=start).count()
 
 
-def ask(*, user, text: str, language: str = "") -> Question:
+def _held(user, config: AskMeSettings, reviewer: bool):
+    """(status, message) when Ask Me is off or the member is over the day's
+    limit, else None. Reviewers can always test."""
+    if not config.enabled and not reviewer:
+        return S.OFF, OFF
+    if not reviewer and asked_today(user) >= config.daily_limit:
+        return S.LIMIT, LIMIT
+    return None
+
+
+def ask(
+    *,
+    user,
+    text: str,
+    language: str = "",
+    channel: str = Question.Channel.TEXT,
+    recording: tuple[bytes, str] | None = None,
+) -> Question:
+    """Answers a question; `recording` (audio, extension) is the spoken
+    question, kept when the asker allowed it."""
     _require(takes_part(user), "Only members with an active membership can ask.")
     text = (text or "").strip()
     if not text:
@@ -293,16 +318,19 @@ def ask(*, user, text: str, language: str = "") -> Question:
     question = Question(
         asker=user,
         language=language,
+        channel=channel,
         text=text[:1000],
         normalized=normalize(text),
         training_ok=_training_ok(user),
     )
     cited: list[KnowledgeItem] = []
+    if recording is not None:
+        audio, extension = recording
+        question.recording.save(f"{uuid.uuid4().hex}{extension}", ContentFile(audio), save=False)
 
-    if not config.enabled and not reviewer:
-        question.status, question.answer = S.OFF, OFF
-    elif not reviewer and asked_today(user) >= config.daily_limit:
-        question.status, question.answer = S.LIMIT, LIMIT
+    held = _held(user, config, reviewer)
+    if held:
+        question.status, question.answer = held
     else:
         silence = in_silence(config)
         ready = _ready_answer(question.normalized, language, silence)
@@ -357,11 +385,119 @@ def rate(*, user, question: Question, rating: int, reason: str = "") -> Question
     return question
 
 
-def set_training_consent(*, user, training_ok: bool) -> Preference:
-    preference, _ = Preference.objects.update_or_create(
-        user=user, defaults={"training_ok": training_ok}
-    )
+def set_consent(*, user, **choices) -> Preference:
+    """`training_ok` (questions may train TGCG's model) and `voice_ok` (spoken
+    questions may be kept to train its listening AI), either or both."""
+    fields = {name: value for name, value in choices.items() if name in ("training_ok", "voice_ok")}
+    if not fields:
+        raise ValidationError({"training_ok": "Say yes or no."})
+    preference, _ = Preference.objects.update_or_create(user=user, defaults=fields)
     return preference
+
+
+# --- voice ----------------------------------------------------------------------------
+
+# Recordings Ask Me accepts, by file extension.
+VOICE_TYPES = {
+    ".wav": "audio/wav",
+    ".m4a": "audio/mp4",
+    ".mp4": "audio/mp4",
+    ".aac": "audio/aac",
+    ".mp3": "audio/mpeg",
+    ".ogg": "audio/ogg",
+    ".webm": "audio/webm",
+}
+SPOKEN = "(spoken question)"
+
+
+class VoiceUnavailable(Exception):
+    """Voice is switched off, or the voice service is not set up."""
+
+
+def voice_ready(config: AskMeSettings | None = None) -> bool:
+    config = config or current_settings()
+    return config.voice_enabled and spitch.configured()
+
+
+def voice_for(language: str, config: AskMeSettings | None = None) -> str:
+    config = config or current_settings()
+    chosen = (config.voices or {}).get(language)
+    known = {voice for voices in spitch.VOICES.values() for voice in voices}
+    return chosen if chosen in known else spitch.DEFAULT_VOICES.get(language, "jude")
+
+
+def ask_by_voice(*, user, audio, language: str) -> Question:
+    """A spoken question: the voice service writes it down, then it is
+    answered like a typed one. The recording is kept only if the asker
+    allowed it."""
+    _require(takes_part(user), "Only members with an active membership can ask.")
+    if language not in Language.values:
+        raise ValidationError({"language": "Choose the language you speak."})
+    extension = Path(getattr(audio, "name", "") or "").suffix.lower()
+    if extension not in VOICE_TYPES:
+        raise ValidationError({"audio": "Record the question again."})
+    if audio.size > settings.ASKME_VOICE_MAX_BYTES:
+        raise ValidationError({"audio": "Keep the question under a minute."})
+    config = current_settings()
+    held = _held(user, config, can_review(user))
+    if held:  # nothing is sent to the voice service
+        question = Question(
+            asker=user,
+            language=language,
+            channel=Question.Channel.VOICE,
+            text=SPOKEN,
+            normalized="",
+            status=held[0],
+            answer=held[1],
+            training_ok=_training_ok(user),
+        )
+        question.save()
+        return question
+    if not voice_ready(config):
+        raise VoiceUnavailable
+    data = audio.read()
+    heard = spitch.transcribe(
+        data, filename=f"question{extension}", mime_type=VOICE_TYPES[extension], language=language
+    )
+    if not heard:
+        raise ValidationError(
+            {"audio": "Nothing was heard. Speak closer to the phone and try again."}
+        )
+    preference = Preference.objects.filter(user=user).first()
+    keep = bool(preference and preference.voice_ok)
+    return ask(
+        user=user,
+        text=heard,
+        language=language,
+        channel=Question.Channel.VOICE,
+        recording=(data, extension) if keep else None,
+    )
+
+
+def spoken_answer(question: Question) -> SpokenAnswer:
+    """The question's answer read aloud, made once for the same words and voice."""
+    config = current_settings()
+    if not voice_ready(config):
+        raise VoiceUnavailable
+    text = question.shown_answer.strip()
+    if not text:
+        raise ValidationError({"answer": "There is nothing to read aloud."})
+    language = question.language if question.language in Language.values else "en"
+    voice = voice_for(language, config)
+    key = hashlib.sha256(f"{language}|{voice}|{text}".encode()).hexdigest()
+    found = SpokenAnswer.objects.filter(key=key).first()
+    if found is not None:
+        return found
+    audio = spitch.speak(text, language=language, voice=voice)
+    spoken = SpokenAnswer(key=key, language=language, voice=voice, size=len(audio))
+    spoken.audio.save(f"{key}.mp3", ContentFile(audio), save=False)
+    try:
+        with transaction.atomic():
+            spoken.save()
+    except IntegrityError:  # made meanwhile by another request
+        spoken.audio.delete(save=False)
+        return SpokenAnswer.objects.get(key=key)
+    return spoken
 
 
 # --- the library ---------------------------------------------------------------------
@@ -582,11 +718,22 @@ def retire_item(*, actor, item: KnowledgeItem, reason: str = "") -> KnowledgeIte
 # --- review and settings ---------------------------------------------------------------
 
 
-def review(*, actor, question: Question, decision: str, corrected_answer: str = "") -> Question:
+def review(
+    *,
+    actor,
+    question: Question,
+    decision: str,
+    corrected_answer: str = "",
+    corrected_text: str = "",
+) -> Question:
     """approve (the answer stands), correct (the reviewer's words replace it) or
-    reject. Approved and corrected answers are reused for the same question."""
+    reject. Approved and corrected answers are reused for the same question.
+    `corrected_text`: what a spoken question really said, where the voice
+    service misheard it (for training the listening AI)."""
     _require(can_review(actor), "Only Ask Me reviewers review answers.")
     corrected_answer = corrected_answer.strip()
+    if corrected_text.strip():
+        question.corrected_text = corrected_text.strip()[:1000]
     if decision == "approve":
         if not question.answer or question.status not in (S.ANSWERED, S.REFUSED):
             raise ValidationError({"decision": "Write the answer it should have given instead."})
@@ -602,7 +749,14 @@ def review(*, actor, question: Question, decision: str, corrected_answer: str = 
         raise ValidationError({"decision": "approve, correct or reject."})
     question.reviewed_by, question.reviewed_at = actor, timezone.now()
     question.save(
-        update_fields=["review", "corrected_answer", "reviewed_by", "reviewed_at", "updated_at"]
+        update_fields=[
+            "review",
+            "corrected_answer",
+            "corrected_text",
+            "reviewed_by",
+            "reviewed_at",
+            "updated_at",
+        ]
     )
     action = {"approve": "Approved", "correct": "Corrected", "reject": "Rejected"}[decision]
     _audit(actor, f"askme.answer{action}", "askmeQuestion", question.uuid)
@@ -617,6 +771,8 @@ SETTING_FIELDS = (
     "silence_starts_at",
     "silence_ends_at",
     "not_yet_messages",
+    "voice_enabled",
+    "voices",
 )
 
 
@@ -633,6 +789,12 @@ def update_settings(*, actor, **fields) -> AskMeSettings:
     messages = config.not_yet_messages or {}
     if set(messages) - set(Language.values):
         raise ValidationError({"not_yet_messages": "Use the language codes en, ha, yo, ig, pcm."})
+    voices = config.voices or {}
+    known = {voice for names in spitch.VOICES.values() for voice in names}
+    if set(voices) - set(Language.values) or set(voices.values()) - known:
+        raise ValidationError(
+            {"voices": "Choose one of the voice service's voices for each language."}
+        )
     config.updated_by = actor
     config.save()
     after = {name: str(getattr(config, name)) for name in before}

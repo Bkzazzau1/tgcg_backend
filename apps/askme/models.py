@@ -148,6 +148,12 @@ class AskMeSettings(models.Model):
         blank=True,
         help_text="What Ask Me says when it has no approved answer, by language code.",
     )
+    voice_enabled = models.BooleanField(
+        default=True, help_text="Members may speak questions and hear answers (needs Spitch)."
+    )
+    voices = models.JSONField(
+        default=dict, blank=True, help_text="Spitch's voice for each language code."
+    )
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, related_name="+"
     )
@@ -168,6 +174,9 @@ class Preference(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="askme_preference"
     )
     training_ok = models.BooleanField(default=False)
+    voice_ok = models.BooleanField(
+        null=True, help_text="May keep their spoken questions to train TGCG's listening AI."
+    )
     decided_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
@@ -200,8 +209,24 @@ class Question(TimeStampedModel):
     asker = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
     )
+
+    class Channel(models.TextChoices):
+        TEXT = "text", "Typed"
+        VOICE = "voice", "Spoken"
+
     language = models.CharField(max_length=4, choices=Language.choices, blank=True)
-    text = models.TextField(max_length=1000)
+    channel = models.CharField(max_length=6, choices=Channel.choices, default=Channel.TEXT)
+    text = models.TextField(
+        max_length=1000, help_text="As typed, or as the voice service heard it."
+    )
+    corrected_text = models.TextField(
+        max_length=1000, blank=True, help_text="What was really said, written by a reviewer."
+    )
+    recording = models.FileField(
+        upload_to="askme/questions/%Y/%m/",
+        blank=True,
+        help_text="Kept only when the asker allowed it, to train TGCG's listening AI.",
+    )
     normalized = models.CharField(max_length=1000, db_index=True)
     status = models.CharField(max_length=10, choices=Status.choices)
     route = models.CharField(max_length=6, choices=Route.choices, default=Route.NONE)
@@ -230,3 +255,18 @@ class Question(TimeStampedModel):
     @property
     def shown_answer(self) -> str:
         return self.corrected_answer or self.answer
+
+
+class SpokenAnswer(models.Model):
+    """An answer read aloud, kept so the same words in the same voice are
+    made once."""
+
+    key = models.CharField(max_length=64, unique=True, help_text="sha256 of language, voice, text.")
+    language = models.CharField(max_length=4, choices=Language.choices)
+    voice = models.CharField(max_length=20)
+    audio = models.FileField(upload_to="askme/speech/%Y/%m/")
+    size = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.language} {self.voice} {self.key[:8]}"

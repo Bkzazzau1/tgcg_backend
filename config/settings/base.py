@@ -333,6 +333,11 @@ ASKME_GEMINI_TIMEOUT = env.int("ASKME_GEMINI_TIMEOUT", default=30)
 # Pages read from trusted official websites.
 ASKME_PAGE_MAX_BYTES = env.int("ASKME_PAGE_MAX_BYTES", default=3 * 1024 * 1024)
 ASKME_PAGE_MAX_CHARS = env.int("ASKME_PAGE_MAX_CHARS", default=60000)
+# Voice: Spitch listens to spoken questions and reads answers aloud.
+SPITCH_API_KEY = env("SPITCH_API_KEY", default="")
+SPITCH_BASE_URL = env("SPITCH_BASE_URL", default="https://api.spitch.app")
+ASKME_VOICE_TIMEOUT = env.int("ASKME_VOICE_TIMEOUT", default=30)
+ASKME_VOICE_MAX_BYTES = env.int("ASKME_VOICE_MAX_BYTES", default=3 * 1024 * 1024)
 
 # --- Referral codes (apps/membership/referrals.py) -----------------------------------
 # A member's link opens joining in the web app with their code filled in.

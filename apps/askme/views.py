@@ -1,15 +1,17 @@
 from django.db.models import Prefetch
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.forum.services import takes_part
 
-from . import gemini, services
+from . import gemini, services, spitch
 from .models import KnowledgeItem, Preference, Question, SourcePage, TrustedSite
 from .serializers import (
     AnswerSerializer,
@@ -27,6 +29,7 @@ from .serializers import (
     SourcePageSerializer,
     TrustedSiteInputSerializer,
     TrustedSiteSerializer,
+    VoiceAskSerializer,
 )
 
 
@@ -59,6 +62,21 @@ def _ai_unavailable(error):
     return Response({"detail": str(error)}, status=status.HTTP_502_BAD_GATEWAY)
 
 
+def _voice_unavailable(error):
+    if isinstance(error, (services.VoiceUnavailable, spitch.NotConfigured)):
+        return Response(
+            {"detail": "Voice is not available yet."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    return Response({"detail": str(error)}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+def _audio(file_field, content_type):
+    response = FileResponse(file_field.open("rb"), content_type=content_type)
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
 class AskView(APIView):
     """Ask a question; the answer comes only from TGCG's approved library.
     `language` (en, ha, yo, ig, pcm) or blank to answer in the question's own."""
@@ -70,6 +88,28 @@ class AskView(APIView):
         data = AskSerializer(data=request.data)
         data.is_valid(raise_exception=True)
         question = services.ask(user=request.user, **data.validated_data)
+        question = _with_items(Question.objects).get(pk=question.pk)
+        return Response(AnswerSerializer(question).data, status=status.HTTP_201_CREATED)
+
+
+class VoiceAskView(APIView):
+    """Ask by voice (multipart `audio`, `language`): the voice service writes
+    the question down, and it is answered like a typed one. The recording is
+    kept only if the asker allowed it (`voice_ok`)."""
+
+    permission_classes = [TakesPart]
+    parser_classes = [MultiPartParser, FormParser]
+
+    @extend_schema(
+        request={"multipart/form-data": VoiceAskSerializer}, responses={201: AnswerSerializer}
+    )
+    def post(self, request):
+        data = VoiceAskSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        try:
+            question = services.ask_by_voice(user=request.user, **data.validated_data)
+        except (services.VoiceUnavailable, spitch.NotConfigured, spitch.SpitchError) as error:
+            return _voice_unavailable(error)
         question = _with_items(Question.objects).get(pk=question.pk)
         return Response(AnswerSerializer(question).data, status=status.HTTP_201_CREATED)
 
@@ -93,6 +133,8 @@ class MeView(APIView):
                 "can_review": reviewer,
                 "can_approve": services.can_approve(request.user),
                 "ai_ready": gemini.configured(),
+                "voice_ready": services.voice_ready(config),
+                "voice_ok": preference.voice_ok if preference else None,
             }
         )
 
@@ -104,7 +146,7 @@ class MeView(APIView):
     def patch(self, request):
         data = ConsentSerializer(data=request.data)
         data.is_valid(raise_exception=True)
-        services.set_training_consent(user=request.user, **data.validated_data)
+        services.set_consent(user=request.user, **data.validated_data)
         return self._me(request)
 
 
@@ -129,6 +171,16 @@ class MyQuestionViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
             user=request.user, question=self.get_object(), **data.validated_data
         )
         return Response(AnswerSerializer(question).data)
+
+    @extend_schema(responses={(200, "audio/mpeg"): bytes})
+    @action(detail=True, methods=["get"])
+    def audio(self, request, uuid=None):
+        """The answer read aloud (MP3), made once and kept for the same words."""
+        try:
+            spoken = services.spoken_answer(self.get_object())
+        except (services.VoiceUnavailable, spitch.NotConfigured, spitch.SpitchError) as error:
+            return _voice_unavailable(error)
+        return _audio(spoken.audio, "audio/mpeg")
 
 
 class TrustedSiteViewSet(
@@ -302,6 +354,18 @@ class ReviewViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.G
         data.is_valid(raise_exception=True)
         services.review(actor=request.user, question=self.get_object(), **data.validated_data)
         return Response(ReviewQuestionSerializer(self.get_object()).data)
+
+    @extend_schema(responses={(200, "application/octet-stream"): bytes})
+    @action(detail=True, methods=["get"])
+    def recording(self, request, uuid=None):
+        """The spoken question, when the asker allowed it to be kept."""
+        question = self.get_object()
+        if not question.recording:
+            return Response({"detail": "No recording was kept."}, status=status.HTTP_404_NOT_FOUND)
+        extension = "." + question.recording.name.rsplit(".", 1)[-1].lower()
+        return _audio(
+            question.recording, services.VOICE_TYPES.get(extension, "application/octet-stream")
+        )
 
 
 class AskMeSettingsView(APIView):

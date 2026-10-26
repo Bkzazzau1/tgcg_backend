@@ -938,6 +938,23 @@ It explains the government's work and how to take part in voting.
   - the "not yet" wording in each language;
   - a campaign-silence window, during which achievements are left out and only
     voting help is given.
+- **Voice** (Spitch, `SPITCH_API_KEY`):
+  - `POST /askme/ask/voice/` (multipart `audio` of up to 3 MB, and
+    `language`): Spitch writes the question down, and it is answered like a
+    typed one.
+  - `GET /askme/questions/{id}/audio/` is the answer read aloud as MP3. It
+    is made once for the same words and voice, then reused.
+  - Each language has a Spitch voice (Pidgin has its own voices) that a
+    National Administrator can change (`voices`), and voice can be switched
+    off (`voice_enabled`).
+  - Nothing is sent to Spitch while Ask Me is off or the member is over the
+    day's limit.
+  - A spoken question's recording is kept only when the asker allowed it
+    (`voice_ok` on `/askme/me/`, separate from `training_ok`). Reviewers can
+    play it back (`.../review/{id}/recording/`) and write what was really
+    said (`corrected_text`).
+  - `export_askme_training --audio-dir DIR` copies the kept recordings for
+    training TGCG's own listening model.
 - **Review and training:** reviewers see questions without the asker's name:
   new ones, "not yet", flagged as unhelpful, or held back by the server. They
   approve an answer, correct it, or reject it.
