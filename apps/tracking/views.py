@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.caching import remembered
 from apps.core.choices import GeographyLevel, MembershipState
 from apps.core.permissions import Capability, requires
 from apps.geography.gps import GpsFixSerializer, GpsReadSerializer, LocationStatus
@@ -265,65 +266,70 @@ class CoverageView(APIView):
         tz = timezone.get_current_timezone()
         start = timezone.make_aware(datetime.combine(day, time.min), tz)
 
-        # Who can work at the area's polling units: agents and polling unit
-        # executives, verified members in good standing, each at their unit.
-        workers = services.field_workers(scope)
-        check_ins = (
-            AgentCheckIn.objects.filter(
-                created_at__gte=start,
-                created_at__lt=start + timedelta(days=1),
-                agent_id__in=list(workers),
+        def compute():
+            # Who can work at the area's polling units: agents and polling unit
+            # executives, verified members in good standing, each at their unit.
+            workers = services.field_workers(scope)
+            check_ins = (
+                AgentCheckIn.objects.filter(
+                    created_at__gte=start,
+                    created_at__lt=start + timedelta(days=1),
+                    agent_id__in=list(workers),
+                )
+                .order_by("created_at")
+                .values_list("agent_id", "location_status")
             )
-            .order_by("created_at")
-            .values_list("agent_id", "location_status")
-        )
-        latest = dict(check_ins)  # later check-ins overwrite earlier ones
-        on_duty = set(
-            DutySession.objects.filter(
-                ended_at__isnull=True, user_id__in=list(workers)
-            ).values_list("user_id", flat=True)
-        )
+            latest = dict(check_ins)  # later check-ins overwrite earlier ones
+            on_duty = set(
+                DutySession.objects.filter(
+                    ended_at__isnull=True, user_id__in=list(workers)
+                ).values_list("user_id", flat=True)
+            )
 
-        def tally(agent_ids):
-            statuses = Counter(latest[a] for a in agent_ids if a in latest)
-            checked = sum(statuses.values())
-            return {
-                "agents": len(agent_ids),
-                "checked_in": checked,
-                "not_checked_in": len(agent_ids) - checked,
-                "on_site": statuses[LocationStatus.ON_SITE],
-                "away": statuses[LocationStatus.AWAY],
-                "unverified": statuses[LocationStatus.UNVERIFIED],
-                "suspect": statuses[LocationStatus.SUSPECT],
-                "on_duty_now": sum(1 for a in agent_ids if a in on_duty),
+            def tally(agent_ids):
+                statuses = Counter(latest[a] for a in agent_ids if a in latest)
+                checked = sum(statuses.values())
+                return {
+                    "agents": len(agent_ids),
+                    "checked_in": checked,
+                    "not_checked_in": len(agent_ids) - checked,
+                    "on_site": statuses[LocationStatus.ON_SITE],
+                    "away": statuses[LocationStatus.AWAY],
+                    "unverified": statuses[LocationStatus.UNVERIFIED],
+                    "suspect": statuses[LocationStatus.SUSPECT],
+                    "on_duty_now": sum(1 for a in agent_ids if a in on_duty),
+                }
+
+            body = {
+                "date": day,
+                "scope": scope_payload(scope),
+                **tally(list(workers)),
             }
+            if scope.scope_level in CHILD_LEVEL:
+                child_level = CHILD_LEVEL[scope.scope_level]
+                child_field = LEVEL_FIELD[child_level]
+                # Each worker counts in the part of the area holding their unit.
+                part_of = dict(
+                    PollingUnit.objects.filter(pk__in=set(workers.values())).values_list(
+                        "pk", PU_PATH[child_field]
+                    )
+                )
+                by_child = {}
+                for agent_id, unit_id in workers.items():
+                    by_child.setdefault(part_of.get(unit_id), []).append(agent_id)
+                rows = []
+                for unit in _units_within(child_level, scope).order_by("name"):
+                    rows.append(
+                        {
+                            "level": child_level,
+                            "code": unit.code,
+                            "name": unit.name,
+                            **tally(by_child.get(unit.pk, [])),
+                        }
+                    )
+                body["children"] = rows
+            return body
 
-        body = {
-            "date": day,
-            "scope": scope_payload(scope),
-            **tally(list(workers)),
-        }
-        if scope.scope_level in CHILD_LEVEL:
-            child_level = CHILD_LEVEL[scope.scope_level]
-            child_field = LEVEL_FIELD[child_level]
-            # Each worker counts in the part of the area holding their unit.
-            part_of = dict(
-                PollingUnit.objects.filter(pk__in=set(workers.values())).values_list(
-                    "pk", PU_PATH[child_field]
-                )
-            )
-            by_child = {}
-            for agent_id, unit_id in workers.items():
-                by_child.setdefault(part_of.get(unit_id), []).append(agent_id)
-            rows = []
-            for unit in _units_within(child_level, scope).order_by("name"):
-                rows.append(
-                    {
-                        "level": child_level,
-                        "code": unit.code,
-                        "name": unit.name,
-                        **tally(by_child.get(unit.pk, [])),
-                    }
-                )
-            body["children"] = rows
-        return Response(body)
+        return Response(
+            remembered("coverage", {"scope": scope_payload(scope), "day": day.isoformat()}, compute)
+        )

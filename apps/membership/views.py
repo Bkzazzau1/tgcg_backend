@@ -19,6 +19,7 @@ from apps.access.models import (
 )
 from apps.access.serializers import AuditEventSerializer
 from apps.accounts.phone import normalize_ng_phone
+from apps.core.caching import remembered
 from apps.core.choices import GeographyLevel
 from apps.core.permissions import Capability, requires
 from apps.geography.scope import (
@@ -263,11 +264,15 @@ class MemberViewSet(
         if by is not None and by not in analysis.breakdowns(scope):
             raise ValidationError({"by": "This area cannot be broken down that way."})
         return Response(
-            {
-                "scope": scope_payload(scope),
-                "breakdowns": analysis.breakdowns(scope),
-                **analysis.summary(scope, by),
-            }
+            remembered(
+                "member-analysis",
+                {"scope": scope_payload(scope), "by": by},
+                lambda: {
+                    "scope": scope_payload(scope),
+                    "breakdowns": analysis.breakdowns(scope),
+                    **analysis.summary(scope, by),
+                },
+            )
         )
 
     @extend_schema(

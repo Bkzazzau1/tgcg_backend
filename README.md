@@ -622,6 +622,14 @@ TGCG collation is **unofficial**: every result and collation response carries
     area.
   - Expected polling units come from master data, so load wards and polling
     units to get completion figures.
+  - **Shared for a moment** (26 October 2026, for election day): collation,
+    check-in coverage (`/tracking/coverage/`) and member analysis
+    (`/members/analysis/`) for an area are computed at most once per
+    `SUMMARY_CACHE_SECONDS` (default 30; 0 turns sharing off) and reused by
+    everyone allowed to see that area. Permissions are checked for every
+    request first. Each answer carries `computed_at`. The cache is each
+    worker's memory by default; with several app servers, set `CACHE_URL` to
+    a shared cache such as Redis (`redis://host:6379/1`).
 
 ## Agent GPS
 

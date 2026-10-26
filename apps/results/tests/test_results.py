@@ -414,6 +414,36 @@ def test_collation_scope_rules(kd_coord, la_coord, agent1, kd_election):
     )
 
 
+def test_collation_is_shared_for_a_moment_and_still_checked(
+    settings, agent1, agent2, kd_coord, la_coord, director, kd_election
+):
+    from django.core.cache import cache
+
+    settings.SUMMARY_CACHE_SECONDS = 30
+    cache.clear()
+    first = kd_coord.get(COLLATION, {"election": "2027-kd-governorship"}).json()
+    assert first["verified_polling_units"] == 0
+    verified_results(agent1, agent2, kd_coord)
+    # Within the moment, everyone watching Kaduna shares one answer.
+    again = kd_coord.get(COLLATION, {"election": "2027-kd-governorship"}).json()
+    shared = director.get(
+        COLLATION, {"election": "2027-kd-governorship", "level": "state", "code": "KD"}
+    ).json()
+    assert again == first == shared
+    assert "computed_at" in first
+    # Sharing never lets in someone outside the area.
+    assert (
+        la_coord.get(
+            COLLATION, {"election": "2027-kd-governorship", "level": "state", "code": "KD"}
+        ).status_code
+        == 403
+    )
+    cache.clear()
+    fresh = kd_coord.get(COLLATION, {"election": "2027-kd-governorship"}).json()
+    assert fresh["verified_polling_units"] == 2
+    cache.clear()
+
+
 def test_elections_and_parties_listed(agent1, kd_election):
     elections = agent1.get("/api/v1/elections/").json()
     assert elections[0]["code"] == "2027-kd-governorship"

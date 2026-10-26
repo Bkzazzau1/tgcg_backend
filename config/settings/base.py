@@ -333,6 +333,14 @@ ASKME_GEMINI_TIMEOUT = env.int("ASKME_GEMINI_TIMEOUT", default=30)
 # Pages read from trusted official websites.
 ASKME_PAGE_MAX_BYTES = env.int("ASKME_PAGE_MAX_BYTES", default=3 * 1024 * 1024)
 ASKME_PAGE_MAX_CHARS = env.int("ASKME_PAGE_MAX_CHARS", default=60000)
+# --- Shared short-lived answers (apps/core/caching.py) -------------------------------
+# Collation, check-in coverage and member analysis for an area are computed at
+# most once per SUMMARY_CACHE_SECONDS and shared by everyone allowed to see
+# that area. CACHE_URL defaults to each worker's own memory; with several app
+# servers, point it at a shared cache such as Redis (redis://host:6379/1).
+CACHES = {"default": env.cache_url("CACHE_URL", default="locmemcache://tgcg")}
+SUMMARY_CACHE_SECONDS = env.int("SUMMARY_CACHE_SECONDS", default=30)
+
 # Voice: Spitch listens to spoken questions and reads answers aloud.
 SPITCH_API_KEY = env("SPITCH_API_KEY", default="")
 SPITCH_BASE_URL = env("SPITCH_BASE_URL", default="https://api.spitch.app")

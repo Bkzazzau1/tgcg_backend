@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.caching import remembered
 from apps.core.choices import GeographyLevel
 from apps.core.permissions import Capability, requires
 from apps.field.views import EvidenceActionsMixin
@@ -18,6 +19,7 @@ from apps.geography.scope import (
     actor_area,
     any_of,
     scope_contains,
+    scope_payload,
     within_scope_any_q,
 )
 from apps.projects.services import accepting_results
@@ -205,4 +207,14 @@ class CollationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         include_children = request.query_params.get("children", "true").lower() != "false"
-        return Response(collation.summarize(election, scope, include_children=include_children))
+        return Response(
+            remembered(
+                "collation",
+                {
+                    "election": election.pk,
+                    "scope": scope_payload(scope),
+                    "children": include_children,
+                },
+                lambda: collation.summarize(election, scope, include_children=include_children),
+            )
+        )
