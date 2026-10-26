@@ -736,7 +736,7 @@ reason.
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/v1/forum/posts/` | The feed, newest first. `?show=mine` (own posts, any status), `?show=hidden` (editors), `?assignment=` or `?assignments=true`, scope codes. Each post has `likes`, `liked`, `replies` and what this account may do (`can_edit`, `can_hide`, `can_restore`, `can_report`) |
-| POST | `/api/v1/forum/posts/` | Multipart: `body`, `assignment` (a tag), `files` (repeat for each picture or video), `client_id`. It is from the author's own area (`level`/`code` are ignored) |
+| POST | `/api/v1/forum/posts/` | Multipart: `body`, `assignment` (a tag), `files` (repeat for each picture or video), `client_id`; for the n-th file (from 0), a video, `poster_<n>` (a frame from it) and `duration_<n>` (milliseconds). It is from the author's own area (`level`/`code` are ignored) |
 | PATCH, DELETE | `/api/v1/forum/posts/{id}/` | Its author edits `body` or `assignment` (`edited_at`; pictures and videos stay) or deletes it: words and files go |
 | POST, DELETE | `/api/v1/forum/posts/{id}/like/` | Like it, once, or take the like back: `{"liked", "likes"}` |
 | POST | `/api/v1/forum/posts/{id}/report/` | `{"reason"}`: report it to the editors (not one's own) |
@@ -748,6 +748,7 @@ reason.
 | GET | `/api/v1/forum/reports/` | Editors: open reports, newest first (`?status=closed` for the others); `.../{id}/dismiss/` closes one with nothing wrong |
 | GET | `/api/v1/forum/me/` | `takes_part` and `editor` for this account |
 | GET | `/api/v1/forum/attachments/{id}/` | A picture or video, for whoever sees its post |
+| GET | `/api/v1/forum/attachments/{id}/poster/` | A video's picture (JPEG), when it has one (`poster_url`) |
 | GET | `/api/v1/forum/settings/` | Kept for older apps: `approval_required` is always false |
 | GET | `/api/v1/forum/assignments/` | Assignment tags on published posts, most recent first |
 
@@ -762,6 +763,15 @@ reason.
   their type. They are stored under `forum/` in private storage and served
   only through the attachment endpoint. Nginx's `client_max_body_size` must
   allow a whole post (for example `110m` at the defaults).
+- **Video pictures:** the server cannot read videos, so the posting app
+  takes a frame from about a second in and sends it as `poster_<n>`, with
+  the video's length. The server opens it as a JPEG, PNG or WebP of at most
+  2 MB, re-saves it as a JPEG no larger than 720 pixels (nothing but its
+  pixels) and records the video's shape (`width`, `height`) and
+  `duration_ms`. A poster that is not a real picture, or a length that makes
+  no sense, is left out and the video is posted without it. Videos from
+  older apps, and those posted before 26 October 2026, have none; the app
+  then makes the picture itself from small videos.
 - **Record:** edits (with the words before and after), hidden and restored
   posts and comments, deleted posts, reports and dismissed reports are in
   the audit log.

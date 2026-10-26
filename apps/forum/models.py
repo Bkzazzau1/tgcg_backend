@@ -92,6 +92,19 @@ class Attachment(TimeStampedModel):
     mime_type = models.CharField(max_length=100)
     size = models.PositiveBigIntegerField()
     content_hash = models.CharField(max_length=64, help_text="SHA-256 computed by the server.")
+    poster = models.FileField(
+        upload_to=forum_upload_path,
+        blank=True,
+        help_text="A video's picture: a frame the posting app took from the video, re-saved "
+        "here as a small JPEG.",
+    )
+    width = models.PositiveIntegerField(
+        null=True, blank=True, help_text="A video's shape, from its poster."
+    )
+    height = models.PositiveIntegerField(null=True, blank=True)
+    duration_ms = models.PositiveIntegerField(
+        null=True, blank=True, help_text="A video's length, as the posting app measured it."
+    )
 
     class Meta:
         ordering = ["created_at", "id"]

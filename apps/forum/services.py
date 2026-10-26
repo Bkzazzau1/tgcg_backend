@@ -1,15 +1,18 @@
 """Who may see, post, comment, like, report, hide and restore in the Social
 Forum. All changes go through here."""
 
+import io
 import mimetypes
 from pathlib import Path
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, Min, Q
 from django.db.models.functions import Lower
 from django.utils import timezone
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from apps.access import audit, engine
 from apps.core.choices import MembershipState
@@ -23,6 +26,13 @@ R = Reply.Status
 # Grants that make someone an editor: a role on their account, or an
 # appointment (a position). Delegated authority alone does not.
 POSITIONS = (engine.LEGACY, engine.ASSIGNMENT)
+
+# A video's poster: a frame the posting app took from the video.
+POSTER_MAX_BYTES = 2 * 1024 * 1024
+POSTER_MAX_PIXELS = 40_000_000
+POSTER_SIDE = 720
+POSTER_FORMATS = {"JPEG", "PNG", "WEBP"}
+LONGEST_VIDEO_MS = 60 * 60 * 1000
 
 
 def _member(user):
@@ -131,10 +141,56 @@ def _check_upload(upload):
     return upload, kind, sha256
 
 
+def _poster(upload):
+    """A video's picture re-saved as a small JPEG with nothing but its pixels,
+    and the shape it came in; None when it is not a real picture (the video
+    is still posted, without one)."""
+    if upload is None or not 0 < upload.size <= POSTER_MAX_BYTES:
+        return None
+    try:
+        with Image.open(upload) as image:
+            if image.format not in POSTER_FORMATS:
+                return None
+            if image.width * image.height > POSTER_MAX_PIXELS:
+                return None
+            image.load()
+            picture = ImageOps.exif_transpose(image).convert("RGB")
+    except (UnidentifiedImageError, Image.DecompressionBombError, OSError, ValueError):
+        return None
+    width, height = picture.size
+    picture.thumbnail((POSTER_SIDE, POSTER_SIDE))
+    saved = io.BytesIO()
+    picture.save(saved, "JPEG", quality=80, optimize=True)
+    return ContentFile(saved.getvalue(), name="poster.jpg"), width, height
+
+
+def _duration(value):
+    """A video's length in milliseconds, as the app measured it; None when
+    it is not a sensible number."""
+    try:
+        milliseconds = int(value)
+    except (TypeError, ValueError):
+        return None
+    return milliseconds if 0 < milliseconds <= LONGEST_VIDEO_MS else None
+
+
+def _video_extras(poster, duration) -> dict:
+    extras = {"duration_ms": _duration(duration)}
+    made = _poster(poster)
+    if made is not None:
+        extras["poster"], extras["width"], extras["height"] = made
+    return extras
+
+
 @transaction.atomic
-def create_post(*, actor, body="", assignment="", files=(), client_id=None, **_ignored) -> Post:
+def create_post(
+    *, actor, body="", assignment="", files=(), posters=None, client_id=None, **_ignored
+) -> Post:
     """A post, published at once, from the author's own area. (An area sent
-    by an older app is ignored.)"""
+    by an older app is ignored.)
+
+    `posters` maps a video's place among `files` to its (picture, length in
+    milliseconds), either of which may be None."""
     _require_part(actor)
     if client_id:
         existing = Post.objects.filter(client_id=client_id, author=actor).first()
@@ -151,6 +207,11 @@ def create_post(*, actor, body="", assignment="", files=(), client_id=None, **_i
         )
     # Every file is checked before anything is stored.
     checked = [_check_upload(upload) for upload in files]
+    posters = posters or {}
+    extras = [
+        _video_extras(*posters[index]) if kind == Attachment.Kind.VIDEO and index in posters else {}
+        for index, (_upload, kind, _sha256) in enumerate(checked)
+    ]
 
     now = timezone.now()
     post = Post(
@@ -168,7 +229,7 @@ def create_post(*, actor, body="", assignment="", files=(), client_id=None, **_i
     if not post.body and not checked:
         raise ValidationError({"body": "Write something, or add a picture or video."})
     post.save()
-    for upload, kind, sha256 in checked:
+    for (upload, kind, sha256), extra in zip(checked, extras, strict=True):
         Attachment.objects.create(
             post=post,
             kind=kind,
@@ -176,6 +237,7 @@ def create_post(*, actor, body="", assignment="", files=(), client_id=None, **_i
             mime_type=mimetypes.guess_type(upload.name)[0] or "application/octet-stream",
             size=upload.size,
             content_hash=sha256,
+            **extra,
         )
     return post
 
@@ -308,7 +370,12 @@ def delete_post(*, actor, post) -> Post:
         raise PermissionDenied("Only its author can delete a post.")
     if post.status == P.DELETED:
         return post
-    names = [attachment.file.name for attachment in post.attachments.all()]
+    names = [
+        stored.name
+        for attachment in post.attachments.all()
+        for stored in (attachment.file, attachment.poster)
+        if stored
+    ]
     post.attachments.all().delete()
     storage = Attachment._meta.get_field("file").storage
     transaction.on_commit(lambda: [storage.delete(name) for name in names])

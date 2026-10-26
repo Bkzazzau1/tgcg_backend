@@ -1,6 +1,8 @@
+import re
+
 from django.db.models import Count, Exists, IntegerField, OuterRef, Q, Subquery, Value
 from django.db.models.functions import Coalesce
-from django.http import FileResponse
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
@@ -31,6 +33,8 @@ from .serializers import (
 )
 
 P = Post.Status
+# Sent with a new post: a picture from its n-th file, a video, and its length.
+POSTER_FIELD = re.compile(r"(poster|duration)_(\d{1,2})")
 
 
 class TakesPart(BasePermission):
@@ -168,7 +172,9 @@ class PostViewSet(
         files = fields.pop("files", [])
         fields.pop("level", None)
         fields.pop("code", None)
-        post = services.create_post(actor=request.user, files=files, **fields)
+        post = services.create_post(
+            actor=request.user, files=files, posters=_posters(request), **fields
+        )
         return self._respond(post, status.HTTP_201_CREATED)
 
     @extend_schema(request=PostUpdateSerializer, responses=PostSerializer)
@@ -360,6 +366,21 @@ class ReportViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         return Response(ReportSerializer(closed).data)
 
 
+def _posters(request) -> dict:
+    """poster_<n> and duration_<n>: a picture from the n-th file, a video,
+    and its length."""
+    found = {}
+    for key in request.data:
+        match = POSTER_FIELD.fullmatch(key)
+        if match:
+            index = int(match[2])
+            found[index] = (
+                request.FILES.get(f"poster_{index}"),
+                request.data.get(f"duration_{index}"),
+            )
+    return found
+
+
 class AttachmentView(APIView):
     """A picture or video, for whoever may see its post."""
 
@@ -372,6 +393,23 @@ class AttachmentView(APIView):
         )
         response = FileResponse(attachment.file.open("rb"), content_type=attachment.mime_type)
         response["X-Content-SHA256"] = attachment.content_hash
+        response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class AttachmentPosterView(APIView):
+    """A video's picture, for whoever may see its post."""
+
+    permission_classes = [TakesPart]
+
+    @extend_schema(responses={(200, "image/jpeg"): bytes})
+    def get(self, request, uuid):
+        attachment = get_object_or_404(
+            Attachment, uuid=uuid, post__in=services.visible_posts(request.user)
+        )
+        if not attachment.poster:
+            raise Http404
+        response = FileResponse(attachment.poster.open("rb"), content_type="image/jpeg")
         response["Cache-Control"] = "private, no-store"
         return response
 

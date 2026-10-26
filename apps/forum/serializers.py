@@ -11,15 +11,36 @@ from .models import Attachment, Post, Reply, Report
 class AttachmentSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(source="uuid", read_only=True)
     url = serializers.SerializerMethodField(help_text="Download with the session's token.")
+    poster_url = serializers.SerializerMethodField(
+        help_text="A video's picture (JPEG), when the posting app made one; download with "
+        "the session's token."
+    )
 
     class Meta:
         model = Attachment
-        fields = ["id", "kind", "mime_type", "size", "url"]
+        fields = [
+            "id",
+            "kind",
+            "mime_type",
+            "size",
+            "url",
+            "poster_url",
+            "width",
+            "height",
+            "duration_ms",
+        ]
         read_only_fields = fields
 
     def get_url(self, attachment) -> str:
         return self.context["request"].build_absolute_uri(
             reverse("forum-attachment", args=[attachment.uuid])
+        )
+
+    def get_poster_url(self, attachment) -> str | None:
+        if not attachment.poster:
+            return None
+        return self.context["request"].build_absolute_uri(
+            reverse("forum-attachment-poster", args=[attachment.uuid])
         )
 
 
@@ -136,7 +157,9 @@ class PostCreateSerializer(serializers.Serializer):
     files = serializers.ListField(
         child=serializers.FileField(),
         required=False,
-        help_text="Pictures and videos (multipart, repeat the field).",
+        help_text="Pictures and videos (multipart, repeat the field). For the n-th file (from "
+        "0), a video, `poster_<n>` may add a frame from it (JPEG, PNG or WebP, up to 2 MB) "
+        "and `duration_<n>` its length in milliseconds.",
     )
 
 

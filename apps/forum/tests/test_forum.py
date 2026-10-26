@@ -1,8 +1,12 @@
 """The Social Forum: every member posts, comments and likes, at once;
 editors (everyone holding a role or position) hide and restore anywhere."""
 
+from io import BytesIO
+from pathlib import Path
+
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from PIL import Image
 from rest_framework.test import APIClient
 
 from apps.access.models import AuditEvent
@@ -325,6 +329,90 @@ def test_pictures_and_videos_reach_whoever_sees_the_post(people):
     assert b"".join(download.streaming_content) == MP4
     assert download["Cache-Control"] == "private, no-store"
     assert client(people["nobody"]).get(video).status_code == 403
+
+
+def _picture(width, height, kind="PNG"):
+    saved = BytesIO()
+    Image.new("RGB", (width, height), (0, 120, 60)).save(saved, kind)
+    return saved.getvalue()
+
+
+def test_videos_come_with_a_picture_their_shape_and_length(
+    people, django_capture_on_commit_callbacks
+):
+    made = post(
+        people["member"],
+        body="",
+        files=[
+            SimpleUploadedFile("rally.jpg", JPEG, content_type="image/jpeg"),
+            SimpleUploadedFile("rally.mp4", MP4, content_type="video/mp4"),
+        ],
+        # A phone video, upright, 42.5 seconds long.
+        poster_1=SimpleUploadedFile("poster.png", _picture(1080, 1920), content_type="image/png"),
+        duration_1="42500",
+        # Pictures need none: ignored.
+        poster_0=SimpleUploadedFile("poster.png", _picture(10, 10), content_type="image/png"),
+    )
+    assert made.status_code == 201, made.content
+    photo, video = made.json()["attachments"]
+    assert photo["poster_url"] is None and photo["duration_ms"] is None
+    assert (video["width"], video["height"], video["duration_ms"]) == (1080, 1920, 42500)
+
+    picture = client(people["other"]).get(video["poster_url"])
+    assert picture.status_code == 200
+    assert picture["Content-Type"] == "image/jpeg"
+    assert picture["Cache-Control"] == "private, no-store"
+    # Re-saved small, as a JPEG.
+    with Image.open(BytesIO(b"".join(picture.streaming_content))) as saved:
+        assert (saved.format, saved.size) == ("JPEG", (405, 720))
+    assert client(people["nobody"]).get(video["poster_url"]).status_code == 403
+    no_poster = video["poster_url"].replace(video["id"], photo["id"])
+    assert client(people["other"]).get(no_poster).status_code == 404
+
+    # Deleting the post removes the poster with the video.
+    stored = Path(Attachment.objects.get(kind="video").poster.path)
+    assert stored.exists()
+    with django_capture_on_commit_callbacks(execute=True):
+        assert client(people["member"]).delete(f"{POSTS}{made.json()['id']}/").status_code == 204
+    assert not stored.exists()
+
+
+@pytest.mark.parametrize(
+    ("poster", "duration"),
+    [(b"%PDF-1.4 not a picture", "-5"), (JPEG, "forever"), (_picture(10, 10, "GIF"), "0")],
+)
+def test_a_broken_poster_or_length_leaves_the_video_without_one(people, poster, duration):
+    made = post(
+        people["member"],
+        body="",
+        files=[SimpleUploadedFile("clip.mp4", MP4, content_type="video/mp4")],
+        poster_0=SimpleUploadedFile("poster.png", poster),
+        duration_0=duration,
+    )
+    assert made.status_code == 201, made.content
+    (video,) = made.json()["attachments"]
+    assert video["poster_url"] is None
+    assert (video["width"], video["height"], video["duration_ms"]) == (None, None, None)
+    assert not Attachment.objects.get().poster
+
+
+def test_a_poster_too_large_to_open_is_left_out(people, monkeypatch):
+    monkeypatch.setattr("apps.forum.services.POSTER_MAX_PIXELS", 50)
+    made = post(
+        people["member"],
+        body="",
+        files=[SimpleUploadedFile("clip.mp4", MP4, content_type="video/mp4")],
+        poster_0=SimpleUploadedFile("poster.png", _picture(10, 10)),
+    )
+    assert made.status_code == 201, made.content
+    assert made.json()["attachments"][0]["poster_url"] is None
+
+
+def test_older_apps_post_videos_without_a_picture(people):
+    made = post(people["member"], body="", files=[SimpleUploadedFile("clip.mp4", MP4)])
+    assert made.status_code == 201, made.content
+    (video,) = made.json()["attachments"]
+    assert video["poster_url"] is None and video["duration_ms"] is None
 
 
 @pytest.mark.parametrize(

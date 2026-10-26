@@ -107,6 +107,11 @@ api_v1 = [
         forum.AttachmentView.as_view(),
         name="forum-attachment",
     ),
+    path(
+        "forum/attachments/<uuid:uuid>/poster/",
+        forum.AttachmentPosterView.as_view(),
+        name="forum-attachment-poster",
+    ),
     path("forum/settings/", forum.ForumSettingsView.as_view(), name="forum-settings"),
     path("forum/me/", forum.ForumMeView.as_view(), name="forum-me"),
     path("askme/ask/", askme.AskView.as_view(), name="askme-ask"),
