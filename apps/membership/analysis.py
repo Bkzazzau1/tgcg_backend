@@ -25,6 +25,7 @@ from apps.core.choices import GeographyLevel, RegistrationChannel, VerificationS
 from apps.geography.models import Lga, PollingUnit, State, Ward, Zone
 from apps.geography.scope import LEVEL_FIELD, within_scope_q
 
+from . import occupations
 from .models import Member
 
 L = GeographyLevel
@@ -319,6 +320,9 @@ def _members_summary(members, now) -> dict:
         "verification": _by(members, "verification_status"),
         "standing": _by(members, "membership_state"),
         "gender": _by(members, "gender"),
+        "occupations": occupations.summarise(
+            members.values_list("occupation").annotate(n=Count("pk")).order_by()
+        ),
         "channel": _by(members, "registration_channel"),
         "age": {label: totals[f"age:{label}"] for label, *_ in AGE_BANDS}
         | {"unknown": totals["age:unknown"]},
@@ -345,6 +349,7 @@ def _exco_summary(areas, scope) -> dict:
         verified=Count("pk", filter=Q(verification_status=V.VERIFIED)),
         fullyVerified=Count("pk", filter=FULLY_VERIFIED),
         women=Count("pk", filter=Q(gender="female")),
+        men=Count("pk", filter=Q(gender="male")),
         phoneConfirmed=Count("pk", filter=Q(phone_verified_at__isnull=False)),
         appAccount=Count("pk", filter=Q(user__isnull=False)),
         signedIn=Count("pk", filter=SIGNED_IN),
@@ -375,6 +380,7 @@ def _exco_summary(areas, scope) -> dict:
         "verified": totals["verified"],
         "fully_verified": totals["fullyVerified"],
         "women": totals["women"],
+        "men": totals["men"],
         "profile": _profile(totals),
         "by_level": by_level,
         "roles": [
@@ -424,6 +430,7 @@ def _parts(members, areas, scope, now, level) -> tuple[str | None, list[dict]]:
             verified=Count("pk", filter=Q(verification_status=V.VERIFIED)),
             fully_verified=Count("pk", filter=FULLY_VERIFIED),
             women=Count("pk", filter=Q(gender="female")),
+            men=Count("pk", filter=Q(gender="male")),
             new_30_days=Count("pk", filter=Q(created_at__gte=recent)),
         )
         .order_by()
@@ -450,6 +457,7 @@ def _parts(members, areas, scope, now, level) -> tuple[str | None, list[dict]]:
                 "verified": counted.get("verified", 0),
                 "fully_verified": counted.get("fully_verified", 0),
                 "women": counted.get("women", 0),
+                "men": counted.get("men", 0),
                 "new_30_days": counted.get("new_30_days", 0),
                 "exco": exco.get("appointments", 0),
                 "exco_people": exco.get("people", 0),

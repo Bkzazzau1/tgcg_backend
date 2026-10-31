@@ -253,8 +253,8 @@ class MemberViewSet(
         """Members and exco in an area, wholly within the caller's reach.
 
         `members`: totals, new in 7 and 30 days, fully verified, by
-        verification, standing, gender, age, how they joined, what their
-        profiles hold, and new members week by week. `exco`: people and posts,
+        verification, standing, gender, occupation, age, how they joined, what
+        their profiles hold, and new members week by week. `exco`: people and posts,
         how many are here (at this area itself) or suspended, by level and
         role, and their profiles. `parts`: each smaller area (`by`) with its
         members and exco.
