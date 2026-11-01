@@ -42,6 +42,8 @@ GAPS = {
 COMPLETE = ~reduce(operator.or_, GAPS.values())
 FULLY_VERIFIED = Q(verification_status=V.VERIFIED) & COMPLETE
 SIGNED_IN = Q(user__last_login__isnull=False)
+# Disability is the member's own to give: these count those who told us.
+WITH_DISABILITY = ~Q(disabilities=[])
 
 # Ages in years: (label, youngest, oldest); None is open-ended.
 AGE_BANDS = [
@@ -293,7 +295,9 @@ def _members_summary(members, now) -> dict:
         phoneConfirmed=Count("pk", filter=Q(phone_verified_at__isnull=False)),
         appAccount=Count("pk", filter=Q(user__isnull=False)),
         signedIn=Count("pk", filter=SIGNED_IN),
-        disability=Count("pk", filter=~Q(disabilities=[])),
+        disability=Count("pk", filter=WITH_DISABILITY),
+        disabilityMen=Count("pk", filter=WITH_DISABILITY & Q(gender="male")),
+        disabilityWomen=Count("pk", filter=WITH_DISABILITY & Q(gender="female")),
         **{f"has:{key}": Count("pk", filter=~gap) for key, gap in GAPS.items()},
         **_age_counts(today),
         **{key: Count("pk", filter=condition) for key, condition in detail_filters.items()},
@@ -317,6 +321,8 @@ def _members_summary(members, now) -> dict:
         "fully_verified": totals["fullyVerified"],
         "with_role": totals["withRole"],
         "with_disability": totals["disability"],
+        "disability_men": totals["disabilityMen"],
+        "disability_women": totals["disabilityWomen"],
         "verification": _by(members, "verification_status"),
         "standing": _by(members, "membership_state"),
         "gender": _by(members, "gender"),
@@ -432,6 +438,9 @@ def _parts(members, areas, scope, now, level) -> tuple[str | None, list[dict]]:
             women=Count("pk", filter=Q(gender="female")),
             men=Count("pk", filter=Q(gender="male")),
             new_30_days=Count("pk", filter=Q(created_at__gte=recent)),
+            with_disability=Count("pk", filter=WITH_DISABILITY),
+            disability_men=Count("pk", filter=WITH_DISABILITY & Q(gender="male")),
+            disability_women=Count("pk", filter=WITH_DISABILITY & Q(gender="female")),
         )
         .order_by()
     }
@@ -459,6 +468,9 @@ def _parts(members, areas, scope, now, level) -> tuple[str | None, list[dict]]:
                 "women": counted.get("women", 0),
                 "men": counted.get("men", 0),
                 "new_30_days": counted.get("new_30_days", 0),
+                "with_disability": counted.get("with_disability", 0),
+                "disability_men": counted.get("disability_men", 0),
+                "disability_women": counted.get("disability_women", 0),
                 "exco": exco.get("appointments", 0),
                 "exco_people": exco.get("people", 0),
             }

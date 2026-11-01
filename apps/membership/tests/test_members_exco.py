@@ -111,6 +111,37 @@ def test_the_national_view_counts_members_and_exco_state_by_state(admin, exco):
     }
 
 
+def test_members_with_a_disability_are_counted_by_place_men_and_women(admin, exco):
+    """Those who told us, men and women apart, wherever they registered."""
+    for key, kinds, gender in (
+        ("secretary", ["visual"], "female"),
+        ("coordinator", ["physical", "hearing"], "male"),
+        ("leader", ["other"], ""),
+        ("kano", ["speech"], "male"),
+    ):
+        member = exco[key]
+        member.disabilities, member.gender = kinds, gender
+        member.disability_other = "Epilepsy" if kinds == ["other"] else ""
+        member.save()
+
+    body = client_for(admin).get(ANALYSIS).json()
+    members = body["members"]
+    assert members["with_disability"] == 4
+    assert members["disability_men"] == 2 and members["disability_women"] == 1
+
+    states = {part["code"]: part for part in body["parts"]}
+    assert states["KD"]["with_disability"] == 3
+    assert states["KD"]["disability_men"] == 1 and states["KD"]["disability_women"] == 1
+    assert states["KN"]["with_disability"] == 1 and states["KN"]["disability_men"] == 1
+    assert states["LA"]["with_disability"] == 0 and states["LA"]["disability_women"] == 0
+
+    # The figures go down with the area, and only those who told us count.
+    kaduna = client_for(admin).get(ANALYSIS, {"level": "state", "code": "KD"}).json()
+    assert kaduna["members"]["with_disability"] == 3
+    lgas = {part["code"]: part for part in kaduna["parts"]}
+    assert lgas["KD-KADUNA-NORTH"]["with_disability"] == 3
+
+
 def test_a_state_shows_its_own_exco_and_each_lga(admin, exco):
     body = client_for(admin).get(ANALYSIS, {"level": "state", "code": "KD"}).json()
     assert body["scope"]["stateId"] == "KD"
