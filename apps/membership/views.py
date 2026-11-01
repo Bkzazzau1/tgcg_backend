@@ -78,7 +78,7 @@ MEMBER_READERS = (
 STANDING_ACTIONS = ("suspend", "deactivate", "restore")
 # The record of standing and identity decisions: for those who make them.
 HISTORY_READERS = (C.VERIFY_MEMBER_IDENTITY, C.SUSPEND_MEMBERS)
-VERIFICATION_ACTIONS = ("verification", "run_checks", "verify", "reject_identity")
+VERIFICATION_ACTIONS = ("verification", "run_checks", "verify", "reject_identity", "card_photo")
 # How deep each level lies below Nigeria (the country is 0).
 DEPTH = {level: depth for depth, level in enumerate(LEVEL_FIELD, start=1)}
 
@@ -144,7 +144,7 @@ class MemberViewSet(
 
     def get_permissions(self):
         if self.action == "photo":
-            return [requires(C.VIEW_MEMBER_SENSITIVE_DATA)()]
+            return [requires(C.VIEW_MEMBER_SENSITIVE_DATA, C.VERIFY_MEMBER_IDENTITY)()]
         if self.action in STANDING_ACTIONS:
             return [requires(C.SUSPEND_MEMBERS)()]
         if self.action in VERIFICATION_ACTIONS:
@@ -413,9 +413,11 @@ class MemberViewSet(
     @extend_schema(responses={(200, "image/jpeg"): bytes})
     @action(detail=True, methods=["get"])
     def photo(self, request, membership_number=None):
+        """The member's selfie: for those who see personal details in their area,
+        and for whoever decides their identity, who cannot decide without it."""
         member = self.get_object()
         if not scope_contains(request.user, member, permission=C.VIEW_MEMBER_SENSITIVE_DATA):
-            raise PermissionDenied("Personal details of this member are outside your access.")
+            self._require_reviewer(member)
         return _photo_response(member)
 
     def _standing(self, request, change):
@@ -464,6 +466,15 @@ class MemberViewSet(
         member = self.get_object()
         self._require_reviewer(member)
         return self._verification(member)
+
+    @extend_schema(responses={(200, "image/jpeg"): bytes})
+    @action(detail=True, methods=["get"], url_path="card-photo")
+    def card_photo(self, request, membership_number=None):
+        """The photo of the member's voter card, the evidence for an identity
+        decision: it shows the whole VIN, so only whoever decides sees it."""
+        member = self.get_object()
+        self._require_reviewer(member)
+        return image_response(member.pvc_image)
 
     @extend_schema(request=None, responses=VerificationSerializer)
     @action(detail=True, methods=["post"], url_path="verification/check")
