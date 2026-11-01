@@ -67,7 +67,7 @@ def test_a_sender_reaches_only_their_own_area(admin, outbox):
 
     call_command("deliver_messages", seconds=5)
     assert numbers_sent(outbox) == ["+2348037770001", "+2348037770002"]  # not Kano's
-    broadcast = Broadcast.objects.get()
+    broadcast = Broadcast.objects.get(kind="message")
     assert broadcast.status == "done"
     detail = sender.get(f"/api/v1/broadcasts/{sent.json()['id']}/").json()
     assert detail["delivered"] == {"sms": {"sent": 2}}
@@ -119,7 +119,7 @@ def test_groups_are_joined_without_repeating_anyone(admin, outbox):
     both = [{"type": "list", "list": made.json()["id"]}, {"type": "filter", "gender": "female"}]
     assert reach(both) == 1
     sender.post("/api/v1/broadcasts/", message(groups=both), format="json")
-    assert Delivery.objects.count() == 1
+    assert Delivery.objects.filter(broadcast__kind="message").count() == 1
 
 
 def test_app_notifications_go_to_registered_phones_and_the_inbox(admin, outbox):
@@ -270,7 +270,7 @@ def test_a_channel_whose_service_is_not_set_up_is_not_offered(admin, settings):
     refused = sender.post("/api/v1/broadcasts/", message(), format="json")
     assert refused.status_code == 400
     assert "SMS is not set up on the server yet." in str(refused.json())
-    assert not Broadcast.objects.exists()
+    assert not Broadcast.objects.filter(kind="message").exists()
 
     settings.TERMII_API_KEY = "test-key"
     assert sender.get("/api/v1/broadcasts/roles/").json()["channels"] == ["sms"]

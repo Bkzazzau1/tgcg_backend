@@ -7,7 +7,12 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from apps.access import views as access
 from apps.accounts.views import LoginView, LogoutView, MeView, PasswordChangeView
-from apps.announcements.views import AnnouncementViewSet
+from apps.announcements.views import (
+    AnnouncementViewSet,
+    MyPopupsView,
+    PopupPictureView,
+    PopupViewSet,
+)
 from apps.askme import views as askme
 from apps.core.views import HealthView
 from apps.field.views import (
@@ -55,6 +60,7 @@ router.register("volunteers", VolunteerViewSet, basename="volunteer")
 router.register("polling-unit-changes", PollingUnitChangeViewSet, basename="polling-unit-change")
 router.register("pvc-updates", PvcUpdateViewSet, basename="pvc-update")
 router.register("announcements", AnnouncementViewSet, basename="announcement")
+router.register("popups", PopupViewSet, basename="popup")
 router.register("tracking/check-ins", CheckInViewSet, basename="check-in")
 router.register("incidents", IncidentViewSet, basename="incident")
 router.register("field-reports", FieldReportViewSet, basename="field-report")
@@ -244,6 +250,8 @@ api_v1 = [
         name="my-polling-unit-change-withdraw",
     ),
     path("me/announcements/", reg.MyAnnouncementsView.as_view(), name="my-announcements"),
+    path("me/popups/", MyPopupsView.as_view(), name="my-popups"),
+    path("popups/<uuid:uuid>/picture/", PopupPictureView.as_view(), name="popup-picture"),
     path("me/wallet/", wallets.MyWalletView.as_view(), name="my-wallet"),
     path(
         "me/wallet/bank-account/",

@@ -2,6 +2,7 @@ from django.db.models import Count
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.announcements.models import PopupMessage
 from apps.core.choices import Gender
 from apps.geography.scope import ScopeField
 
@@ -92,6 +93,22 @@ class InboxSerializer(serializers.ModelSerializer):
         model = Broadcast
         fields = ["id", "title", "body", "created_at"]
         read_only_fields = fields
+
+
+class InboxPopupSerializer(serializers.ModelSerializer):
+    """A pop-up kept in the inbox: `popup` says its picture can be fetched."""
+
+    id = serializers.UUIDField(source="uuid", read_only=True)
+    created_at = serializers.DateTimeField(source="starts_at", read_only=True)
+    popup = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PopupMessage
+        fields = ["id", "title", "body", "created_at", "popup"]
+        read_only_fields = fields
+
+    def get_popup(self, popup) -> str | None:
+        return str(popup.uuid) if popup.picture else None
 
 
 class ListMemberSerializer(serializers.Serializer):

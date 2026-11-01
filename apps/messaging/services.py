@@ -17,7 +17,7 @@ from apps.geography.scope import any_of, within_scope_q
 from apps.membership.models import Member
 
 from . import audience, providers
-from .models import Broadcast, Channel, Delivery, Device, MessageList
+from .models import IN_APP, Broadcast, Channel, Delivery, Device, MessageList
 
 D = Delivery.Status
 # Numbers per bulk SMS request: one refused request costs at most this many.
@@ -120,29 +120,37 @@ def send(*, sender, channels, body: str, groups, title: str = "", record=None) -
     return broadcast
 
 
-def notify(*, sender, member, title: str, body: str, record=None) -> list[str]:
-    """Queue a notice to one member on the channels the server can carry now:
-    the app on their phone, if they have it, and SMS. It goes out with the
-    other messages, and is in their inbox. Returns the channels used."""
+def notify(*, sender, member, title: str, body: str, record=None, sms: bool = True) -> list[str]:
+    """A notice to one member: always in their inbox in the app, and queued
+    on what the server can carry now, the app on their phone and SMS, to go
+    out with the other messages. Returns those channels. No `sender`: the
+    system itself. `sms=False` for routine news, which is not worth paying for
+    and can come in thousands at once from a chapter's list."""
     reached = Member.objects.filter(pk=member.pk)
     channels = [
         channel
-        for channel in (Channel.PUSH, Channel.SMS)
+        for channel in (Channel.PUSH, *([Channel.SMS] if sms else []))
         if providers.ready(channel) and audience.addressable(reached, channel).exists()
     ]
-    if not channels:
-        return []
+    now = timezone.now()
     broadcast = Broadcast.objects.create(
         sender=sender,
         kind=Broadcast.Kind.NOTICE,
         title=" ".join(title.split()),
         body=body.strip(),
-        channels=channels,
+        channels=[IN_APP, *channels],
         audience=record or {},
         people=1,
+        status=Broadcast.Status.SENDING if channels else Broadcast.Status.DONE,
+        finished_at=None if channels else now,
     )
     Delivery.objects.bulk_create(
-        [Delivery(broadcast=broadcast, member=member, channel=channel) for channel in channels]
+        [
+            Delivery(
+                broadcast=broadcast, member=member, channel=IN_APP, status=D.SENT, sent_at=now
+            ),
+            *(Delivery(broadcast=broadcast, member=member, channel=c) for c in channels),
+        ]
     )
     return channels
 

@@ -20,6 +20,11 @@ class Channel(models.TextChoices):
     PUSH = "push", "App notification"
 
 
+# A notice kept in the app's inbox. It needs no outside service and nobody
+# sends on it, so it is not among the Channels above.
+IN_APP = "app"
+
+
 class Broadcast(TimeStampedModel):
     """One message sent to many people, or a notice the system sends one person."""
 
@@ -33,7 +38,14 @@ class Broadcast(TimeStampedModel):
         # a security officer; it is not among the sender's messages.
         NOTICE = "notice", "Notice"
 
-    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="Empty on a notice from the system itself.",
+    )
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.MESSAGE)
     title = models.CharField(max_length=120, blank=True, help_text="For app notifications.")
     body = models.TextField(max_length=1000)
@@ -66,7 +78,7 @@ class Delivery(models.Model):
     member = models.ForeignKey(
         "membership.Member", on_delete=models.CASCADE, related_name="message_deliveries"
     )
-    channel = models.CharField(max_length=10, choices=Channel.choices)
+    channel = models.CharField(max_length=10, choices=[*Channel.choices, (IN_APP, "In the app")])
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)
     detail = models.CharField(max_length=200, blank=True, help_text="Why it was not sent.")
     provider_ref = models.CharField(max_length=100, blank=True)

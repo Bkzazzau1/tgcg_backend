@@ -93,6 +93,19 @@ def _audit(actor, action, member, reason="", changes=None):
     )
 
 
+def _tell_approved(actor, member):
+    """A notice in the member's inbox. No `actor`: the system approved them."""
+    from apps.messaging.services import notify
+
+    notify(
+        sender=actor,
+        member=member,
+        title="Your identity is approved",
+        body="TGCG has checked and approved your identity. You can now be given a position.",
+        sms=False,
+    )
+
+
 def assess(member) -> dict[str, tuple[str, str]]:
     """Every check but the card comparison, as things stand: {kind: (result,
     detail)}. Nothing is recorded and no card is read."""
@@ -236,6 +249,7 @@ def record_checks(member: Member, actor=None) -> Member:
     action = "member.verifiedAutomatically" if automatic else "member.checksRecorded"
     _audit(actor, action, member, changes=changes)
     if automatic:
+        _tell_approved(None, member)
         engine.clear_cache()  # roles given to the member now apply
     return member
 
@@ -310,6 +324,7 @@ def approve(*, actor, member: Member, notes: str) -> Member:
         reason=notes.strip(),
         changes={"from": before, "checks": results},
     )
+    _tell_approved(actor, member)
     return member
 
 

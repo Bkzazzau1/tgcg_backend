@@ -779,7 +779,29 @@ def appoint(
         provenance=_provenance(authority),
     )
     engine.clear_cache()
+    _tell_appointed(actor, member, assignment, built)
     return assignment
+
+
+def _tell_appointed(actor, member, assignment, areas):
+    """A notice in the member's inbox."""
+    from apps.messaging.services import notify
+
+    places = ", ".join(
+        "Nigeria" if area.scope_unit_field is None else getattr(area, area.scope_unit_field).name
+        for area in areas
+    )
+    notify(
+        sender=actor,
+        member=member,
+        title="You have been given a position",
+        body=(
+            f"You are appointed {assignment.role.name} for {places}. "
+            "Accept or decline it in Roles and access."
+        ),
+        record={"appointment": str(assignment.uuid)},
+        sms=False,
+    )
 
 
 def _lock(assignment) -> RoleAssignment:

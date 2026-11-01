@@ -9,7 +9,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.access import engine
-from apps.access.models import RoleDefinition, RoleStatus
+from apps.access.models import AssignmentStatus, RoleDefinition, RoleStatus
+from apps.announcements.models import popups_posted
+from apps.core.choices import VerificationStatus
 from apps.core.permissions import Capability, requires
 from apps.projects.models import Project
 from apps.projects.services import require_visible
@@ -19,6 +21,7 @@ from .models import Broadcast, MessageList
 from .serializers import (
     BroadcastSerializer,
     DeviceSerializer,
+    InboxPopupSerializer,
     InboxSerializer,
     MessageListDetailSerializer,
     MessageListSerializer,
@@ -187,6 +190,17 @@ class MyDevicesView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+INBOX_LIMIT = 200
+
+
+def keeps_popups(member) -> bool:
+    """Members approved, or holding a position, also keep pop-ups in their inbox."""
+    return (
+        member.verification_status == VerificationStatus.VERIFIED
+        or member.role_assignments.filter(status=AssignmentStatus.ACTIVE).exists()
+    )
+
+
 class MyMessagesView(APIView):
     """Messages sent to the signed-in member on any channel, newest first."""
 
@@ -199,5 +213,12 @@ class MyMessagesView(APIView):
             return Response([])
         messages = (
             Broadcast.objects.filter(deliveries__member=member).distinct().order_by("-created_at")
-        )[:200]
-        return Response(InboxSerializer(messages, many=True).data)
+        )[:INBOX_LIMIT]
+        rows = [(message.created_at, InboxSerializer(message).data) for message in messages]
+        if keeps_popups(member):
+            rows += [
+                (popup.starts_at, InboxPopupSerializer(popup).data)
+                for popup in popups_posted()[:INBOX_LIMIT]
+            ]
+        rows.sort(key=lambda row: row[0], reverse=True)
+        return Response([row for _, row in rows[:INBOX_LIMIT]])

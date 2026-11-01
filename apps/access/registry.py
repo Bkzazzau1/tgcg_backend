@@ -191,6 +191,7 @@ PERMISSIONS: dict[str, PermissionInfo] = {
         _p(C.ASSIGN_PROJECT_PARTICIPANTS, M.PROJECTS, "assign", "Assign people to projects"),
         _p(C.SEND_SMS, M.COMMUNICATIONS, "publish", "Send SMS to members"),
         _p(C.SEND_WHATSAPP, M.COMMUNICATIONS, "publish", "Send WhatsApp messages to members"),
+        _p(C.POST_POPUPS, M.COMMUNICATIONS, "publish", "Post pop-up messages to everyone"),
         _p(
             C.SEND_PUSH_NOTIFICATIONS,
             M.COMMUNICATIONS,

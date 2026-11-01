@@ -81,6 +81,8 @@ class Capability(models.TextChoices):
     SEND_SMS = "sendSms"
     SEND_WHATSAPP = "sendWhatsApp"
     SEND_PUSH_NOTIFICATIONS = "sendPushNotifications"
+    # Pop-up messages to everyone (apps.announcements), held nationwide.
+    POST_POPUPS = "postPopups"
     # Security officers (apps.security): members whose role holds this answer
     # the incidents the Situation Room sends them.
     RESPOND_TO_SECURITY = "respondToSecurity"
