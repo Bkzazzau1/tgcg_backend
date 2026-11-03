@@ -201,6 +201,8 @@ def self_register(
     disabilities=(),
     disability_other="",
     referral_code="",
+    group_code="",
+    organization=None,
 ):
     """Register a member in the app. Returns (member, user).
 
@@ -215,9 +217,17 @@ def self_register(
     A `referral_code` makes the member whose code it is their referrer, who
     earns registration credits at once: joining in the app signs the new
     member in, which is the first sign-in that earns (decided 24 October).
+
+    A `group_code`, from a support group's link, puts the member in that
+    group. With `organization` (decided 3 November) the member registers an
+    organization they lead, which waits for TGCG's vetting.
     """
+    from apps.support_groups import services as groups
+
     _require_consent(consent)
     inviter = referrals.referrer_or_error(referral_code) if referrals.clean(referral_code) else None
+    group = groups.group_for_code(group_code) if referrals.clean(group_code) else None
+    details = groups.clean_details(**organization) if organization else None
     phone = require_phone(phone_number)
     vin = _clean_vin(vin)
     if not vin:
@@ -261,6 +271,10 @@ def self_register(
         _save_member(member)
         user = _member_account(member, pin)
         member = identity.record_checks(member)
+        if group is not None:
+            groups.join_when_registering(member=member, group=group)
+        if details is not None:
+            groups.register_group(actor=user, leader=member, details=details)
     if inviter is not None:
         from apps.wallets.services import reward_registration_quietly
 

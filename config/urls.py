@@ -37,6 +37,7 @@ from apps.messaging import views as messaging
 from apps.projects import views as projects
 from apps.results.views import CollationView, ElectionViewSet, PartyViewSet, ResultViewSet
 from apps.security import views as security
+from apps.support_groups import views as groups
 from apps.tracking import mapping_views as mapping
 from apps.tracking.views import (
     CheckInViewSet,
@@ -85,6 +86,7 @@ router.register("message-lists", messaging.MessageListViewSet, basename="message
 router.register(
     "project-participants", projects.ParticipationViewSet, basename="project-participant"
 )
+router.register("support-groups", groups.SupportGroupViewSet, basename="support-group")
 router.register("access/roles", access.RoleViewSet, basename="role")
 router.register("access/assignments", access.AssignmentViewSet, basename="role-assignment")
 router.register("access/delegations", access.DelegationViewSet, basename="delegation")
@@ -182,6 +184,9 @@ api_v1 = [
         name="register-polling-units",
     ),
     path("register/code/", reg.RegistrationCodeView.as_view(), name="register-code"),
+    path(
+        "register/support-group/", groups.GroupForCodeView.as_view(), name="register-support-group"
+    ),
     path(
         "register/",
         transaction.non_atomic_requests(reg.SelfRegistrationView.as_view()),
@@ -291,6 +296,41 @@ api_v1 = [
         name="security-dispatch-cancel",
     ),
     path("me/security/", security.MyDispatchesView.as_view(), name="my-security"),
+    path("me/support-groups/", groups.MySupportGroupsView.as_view(), name="my-support-groups"),
+    path(
+        "me/support-groups/register/",
+        groups.RegisterGroupView.as_view(),
+        name="my-support-groups-register",
+    ),
+    path("me/support-groups/join/", groups.JoinGroupView.as_view(), name="my-support-groups-join"),
+    path(
+        "me/support-groups/<uuid:uuid>/answer/",
+        groups.AnswerView.as_view(),
+        name="my-support-group-answer",
+    ),
+    path(
+        "me/support-groups/<uuid:uuid>/leave/",
+        groups.LeaveView.as_view(),
+        name="my-support-group-leave",
+    ),
+    path("my-groups/<uuid:uuid>/", groups.LedGroupView.as_view(), name="led-group"),
+    path(
+        "my-groups/<uuid:uuid>/members/",
+        groups.LedGroupMembersView.as_view(),
+        name="led-group-members",
+    ),
+    path(
+        "my-groups/<uuid:uuid>/members/<uuid:place>/remove/",
+        groups.RemovePersonView.as_view(),
+        name="led-group-remove",
+    ),
+    path("my-groups/<uuid:uuid>/read-list/", groups.ReadListView.as_view(), name="led-group-read"),
+    path("my-groups/<uuid:uuid>/add/", groups.AddPeopleView.as_view(), name="led-group-add"),
+    path(
+        "my-groups/<uuid:uuid>/message/",
+        groups.GroupMessageView.as_view(),
+        name="led-group-message",
+    ),
     path(
         "me/security/<uuid:uuid>/respond/",
         security.RespondView.as_view(),

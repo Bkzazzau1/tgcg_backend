@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "apps.messaging",
     "apps.security",
     "apps.askme",
+    "apps.support_groups",
 ]
 
 MIDDLEWARE = [
@@ -150,6 +151,8 @@ REST_FRAMEWORK = {
         "pvc_reading": env("API_THROTTLE_PVC_READING", default="30/hour"),
         # Public INEC lists for finding a polling unit by name; several per sign-up.
         "registration_places": env("API_THROTTLE_REGISTRATION_PLACES", default="600/hour"),
+        # Support groups' uploaded lists, each read in full.
+        "group_lists": env("API_THROTTLE_GROUP_LISTS", default="30/hour"),
     },
 }
 

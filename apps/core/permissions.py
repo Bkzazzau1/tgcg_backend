@@ -83,6 +83,9 @@ class Capability(models.TextChoices):
     SEND_PUSH_NOTIFICATIONS = "sendPushNotifications"
     # Pop-up messages to everyone (apps.announcements), held nationwide.
     POST_POPUPS = "postPopups"
+    # Support groups (apps.support_groups): vetting organizations allied with
+    # TGCG and seeing who is in them, held nationwide.
+    MANAGE_SUPPORT_GROUPS = "manageSupportGroups"
     # Security officers (apps.security): members whose role holds this answer
     # the incidents the Situation Room sends them.
     RESPOND_TO_SECURITY = "respondToSecurity"

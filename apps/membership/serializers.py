@@ -453,6 +453,41 @@ class SelfRegistrationSerializer(DisabilitySerializerMixin, serializers.Serializ
     pvc_image = serializers.FileField(
         required=False, allow_null=True, help_text="Optional photo of the front of the PVC."
     )
+    group_code = serializers.CharField(
+        max_length=12,
+        required=False,
+        allow_blank=True,
+        help_text="From a support group's link: the new member is in that group at once.",
+    )
+    # Registering an organization: the person joining is its leader.
+    organization_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    organization_coverage = serializers.CharField(max_length=10, required=False, allow_blank=True)
+    organization_zone = serializers.CharField(max_length=4, required=False, allow_blank=True)
+    organization_state = serializers.CharField(max_length=4, required=False, allow_blank=True)
+    organization_email = serializers.CharField(max_length=254, required=False, allow_blank=True)
+    organization_officials = serializers.JSONField(
+        required=False, help_text="Up to three: [{name, position, phone}], as JSON text."
+    )
+
+    ORGANIZATION = {
+        "organization_name": "name",
+        "organization_coverage": "coverage",
+        "organization_zone": "zone",
+        "organization_state": "state",
+        "organization_email": "email",
+        "organization_officials": "officials",
+    }
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        organization = {
+            key: attrs.pop(field) for field, key in self.ORGANIZATION.items() if field in attrs
+        }
+        if organization.get("name") or organization.get("coverage"):
+            officials = organization.get("officials") or []
+            organization["officials"] = officials if isinstance(officials, list) else [officials]
+            attrs["organization"] = organization
+        return attrs
 
 
 class RegistrationCodeSerializer(serializers.Serializer):

@@ -77,6 +77,13 @@ PERMISSIONS: dict[str, PermissionInfo] = {
             sensitive=True,
         ),
         _p(C.SUSPEND_MEMBERS, M.MEMBERSHIP, "suspend", "Suspend or deactivate members"),
+        _p(
+            C.MANAGE_SUPPORT_GROUPS,
+            M.MEMBERSHIP,
+            "approve",
+            "Vet support groups and see who is in them",
+            sensitive=True,
+        ),
         _p(C.REVIEW_POLLING_UNIT_CHANGES, M.MEMBERSHIP, "approve", "Review polling unit changes"),
         _p(
             C.VERIFY_MEMBER_IDENTITY,
