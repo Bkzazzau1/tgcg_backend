@@ -494,6 +494,7 @@ class SelfRegistrationSerializer(DisabilitySerializerMixin, serializers.Serializ
     )
     # Registering an organization: the person joining is its leader.
     organization_name = serializers.CharField(max_length=200, required=False, allow_blank=True)
+    organization_kind = serializers.CharField(max_length=40, required=False, allow_blank=True)
     organization_coverage = serializers.CharField(max_length=10, required=False, allow_blank=True)
     organization_zone = serializers.CharField(max_length=4, required=False, allow_blank=True)
     organization_state = serializers.CharField(max_length=4, required=False, allow_blank=True)
@@ -525,6 +526,7 @@ class SelfRegistrationSerializer(DisabilitySerializerMixin, serializers.Serializ
     }
     ORGANIZATION = {
         "organization_name": "name",
+        "organization_kind": "kind",
         "organization_coverage": "coverage",
         "organization_zone": "zone",
         "organization_state": "state",

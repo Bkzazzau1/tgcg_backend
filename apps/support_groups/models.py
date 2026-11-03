@@ -12,12 +12,32 @@ Which group a member is in shows nowhere else: not on the card, the profile,
 member lists or the Social Forum. Only the member, the group's leader and
 those who vet groups see it. Someone already registered with TGCG joins a
 group only when they say yes in the app.
+
+Every group is of one type (3 November 2026), chosen when it registers:
+Support Groups, Women Groups, Youth Groups or People With Disability (PWD)
+Groups to start with. Those who vet groups add more types, rename them,
+stop offering one, and move a group to another type.
 """
 
 from django.conf import settings
 from django.db import models
 
 from apps.core.models import TimeStampedModel
+
+
+class GroupKind(TimeStampedModel):
+    """A type of support group."""
+
+    code = models.SlugField(max_length=40, unique=True, editable=False)
+    name = models.CharField(max_length=80, unique=True)
+    position = models.PositiveSmallIntegerField(default=0, help_text="Its place in lists.")
+    offered = models.BooleanField(default=True, help_text="Offered when a group registers.")
+
+    class Meta:
+        ordering = ["position", "id"]
+
+    def __str__(self):
+        return self.name
 
 
 class SupportGroup(TimeStampedModel):
@@ -34,6 +54,7 @@ class SupportGroup(TimeStampedModel):
 
     serial_number = models.CharField(max_length=24, unique=True, editable=False)
     name = models.CharField(max_length=150)
+    kind = models.ForeignKey(GroupKind, on_delete=models.PROTECT, related_name="groups")
     coverage = models.CharField(max_length=10, choices=Coverage.choices)
     zone = models.ForeignKey(
         "geography.Zone",

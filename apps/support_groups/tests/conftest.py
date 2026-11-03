@@ -35,6 +35,7 @@ def leader():
 def details(**extra):
     return {
         "organization_name": "Arewa Youth for Progress",
+        "organization_kind": "youth",
         "organization_coverage": "state",
         "organization_state": "KD",
         "organization_email": "info@ayp.ng",

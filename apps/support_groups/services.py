@@ -16,6 +16,7 @@ from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.utils import timezone
+from django.utils.text import slugify
 
 from apps.access import audit, engine
 from apps.accounts.models import User
@@ -29,7 +30,7 @@ from apps.membership.models import Member
 from apps.messaging.models import IN_APP, Broadcast, Delivery
 from apps.messaging.services import notify
 
-from .models import GroupMember, SupportGroup
+from .models import GroupKind, GroupMember, SupportGroup
 
 S = SupportGroup.Status
 M = GroupMember.Status
@@ -91,7 +92,9 @@ def _active_member(user) -> Member:
 # --- registering an organization --------------------------------------------------
 
 
-def clean_details(*, name="", coverage="", zone="", state="", email="", officials=()) -> dict:
+def clean_details(
+    *, name="", kind="", coverage="", zone="", state="", email="", officials=()
+) -> dict:
     """The organization's details as the form gives them, checked. Errors
     name the form's fields, which all start with organization_."""
     errors = {}
@@ -100,6 +103,9 @@ def clean_details(*, name="", coverage="", zone="", state="", email="", official
         errors["organization_name"] = "Enter the organization's name."
     elif len(name) > 150:
         errors["organization_name"] = "Shorten the name to 150 letters."
+    found_kind = GroupKind.objects.filter(code=(kind or "").strip(), offered=True).first()
+    if found_kind is None:
+        errors["organization_kind"] = "Choose the type of group."
     found_zone = found_state = None
     if coverage not in SupportGroup.Coverage.values:
         errors["organization_coverage"] = "Choose national, regional or state."
@@ -141,6 +147,7 @@ def clean_details(*, name="", coverage="", zone="", state="", email="", official
         raise ValidationError(errors)
     return {
         "name": name,
+        "kind": found_kind,
         "coverage": coverage,
         "zone": found_zone,
         "state": found_state,
@@ -702,17 +709,116 @@ def with_counts(groups):
     ).order_by("-created_at", "-id")
 
 
+def _people_in(groups):
+    """Members in any of these groups once approved, each counted once."""
+    return Member.objects.filter(
+        support_group_memberships__status=M.ACTIVE,
+        support_group_memberships__group__in=groups.filter(status=S.APPROVED),
+    ).distinct()
+
+
 def totals() -> dict:
-    """Groups by status, and the people in approved groups counted once."""
+    """Groups by status, and the people in approved groups counted once; and
+    the same for each type of group."""
     by_status = dict(
         SupportGroup.objects.values_list("status").annotate(count=Count("id")).order_by()
     )
-    people = Member.objects.filter(
-        support_group_memberships__status=M.ACTIVE,
-        support_group_memberships__group__status=S.APPROVED,
-    ).distinct()
+    by_kind = {}
+    for kind_id, status, count in (
+        SupportGroup.objects.values_list("kind_id", "status").annotate(count=Count("id")).order_by()
+    ):
+        by_kind.setdefault(kind_id, {})[status] = count
+    people = _people_in(SupportGroup.objects.all())
     return {
         "groups": {status: by_status.get(status, 0) for status in S.values},
         "people": people.count(),
         "approved_people": people.filter(verification_status=VerificationStatus.VERIFIED).count(),
+        "kinds": [
+            {
+                "code": kind.code,
+                "name": kind.name,
+                "offered": kind.offered,
+                "groups": {status: by_kind.get(kind.pk, {}).get(status, 0) for status in S.values},
+                "people": _people_in(SupportGroup.objects.filter(kind=kind)).count(),
+            }
+            for kind in GroupKind.objects.all()
+        ],
     }
+
+
+# --- types of group ---------------------------------------------------------------
+
+
+def _kind_name(name) -> str:
+    name = " ".join((name or "").split())
+    if len(name) < 3:
+        raise ValidationError({"name": "Name the type of group."})
+    if len(name) > 80:
+        raise ValidationError({"name": "Shorten the name to 80 letters."})
+    return name
+
+
+def _record_kind(actor, action, kind, **extra):
+    audit.record(
+        actor=actor,
+        action=f"supportGroupKind.{action}",
+        target_type="supportGroupKind",
+        target_id=kind.code,
+        target_label=kind.name,
+        **extra,
+    )
+
+
+@transaction.atomic
+def add_kind(*, actor, name) -> GroupKind:
+    """A new type of group, offered at once, after the others."""
+    require_vetter(actor)
+    name = _kind_name(name)
+    if GroupKind.objects.filter(name__iexact=name).exists():
+        raise ValidationError({"name": "There is already a type of group with this name."})
+    base = slugify(name)[:36] or "group"
+    code, number = base, 2
+    while GroupKind.objects.filter(code=code).exists():
+        code, number = f"{base}-{number}", number + 1
+    last = GroupKind.objects.order_by("-position").values_list("position", flat=True).first()
+    kind = GroupKind.objects.create(code=code, name=name, position=(last or 0) + 1)
+    _record_kind(actor, "added", kind)
+    return kind
+
+
+@transaction.atomic
+def update_kind(*, actor, kind, name=None, offered=None) -> GroupKind:
+    """Rename a type, or stop or start offering it to groups registering.
+    Groups already of a type keep it either way."""
+    require_vetter(actor)
+    kind = GroupKind.objects.select_for_update().get(pk=kind.pk)
+    changes = {}
+    if name is not None:
+        name = _kind_name(name)
+        if GroupKind.objects.filter(name__iexact=name).exclude(pk=kind.pk).exists():
+            raise ValidationError({"name": "There is already a type of group with this name."})
+        if name != kind.name:
+            changes["name"] = {"from": kind.name, "to": name}
+            kind.name = name
+    if offered is not None and offered != kind.offered:
+        if not offered and not GroupKind.objects.filter(offered=True).exclude(pk=kind.pk).exists():
+            raise ValidationError({"offered": "Keep at least one type of group offered."})
+        changes["offered"] = offered
+        kind.offered = offered
+    if changes:
+        kind.save(update_fields=["name", "offered", "updated_at"])
+        _record_kind(actor, "changed", kind, changes=changes)
+    return kind
+
+
+@transaction.atomic
+def change_kind(*, actor, group, kind) -> SupportGroup:
+    """Move a group to another type, for one registered under the wrong one."""
+    require_vetter(actor)
+    group = _locked(group)
+    if group.kind_id != kind.pk:
+        before = group.kind.name
+        group.kind = kind
+        group.save(update_fields=["kind", "updated_at"])
+        _record(actor, "kindChanged", group, changes={"from": before, "to": kind.name})
+    return group

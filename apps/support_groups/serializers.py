@@ -4,7 +4,7 @@ from apps.accounts.phone import local_phone
 from apps.core.choices import VerificationStatus
 from apps.geography.scope import ScopeField
 
-from .models import GroupMember, SupportGroup
+from .models import GroupKind, GroupMember, SupportGroup
 from .places import place_of
 
 
@@ -19,6 +19,12 @@ class OrganizationDetailsSerializer(serializers.Serializer):
     those of joining, where they come in the same form as the leader's."""
 
     organization_name = serializers.CharField(max_length=200, allow_blank=True)
+    organization_kind = serializers.CharField(
+        max_length=40,
+        required=False,
+        allow_blank=True,
+        help_text="The type of group: a code from register/support-group-kinds/.",
+    )
     organization_coverage = serializers.ChoiceField(choices=SupportGroup.Coverage.choices)
     organization_zone = serializers.CharField(
         max_length=4, required=False, allow_blank=True, help_text="Zone code, for a region."
@@ -36,6 +42,7 @@ class OrganizationDetailsSerializer(serializers.Serializer):
         officials = data.get("organization_officials") or []
         return {
             "name": data["organization_name"],
+            "kind": data.get("organization_kind", ""),
             "coverage": data["organization_coverage"],
             "zone": data.get("organization_zone", ""),
             "state": data.get("organization_state", ""),
@@ -55,8 +62,17 @@ class RegisterGroupSerializer(OrganizationDetailsSerializer):
     )
 
 
+class GroupKindSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GroupKind
+        fields = ["code", "name", "position", "offered"]
+        read_only_fields = ["code", "position"]
+
+
 class _GroupFields(serializers.ModelSerializer):
     id = serializers.UUIDField(source="uuid", read_only=True)
+    kind = serializers.CharField(source="kind.code", read_only=True)
+    kind_name = serializers.CharField(source="kind.name", read_only=True)
     zone = serializers.CharField(source="zone.name", default=None, read_only=True)
     state = serializers.CharField(source="state.name", default=None, read_only=True)
     status_label = serializers.CharField(source="get_status_display", read_only=True)
@@ -72,6 +88,8 @@ class _GroupFields(serializers.ModelSerializer):
             "id",
             "serial_number",
             "name",
+            "kind",
+            "kind_name",
             "coverage",
             "coverage_label",
             "zone",
@@ -220,6 +238,7 @@ class MyPlaceSerializer(serializers.ModelSerializer):
             "id": str(group.uuid),
             "serial_number": group.serial_number,
             "name": group.name,
+            "kind_name": group.kind.name,
             "coverage_label": group.get_coverage_display(),
             "leader": group.leader.full_name,
             "status": group.status,
@@ -258,6 +277,15 @@ class GroupMessageSerializer(serializers.Serializer):
 
 class GroupReasonSerializer(serializers.Serializer):
     reason = serializers.CharField(max_length=1000, required=False, allow_blank=True)
+
+
+class KindChoiceSerializer(serializers.Serializer):
+    kind = serializers.CharField(max_length=40, help_text="The code of the type of group.")
+
+
+class KindChangeSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=120, required=False)
+    offered = serializers.BooleanField(required=False)
 
 
 class AnswerSerializer(serializers.Serializer):

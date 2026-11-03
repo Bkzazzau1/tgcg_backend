@@ -41,6 +41,7 @@ def join(**overrides):
 def test_an_organization_registers_with_its_leader():
     response = join(
         organization_name="Arewa Youth for Progress",
+        organization_kind="youth",
         organization_coverage="regional",
         organization_zone="NW",
         organization_officials='[{"name": "Bala Musa", "position": "Secretary", '
@@ -50,6 +51,7 @@ def test_an_organization_registers_with_its_leader():
     leader = Member.objects.get()
     group = SupportGroup.objects.get()
     assert group.leader == leader and group.status == SupportGroup.Status.PENDING
+    assert group.kind.name == "Youth Groups"
     assert group.zone.code == "NW" and group.registered_by == leader.user
     assert group.officials[0]["name"] == "Bala Musa"
     assert GroupMember.objects.get().via == GroupMember.Via.LEADER
@@ -58,7 +60,7 @@ def test_an_organization_registers_with_its_leader():
 def test_nobody_joins_when_the_organization_is_incomplete():
     response = join(organization_name="Arewa Youth", organization_coverage="state")
     assert response.status_code == 400
-    assert "organization_state" in response.json()
+    assert {"organization_state", "organization_kind"} <= set(response.json())
     assert not Member.objects.exists() and not SupportGroup.objects.exists()
 
 
@@ -71,6 +73,7 @@ def test_joining_with_a_groups_link():
         "/api/v1/me/support-groups/register/",
         {
             "organization_name": "Arewa Youth for Progress",
+            "organization_kind": "youth",
             "organization_coverage": "national",
         },
         format="json",

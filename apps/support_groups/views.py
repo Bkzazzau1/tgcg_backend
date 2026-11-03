@@ -14,14 +14,17 @@ from rest_framework.views import APIView
 from apps.accounts.phone import local_ng_phone
 
 from . import reading, services
-from .models import GroupMember, SupportGroup
+from .models import GroupKind, GroupMember, SupportGroup
 from .places import Places
 from .serializers import (
     AddPeopleSerializer,
     AnswerSerializer,
     CodeSerializer,
+    GroupKindSerializer,
     GroupMessageSerializer,
     GroupReasonSerializer,
+    KindChangeSerializer,
+    KindChoiceSerializer,
     LedGroupSerializer,
     MyPlaceSerializer,
     PlaceInGroupSerializer,
@@ -43,6 +46,7 @@ class VetsGroups(BasePermission):
 
 def _groups():
     return SupportGroup.objects.select_related(
+        "kind",
         "leader__state",
         "leader__lga",
         "leader__ward",
@@ -63,6 +67,7 @@ def _places(group, status=None):
 
 
 STATUS = OpenApiParameter("status", str, description="pending, approved, rejected or suspended")
+KIND = OpenApiParameter("kind", str, description="Only groups of this type (its code)")
 PLACE_STATUS = OpenApiParameter(
     "status", str, description="active or invited (both when left out), or another status"
 )
@@ -72,8 +77,26 @@ TOTALS = inline_serializer(
         "groups": serializers.DictField(child=serializers.IntegerField()),
         "people": serializers.IntegerField(),
         "approved_people": serializers.IntegerField(),
+        "kinds": inline_serializer(
+            "SupportGroupKindTotals",
+            {
+                "code": serializers.CharField(),
+                "name": serializers.CharField(),
+                "offered": serializers.BooleanField(),
+                "groups": serializers.DictField(child=serializers.IntegerField()),
+                "people": serializers.IntegerField(),
+            },
+            many=True,
+        ),
     },
 )
+
+
+def _kind(code) -> GroupKind:
+    kind = GroupKind.objects.filter(code=(code or "").strip()).first()
+    if kind is None:
+        raise serializers.ValidationError({"kind": "That type of group was not found."})
+    return kind
 
 
 class SupportGroupViewSet(
@@ -91,14 +114,58 @@ class SupportGroupViewSet(
         wanted = self.request.query_params.get("status", "")
         if wanted in SupportGroup.Status.values:
             groups = groups.filter(status=wanted)
+        if kind := self.request.query_params.get("kind", "").strip():
+            groups = groups.filter(kind__code=kind)
         search = self.request.query_params.get("search", "").strip()
         if search:
             groups = groups.filter(Q(name__icontains=search) | Q(serial_number__icontains=search))
         return groups
 
-    @extend_schema(parameters=[STATUS])
+    @extend_schema(parameters=[STATUS, KIND])
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
+
+    @extend_schema(request=KindChoiceSerializer, responses=VettedGroupSerializer)
+    @action(detail=True, methods=["post"])
+    def kind(self, request, uuid=None):
+        """Move the group to another type."""
+        data = KindChoiceSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        kind = _kind(data.validated_data["kind"])
+        return self._answer(
+            services.change_kind(actor=request.user, group=self.get_object(), kind=kind)
+        )
+
+    @extend_schema(
+        methods=["get"], responses=GroupKindSerializer(many=True), description="Every type."
+    )
+    @extend_schema(
+        methods=["post"],
+        request=KindChangeSerializer,
+        responses={201: GroupKindSerializer},
+        description="Add a type, offered at once.",
+    )
+    @action(detail=False, methods=["get", "post"], pagination_class=None)
+    def kinds(self, request):
+        """The types of group: every one, offered or not; or add one."""
+        if request.method == "POST":
+            kind = services.add_kind(actor=request.user, name=request.data.get("name", ""))
+            return Response(GroupKindSerializer(kind).data, status=status.HTTP_201_CREATED)
+        return Response(GroupKindSerializer(GroupKind.objects.all(), many=True).data)
+
+    @extend_schema(request=KindChangeSerializer, responses=GroupKindSerializer)
+    @action(detail=False, methods=["patch"], url_path=r"kinds/(?P<code>[\w-]+)")
+    def change_kind(self, request, code=None):
+        """Rename a type, or stop or start offering it."""
+        data = KindChangeSerializer(data=request.data)
+        data.is_valid(raise_exception=True)
+        kind = services.update_kind(
+            actor=request.user,
+            kind=_kind(code),
+            name=data.validated_data.get("name"),
+            offered=data.validated_data.get("offered"),
+        )
+        return Response(GroupKindSerializer(kind).data)
 
     def _answer(self, group):
         group = services.with_counts(_groups()).get(pk=group.pk)
@@ -166,9 +233,9 @@ class MySupportGroupsView(APIView):
         vets = services.vets(request.user)
         if member is None:
             return Response({"invitations": [], "groups": [], "leading": [], "vets": vets})
-        places = member.support_group_memberships.select_related("group__leader").exclude(
-            group__status=SupportGroup.Status.REJECTED, via=GroupMember.Via.LEADER
-        )
+        places = member.support_group_memberships.select_related(
+            "group__leader", "group__kind"
+        ).exclude(group__status=SupportGroup.Status.REJECTED, via=GroupMember.Via.LEADER)
         leading = services.with_counts(_groups().filter(leader=member))
         return Response(
             {
@@ -224,7 +291,9 @@ class _MyPlaceView(APIView):
     def place(self, uuid):
         member = getattr(self.request.user, "member", None)
         return get_object_or_404(
-            GroupMember.objects.select_related("group__leader"), uuid=uuid, member=member
+            GroupMember.objects.select_related("group__leader", "group__kind"),
+            uuid=uuid,
+            member=member,
         )
 
 
@@ -426,3 +495,21 @@ class GroupForCodeView(APIView):
     def get(self, request):
         group = services.group_for_code(request.query_params.get("code", ""))
         return Response({"name": group.name})
+
+
+class OfferedKindsView(APIView):
+    """The types of group someone registering an organization chooses from,
+    on the joining page too, so no sign-in is needed."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    @extend_schema(
+        responses=inline_serializer(
+            "OfferedGroupKind",
+            {"code": serializers.CharField(), "name": serializers.CharField()},
+            many=True,
+        )
+    )
+    def get(self, request):
+        return Response(list(GroupKind.objects.filter(offered=True).values("code", "name")))

@@ -194,6 +194,11 @@ api_v1 = [
         "register/support-group/", groups.GroupForCodeView.as_view(), name="register-support-group"
     ),
     path(
+        "register/support-group-kinds/",
+        groups.OfferedKindsView.as_view(),
+        name="register-support-group-kinds",
+    ),
+    path(
         "register/",
         transaction.non_atomic_requests(reg.SelfRegistrationView.as_view()),
         name="register",
