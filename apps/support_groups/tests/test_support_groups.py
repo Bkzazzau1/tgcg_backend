@@ -5,10 +5,10 @@ only to the member, the leader and those who vet groups."""
 import pytest
 from django.contrib.auth import authenticate
 
-from apps.access.models import AuditEvent
+from apps.access.models import AuditEvent, RoleDefinition
 from apps.access.tests.test_access import appoint, client_for, custom_role, member_account
 from apps.accounts.models import User
-from apps.core.choices import RegistrationChannel, VerificationStatus
+from apps.core.choices import RegistrationChannel, Role, VerificationStatus
 from apps.core.permissions import Capability
 from apps.membership.models import Member
 from apps.messaging.models import Broadcast
@@ -107,6 +107,22 @@ def test_only_those_who_vet_groups_nationwide_see_and_decide(admin, leader):
     listed = client_for(secretary.user).get(GROUPS).json()["results"]
     assert [item["name"] for item in listed] == ["Arewa Youth for Progress"]
     assert listed[0]["registered_by"] == "Halima Sani" and listed[0]["members"] == 1
+
+
+def test_every_national_administrator_sees_all_groups(admin, group):
+    """One appointed through the role holds every power, even one added after
+    the stored role was last synced, as happens while role sync stays off."""
+    role = RoleDefinition.objects.get(code=Role.NATIONAL_ADMINISTRATOR)
+    stale = [code for code in role.permissions if code != C.MANAGE_SUPPORT_GROUPS]
+    RoleDefinition.objects.filter(pk=role.pk).update(permissions=stale)
+    appointed = member_account("08035550901", name="Appointed Admin")
+    response = appoint(admin, appointed, role, [{"level": "country"}])
+    assert response.status_code == 201, response.content
+
+    listed = client_for(appointed.user).get(GROUPS)
+    assert listed.status_code == 200 and listed.json()["count"] == 1
+    me = client_for(appointed.user).get("/api/v1/auth/me/").json()
+    assert {C.MANAGE_SUPPORT_GROUPS, C.POST_POPUPS} <= set(me["capabilities"])
 
 
 def test_approving_gives_the_group_a_code_and_link(admin, leader):

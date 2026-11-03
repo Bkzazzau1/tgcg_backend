@@ -38,6 +38,10 @@ LEGACY = "legacy"
 ASSIGNMENT = "assignment"
 DELEGATION = "delegation"
 VIEW_ROLES = "viewRoles"
+# What a National Administrator holds, by the legacy role or an appointment.
+NATIONAL_POWERS = frozenset(
+    code for code in ROLE_CAPABILITIES[Role.NATIONAL_ADMINISTRATOR] if code in PERMISSIONS
+)
 
 # Per-request cache of computed grants, reset by AccessCacheMiddleware.
 _request_cache: contextvars.ContextVar[dict | None] = contextvars.ContextVar(
@@ -121,9 +125,13 @@ def _compute_grants(user, now) -> tuple[Grant, ...]:
             .prefetch_related("areas")
         )
         for assignment in assignments:
-            permissions = assignment.permission_set()
-            if not assignment.role.is_protected:
-                permissions -= PROTECTED
+            if assignment.role.is_protected:
+                # A National Administrator holds every power, as the system
+                # role defines it. Its stored permissions gain new powers only
+                # when system roles are synced, which stays off in releases.
+                permissions = NATIONAL_POWERS
+            else:
+                permissions = assignment.permission_set() - PROTECTED
             areas = tuple(assignment.areas.all())
             if permissions and areas:
                 grants.append(
