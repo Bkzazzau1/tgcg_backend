@@ -10,7 +10,7 @@ from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.accounts.phone import normalize_ng_phone
+from apps.accounts.phone import normalize_phone
 from apps.core.choices import (
     AccreditationStatus,
     Disability,
@@ -64,9 +64,11 @@ def _normalize_phone_field(instance, field, required):
             raise ValidationError({field: "A phone number is required."})
         setattr(instance, field, "")
         return
-    normalized = normalize_ng_phone(value)
+    # A number abroad only for members in the diaspora: each way of joining
+    # checks its own numbers first.
+    normalized = normalize_phone(value)
     if normalized is None:
-        raise ValidationError({field: "Enter a valid Nigerian mobile number."})
+        raise ValidationError({field: "Enter a valid mobile number."})
     setattr(instance, field, normalized)
 
 

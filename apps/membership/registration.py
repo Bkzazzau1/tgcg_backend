@@ -19,8 +19,14 @@ from PIL import Image, UnidentifiedImageError
 
 from apps.access import audit, engine
 from apps.accounts.models import User
-from apps.accounts.phone import local_ng_phone
-from apps.accounts.verification import PhoneVerification, consume_code, require_phone, send_code
+from apps.accounts.phone import is_nigerian, local_ng_phone
+from apps.accounts.verification import (
+    PhoneVerification,
+    consume_code,
+    require_any_phone,
+    require_phone,
+    send_code,
+)
 from apps.core.choices import (
     GeographyLevel,
     MembershipState,
@@ -185,10 +191,10 @@ def request_registration_code(*, phone_number: str, vin: str | None = None) -> i
 def self_register(
     *,
     phone_number,
-    vin,
     full_name,
     pin,
     consent,
+    vin="",
     delim="",
     polling_unit="",
     code="",
@@ -203,6 +209,9 @@ def self_register(
     referral_code="",
     group_code="",
     organization=None,
+    residence=None,
+    home_lga="",
+    home_ward="",
 ):
     """Register a member in the app. Returns (member, user).
 
@@ -221,22 +230,39 @@ def self_register(
     A `group_code`, from a support group's link, puts the member in that
     group. With `organization` (decided 3 November) the member registers an
     organization they lead, which waits for TGCG's vetting.
+
+    With `residence` (country, city, address) someone in the diaspora joins
+    on their own form (decided 3 November): a phone from any country, an
+    email, and the PVC only if they have one; without it their home is their
+    `home_ward`, or else their `home_lga`. SMS codes reach Nigerian numbers
+    only, so a number abroad joins unconfirmed, as its check records.
     """
+    from apps.diaspora import services as diaspora
     from apps.support_groups import services as groups
 
     _require_consent(consent)
     inviter = referrals.referrer_or_error(referral_code) if referrals.clean(referral_code) else None
     group = groups.group_for_code(group_code) if referrals.clean(group_code) else None
     details = groups.clean_details(**organization) if organization else None
-    phone = require_phone(phone_number)
+    abroad = diaspora.clean_residence(**residence) if residence is not None else None
+    phone = require_phone(phone_number) if abroad is None else require_any_phone(phone_number)
     vin = _clean_vin(vin)
-    if not vin:
+    if not vin and abroad is None:
         raise ValidationError({"vin": "Enter the VIN from your PVC."})
+    if abroad is not None and not (email or "").strip():
+        raise ValidationError({"email": "Enter your email address."})
     code = (code or "").strip()
-    if not code and settings.REGISTRATION_PHONE_CODE_REQUIRED:
+    if code and not is_nigerian(phone):
+        raise ValidationError({"code": "Codes are sent to Nigerian numbers only."})
+    if not code and settings.REGISTRATION_PHONE_CODE_REQUIRED and is_nigerian(phone):
         raise ValidationError({"code": "Enter the 6-digit code sent to your phone."})
     pin = validate_pin(pin)
-    unit, from_list = _registration_unit(delim, polling_unit)
+    if abroad is None or vin or (delim or "").strip() or (polling_unit or "").strip():
+        unit, from_list = _registration_unit(delim, polling_unit)
+        place = {"scope_level": GeographyLevel.POLLING_UNIT, "polling_unit": unit}
+    else:
+        from_list = False
+        place = diaspora.home_place(lga=home_lga, ward=home_ward)
     validate_image(photo, "photo", required=False)
     validate_image(pvc_image, "pvc_image", required=False)
     ensure_available(phone, vin)
@@ -254,10 +280,9 @@ def self_register(
         photo=photo,
         pvc_image=pvc_image,
         registration_channel=RegistrationChannel.SELF,
-        scope_level=GeographyLevel.POLLING_UNIT,
-        polling_unit=unit,
         polling_unit_from_list=from_list,
         referred_by=inviter,
+        **place,
     )
     member.full_clean(exclude=["membership_number"])
 
@@ -270,6 +295,8 @@ def self_register(
         member.consent_at = now
         _save_member(member)
         user = _member_account(member, pin)
+        if abroad is not None:
+            diaspora.record(member, abroad)
         member = identity.record_checks(member)
         if group is not None:
             groups.join_when_registering(member=member, group=group)

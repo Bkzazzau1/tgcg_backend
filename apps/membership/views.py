@@ -18,7 +18,7 @@ from apps.access.models import (
     RoleAssignmentArea,
 )
 from apps.access.serializers import AuditEventSerializer
-from apps.accounts.phone import normalize_ng_phone
+from apps.accounts.phone import normalize_phone
 from apps.core.caching import remembered
 from apps.core.choices import GeographyLevel
 from apps.core.permissions import Capability, requires
@@ -159,7 +159,7 @@ class MemberViewSet(
         user = self.request.user
         members = (
             Member.objects.filter(within_scope_any_q(user, MEMBER_READERS))
-            .select_related("user", *SCOPE_FIELDS)
+            .select_related("user", "diaspora", *SCOPE_FIELDS)
             .prefetch_related(
                 Prefetch("accreditations"),
                 Prefetch(
@@ -182,13 +182,15 @@ class MemberViewSet(
             if role := params.get("role"):
                 holders = analysis.exco_areas().filter(assignment__role__code=role)
                 members = members.filter(pk__in=holders.values("assignment__member_id"))
+            if country := params.get("country", "").strip():
+                members = members.filter(diaspora__country=country.upper())
             if text := params.get("q", "").strip():
                 members = members.filter(self._matching(user, text))
         phone = self.request.query_params.get("phone")
         if phone and self.action == "list":
             members = members.filter(
                 within_scope_q(user, permission=C.VIEW_MEMBER_SENSITIVE_DATA),
-                phone_number=normalize_ng_phone(phone) or phone,
+                phone_number=normalize_phone(phone) or phone,
             )
         return members
 
@@ -213,6 +215,9 @@ class MemberViewSet(
                 "posts, or a phone number",
             ),
             OpenApiParameter("role", str, description="Only those holding this post now"),
+            OpenApiParameter(
+                "country", str, description="Only members in the diaspora living in this country"
+            ),
         ]
     )
     def list(self, request, *args, **kwargs):
@@ -222,7 +227,7 @@ class MemberViewSet(
     def _matching(user, text):
         """Search: a phone number finds its member where the caller may see
         personal details; words find names, numbers, places and posts."""
-        if PHONE_LIKE.fullmatch(text) and (phone := normalize_ng_phone(text)):
+        if PHONE_LIKE.fullmatch(text) and (phone := normalize_phone(text)):
             return within_scope_q(user, permission=C.VIEW_MEMBER_SENSITIVE_DATA) & Q(
                 phone_number=phone
             )

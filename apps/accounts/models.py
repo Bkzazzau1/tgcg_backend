@@ -6,7 +6,7 @@ from django.utils import timezone
 from apps.core.choices import Role
 from apps.geography.scope import ScopedModel
 
-from .phone import normalize_ng_phone
+from .phone import normalize_phone
 
 
 class UserManager(BaseUserManager):
@@ -85,9 +85,11 @@ class User(AbstractBaseUser, PermissionsMixin, ScopedModel):
         super().clean()
         self.access_id = (self.access_id or "").strip().upper()
         if self.phone_number:
-            normalized = normalize_ng_phone(self.phone_number)
+            # Members in the diaspora may sign in with a number abroad; how
+            # each account is made decides which numbers it accepts.
+            normalized = normalize_phone(self.phone_number)
             if normalized is None:
-                raise ValidationError({"phone_number": "Enter a valid Nigerian mobile number."})
+                raise ValidationError({"phone_number": "Enter a valid mobile number."})
             self.phone_number = normalized
         else:
             self.phone_number = None

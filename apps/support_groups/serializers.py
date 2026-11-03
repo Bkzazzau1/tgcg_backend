@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.accounts.phone import local_ng_phone
+from apps.accounts.phone import local_phone
 from apps.core.choices import VerificationStatus
 from apps.geography.scope import ScopeField
 
@@ -98,7 +98,7 @@ class _GroupFields(serializers.ModelSerializer):
         return {
             "membership_number": leader.membership_number,
             "full_name": leader.full_name,
-            "phone_number": local_ng_phone(leader.phone_number),
+            "phone_number": local_phone(leader.phone_number),
             "place": place_of(leader),
         }
 
@@ -176,7 +176,7 @@ class PlaceInGroupSerializer(serializers.ModelSerializer):
         return place.member.full_name if self._shown(place) else place.given_name
 
     def get_phone_number(self, place) -> str:
-        return local_ng_phone(place.member.phone_number)
+        return local_phone(place.member.phone_number)
 
     def get_place(self, place) -> str:
         return place_of(place.member) if self._shown(place) else ""

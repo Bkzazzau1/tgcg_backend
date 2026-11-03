@@ -8,9 +8,10 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema_field, inline_serializer
 from rest_framework import serializers
 
-from apps.accounts.phone import normalize_ng_phone
+from apps.accounts.phone import normalize_phone
 from apps.core.choices import AccreditationStatus, Disability, Gender
 from apps.core.permissions import Capability
+from apps.diaspora.countries import name_of
 from apps.geography.scope import ScopeField, scope_contains, scope_payload, within_scope_q
 from apps.geography.serializers import NavigationSerializer, navigation_for
 
@@ -178,6 +179,10 @@ class MemberSerializer(serializers.ModelSerializer):
     verified_how = serializers.SerializerMethodField(
         help_text="automatic, chapter (a chapter's list) or person; null unless verified."
     )
+    diaspora = serializers.SerializerMethodField(
+        help_text="Where a member in the diaspora lives (the address is personal); null for "
+        "everyone else."
+    )
 
     class Meta:
         model = Member
@@ -215,6 +220,7 @@ class MemberSerializer(serializers.ModelSerializer):
             "verified_how",
             "verified_at",
             "polling_unit_from_list",
+            "diaspora",
             "created_at",
             "updated_at",
         ]
@@ -270,6 +276,29 @@ class MemberSerializer(serializers.ModelSerializer):
 
     def get_verified_how(self, member) -> str | None:
         return analysis.verified_how(member)
+
+    @extend_schema_field(
+        inline_serializer(
+            "MemberAbroad",
+            {
+                "country": serializers.CharField(),
+                "country_name": serializers.CharField(),
+                "city": serializers.CharField(),
+                "address": serializers.CharField(allow_null=True),
+            },
+            allow_null=True,
+        )
+    )
+    def get_diaspora(self, member):
+        profile = getattr(member, "diaspora", None)
+        if profile is None:
+            return None
+        return {
+            "country": profile.country,
+            "country_name": name_of(profile.country),
+            "city": profile.city,
+            "address": (profile.address or None) if may_see_sensitive(self, member) else None,
+        }
 
     @extend_schema_field(OpenApiTypes.OBJECT)
     def get_roles(self, member) -> list:
@@ -408,16 +437,20 @@ class AssistedRegistrationSerializer(DisabilitySerializerMixin, serializers.Seri
 class SelfRegistrationSerializer(DisabilitySerializerMixin, serializers.Serializer):
     """A member registers themselves in the app. As on USSD, joining needs the
     phone, the PVC's VIN and polling unit code, a name and a PIN; the rest is
-    optional."""
+    optional. Joining from the diaspora (`residence_country` and
+    `residence_city`) takes a phone from any country and an email, and the
+    PVC only if they have one: without it, `home_lga` and maybe `home_ward`."""
 
-    phone_number = serializers.CharField(max_length=20)
+    phone_number = serializers.CharField(max_length=24)
     code = serializers.CharField(
         max_length=6,
         required=False,
         allow_blank=True,
         help_text="SMS code. Needed only while `register/options/` says phone_code_required.",
     )
-    vin = serializers.CharField(max_length=25)
+    vin = serializers.CharField(
+        max_length=25, required=False, allow_blank=True, help_text="Optional from the diaspora."
+    )
     delim = serializers.CharField(
         max_length=20,
         required=False,
@@ -468,7 +501,28 @@ class SelfRegistrationSerializer(DisabilitySerializerMixin, serializers.Serializ
     organization_officials = serializers.JSONField(
         required=False, help_text="Up to three: [{name, position, phone}], as JSON text."
     )
+    # Joining from the diaspora: where the member lives, and their home in
+    # Nigeria when they give no PVC.
+    residence_country = serializers.CharField(
+        max_length=2,
+        required=False,
+        allow_blank=True,
+        help_text="ISO code, from register/places/countries/.",
+    )
+    residence_city = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    residence_address = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    home_lga = serializers.CharField(
+        max_length=40, required=False, allow_blank=True, help_text="LGA of origin, without a PVC."
+    )
+    home_ward = serializers.CharField(
+        max_length=40, required=False, allow_blank=True, help_text="Ward, if known, without a PVC."
+    )
 
+    RESIDENCE = {
+        "residence_country": "country",
+        "residence_city": "city",
+        "residence_address": "address",
+    }
     ORGANIZATION = {
         "organization_name": "name",
         "organization_coverage": "coverage",
@@ -487,6 +541,11 @@ class SelfRegistrationSerializer(DisabilitySerializerMixin, serializers.Serializ
             officials = organization.get("officials") or []
             organization["officials"] = officials if isinstance(officials, list) else [officials]
             attrs["organization"] = organization
+        residence = {
+            key: attrs.pop(field) for field, key in self.RESIDENCE.items() if field in attrs
+        }
+        if residence.get("country") or residence.get("city"):
+            attrs["residence"] = residence
         return attrs
 
 
@@ -622,9 +681,11 @@ class MemberSelfUpdateSerializer(DisabilitySerializerMixin, serializers.ModelSer
         """Empty means WhatsApp is on the member's phone number."""
         if not value:
             return ""
-        number = normalize_ng_phone(value)
+        number = normalize_phone(value)
         if number is None:
-            raise serializers.ValidationError("Enter a Nigerian mobile number.")
+            raise serializers.ValidationError(
+                "Enter a Nigerian mobile number, or a number abroad with its country code."
+            )
         return number
 
 

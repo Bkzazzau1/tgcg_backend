@@ -22,6 +22,7 @@ from django.utils import timezone
 
 from apps.access.models import AssignmentStatus, RoleAssignmentArea
 from apps.core.choices import GeographyLevel, RegistrationChannel, VerificationStatus
+from apps.diaspora import services as diaspora
 from apps.geography.models import Lga, PollingUnit, State, Ward, Zone
 from apps.geography.scope import LEVEL_FIELD, within_scope_q
 
@@ -157,6 +158,7 @@ MEMBER_FILTER_NAMES = (
     "missingZone",
     *ACCOUNT_FILTERS.values(),
     *VERIFICATION_FILTERS.values(),
+    "diaspora",
 )
 
 
@@ -195,6 +197,7 @@ def member_filters(now=None) -> dict[str, Q]:
         "verifiedAutomatic": verified & ~reviewed,
         "verifiedChapter": verified & reviewed & imported,
         "verifiedPerson": verified & reviewed & ~imported,
+        "diaspora": Q(diaspora__isnull=False),
     }
 
 
@@ -330,6 +333,8 @@ def _members_summary(members, now) -> dict:
             members.values_list("occupation").annotate(n=Count("pk")).order_by()
         ),
         "channel": _by(members, "registration_channel"),
+        # Members in the diaspora, by the country where they live.
+        "diaspora": diaspora.summary(members),
         "age": {label: totals[f"age:{label}"] for label, *_ in AGE_BANDS}
         | {"unknown": totals["age:unknown"]},
         "profile": _profile(totals),

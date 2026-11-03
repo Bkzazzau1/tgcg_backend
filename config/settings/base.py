@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "apps.security",
     "apps.askme",
     "apps.support_groups",
+    "apps.diaspora",
 ]
 
 MIDDLEWARE = [

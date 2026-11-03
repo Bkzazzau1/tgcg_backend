@@ -17,7 +17,7 @@ from django.db.models import Q
 from django.utils import timezone
 from django.utils.text import slugify
 
-from apps.accounts.phone import normalize_ng_phone
+from apps.accounts.phone import normalize_phone
 from apps.core.choices import GeographyLevel, MembershipState, Role, VerificationStatus
 from apps.core.models import Sequence
 from apps.core.permissions import Capability
@@ -227,7 +227,7 @@ def _require_not_upstream(authority, member):
 
 
 def _phone(value) -> str:
-    return normalize_ng_phone(value) or ""
+    return normalize_phone(value) or ""
 
 
 def _phone_of(user) -> str:

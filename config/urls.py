@@ -183,6 +183,12 @@ api_v1 = [
         reg.RegistrationPollingUnitsView.as_view(),
         name="register-polling-units",
     ),
+    # Joining from the diaspora: the countries members may live in.
+    path(
+        "register/places/countries/",
+        reg.RegistrationCountriesView.as_view(),
+        name="register-countries",
+    ),
     path("register/code/", reg.RegistrationCodeView.as_view(), name="register-code"),
     path(
         "register/support-group/", groups.GroupForCodeView.as_view(), name="register-support-group"

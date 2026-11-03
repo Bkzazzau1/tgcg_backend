@@ -29,6 +29,7 @@ from apps.announcements.serializers import AnnouncementSerializer
 from apps.announcements.views import announcements_for
 from apps.core.choices import MembershipState
 from apps.core.permissions import Capability, has_capability, is_staff_operator
+from apps.diaspora.countries import COUNTRIES
 from apps.geography.models import Lga, PollingUnit, State, Ward
 
 from . import card_pdf, pvc_reading, referrals, registration, services
@@ -187,6 +188,26 @@ class RegistrationPollingUnitsView(_PlacesView):
     def places(self, code):
         units = PollingUnit.objects.filter(ward__code=code).order_by("name", "code")
         return units.values("code", "name", "location")
+
+
+@extend_schema_view(
+    get=extend_schema(
+        responses={
+            200: inline_serializer(
+                "RegistrationCountry",
+                {**PLACE_FIELDS, "calling_code": serializers.CharField()},
+                many=True,
+            )
+        }
+    )
+)
+class RegistrationCountriesView(_PlacesView):
+    """The countries someone joining from the diaspora may live in, by name,
+    with each one's calling code."""
+
+    def places(self, code):
+        rows = sorted(COUNTRIES, key=lambda row: row[1])
+        return [{"code": iso, "name": name, "calling_code": calling} for iso, name, calling in rows]
 
 
 class RegistrationCodeView(PublicRegistrationView):

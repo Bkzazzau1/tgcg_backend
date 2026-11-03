@@ -5,11 +5,12 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from django.utils import timezone
 
-from .phone import normalize_ng_phone
+from .phone import normalize_phone
 
 
 class AccessIdOrPhoneBackend(ModelBackend):
-    """Authenticate with an access ID (case-insensitive) or a Nigerian phone number.
+    """Authenticate with an access ID (case-insensitive) or a phone number:
+    Nigerian, or abroad with its country code for members in the diaspora.
 
     Members sign in with phone + 6-digit PIN (stored as their password), so
     repeated failures lock the account for a while to stop PIN guessing.
@@ -23,7 +24,7 @@ class AccessIdOrPhoneBackend(ModelBackend):
             return None
 
         identifier = username.strip()
-        phone = normalize_ng_phone(identifier)
+        phone = normalize_phone(identifier)
         user = None
         if phone:
             user = User.objects.filter(phone_number=phone).first()

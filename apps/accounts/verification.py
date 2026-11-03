@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from apps.core.sms import send_sms
 
-from .phone import normalize_ng_phone
+from .phone import normalize_ng_phone, normalize_phone
 
 
 class PhoneVerification(models.Model):
@@ -45,6 +45,20 @@ def require_phone(value: str) -> str:
     phone = normalize_ng_phone(value)
     if phone is None:
         raise ValidationError({"phone_number": "Enter a valid Nigerian mobile number."})
+    return phone
+
+
+def require_any_phone(value: str) -> str:
+    """A number from any country, for members in the diaspora, written with
+    its country code: a number written as at home abroad (07700 900123 in
+    Britain) could pass for a Nigerian one, so a Nigerian line is written
+    +234 803 123 4567 here. SMS codes still go to Nigerian numbers only."""
+    text = (value or "").strip()
+    phone = normalize_phone(text) if text.startswith(("+", "00")) else None
+    if phone is None:
+        raise ValidationError(
+            {"phone_number": "Enter your number with its country code, e.g. +44 7700 900123."}
+        )
     return phone
 
 
