@@ -7,6 +7,7 @@ PIN and signing out, whatever the app asks.
 """
 
 from django.urls import reverse
+from drf_spectacular.contrib.rest_framework_simplejwt import SimpleJWTScheme
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
@@ -33,3 +34,9 @@ class FirstPinJWTAuthentication(JWTAuthentication):
         if user.must_change_password and request.path not in {reverse(n) for n in OPEN_FIRST}:
             raise PinChangeRequired()
         return user, token
+
+
+class FirstPinJWTScheme(SimpleJWTScheme):
+    """The API's documentation shows this sign-in as the bearer token it is."""
+
+    target_class = FirstPinJWTAuthentication

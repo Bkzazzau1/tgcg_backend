@@ -13,6 +13,6 @@ ALLOWED_HOSTS = env.list(
 CORS_ALLOWED_ORIGIN_REGEXES = [r"^http://(localhost|127\.0\.0\.1):\d+$"]
 
 REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] = [  # noqa: F405
-    "rest_framework_simplejwt.authentication.JWTAuthentication",
+    "apps.accounts.authentication.FirstPinJWTAuthentication",
     "rest_framework.authentication.SessionAuthentication",
 ]
