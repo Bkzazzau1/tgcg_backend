@@ -59,6 +59,9 @@ class User(AbstractBaseUser, PermissionsMixin, ScopedModel):
 
     failed_login_attempts = models.PositiveSmallIntegerField(default=0, editable=False)
     locked_until = models.DateTimeField(null=True, blank=True, editable=False)
+    # A first password others know (a VIN from a group's list, 4 November
+    # 2026): nothing but choosing one's own PIN works until it is changed.
+    must_change_password = models.BooleanField(default=False, editable=False)
 
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)

@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 
 from django.conf import settings
@@ -7,10 +8,24 @@ from django.utils import timezone
 
 from .phone import normalize_phone
 
+VIN = re.compile(r"[0-9A-Z]{19}")
+
+
+def _user_by_vin(identifier: str):
+    """The account of the member whose PVC has this VIN, if any."""
+    vin = re.sub(r"\s", "", identifier).upper()
+    if not VIN.fullmatch(vin):
+        return None
+    from apps.membership.models import Member
+
+    member = Member.objects.select_related("user").filter(vin=vin).first()
+    return member.user if member is not None else None
+
 
 class AccessIdOrPhoneBackend(ModelBackend):
-    """Authenticate with an access ID (case-insensitive) or a phone number:
-    Nigerian, or abroad with its country code for members in the diaspora.
+    """Authenticate with an access ID (case-insensitive), a phone number
+    (Nigerian, or abroad with its country code for members in the diaspora),
+    or a member's VIN, for members without a phone (4 November 2026).
 
     Members sign in with phone + 6-digit PIN (stored as their password), so
     repeated failures lock the account for a while to stop PIN guessing.
@@ -30,6 +45,8 @@ class AccessIdOrPhoneBackend(ModelBackend):
             user = User.objects.filter(phone_number=phone).first()
         if user is None:
             user = User.objects.filter(access_id=identifier.upper()).first()
+        if user is None:
+            user = _user_by_vin(identifier)
 
         if user is None:
             # Run the hasher anyway so timing does not reveal unknown accounts.

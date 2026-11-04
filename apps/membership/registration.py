@@ -122,11 +122,12 @@ def validate_image(upload, field: str, *, required: bool):
         raise ValidationError({field: "Upload a JPEG, PNG or WEBP photo."})
 
 
-def ensure_available(phone: str, vin: str | None = None) -> None:
-    """Reject a phone or VIN that already belongs to a member or an account."""
-    if Member.objects.filter(phone_number=phone).exists():
+def ensure_available(phone: str | None, vin: str | None = None) -> None:
+    """Reject a phone or VIN that already belongs to a member or an account.
+    Only a member with a VIN may have no phone."""
+    if phone and Member.objects.filter(phone_number=phone).exists():
         raise ValidationError({"phone_number": "This phone number is already registered."})
-    if User.objects.filter(phone_number=phone).exists():
+    if phone and User.objects.filter(phone_number=phone).exists():
         raise ValidationError(
             {"phone_number": "This phone number belongs to a staff account. Use another number."}
         )
@@ -666,6 +667,55 @@ def register_imported(
     return member
 
 
+@transaction.atomic
+def register_from_list(
+    *, actor, full_name, source, phone_number=None, vin=None, scope=None
+) -> Member:
+    """A member from a support group's own list, registered by a National
+    Administrator on the group's word that they agreed to join (4 November
+    2026: the Directorate of Contact and Mobilization's). The identity is not
+    checked. The place is the list's, when it gives one that matches.
+
+    A list may give no phone, so a member with a VIN may have none, and signs
+    in with the VIN. With a phone, the first password is the phone number
+    (08031234567), as for every list; without one it is the VIN, which
+    whoever holds the list knows, so the member must choose their own PIN
+    before anything else works."""
+    phone = require_phone(phone_number) if phone_number else None
+    vin = _clean_vin(vin)
+    if phone is None and vin is None:
+        raise ValidationError("A member from a list needs a phone or a VIN.")
+    ensure_available(phone, vin)
+    member = Member(
+        full_name=full_name,
+        phone_number=phone,
+        vin=vin,
+        registration_channel=RegistrationChannel.IMPORT,
+        consent_at=timezone.now(),
+        **(scope or {}),
+    )
+    member.full_clean(exclude=["membership_number"])
+    _save_member(member)
+    user = _member_account(member, first_password(phone) if phone else vin)
+    if phone is None:
+        user.must_change_password = True
+        user.save(update_fields=["must_change_password"])
+    audit.record(
+        actor=actor,
+        action="member.imported",
+        target_type="member",
+        target_id=member.membership_number,
+        target_label=member.full_name,
+        reason=source,
+        changes={
+            "identity": "not checked yet",
+            "consent": "through the group's list",
+            "first_password": "phone number" if phone else "VIN, changed at first sign-in",
+        },
+    )
+    return member
+
+
 # --- registered by another person: a name and a phone number -------------------
 
 
@@ -751,7 +801,15 @@ def set_pin(*, phone_number, code, pin):
             user.set_password(pin)
             user.failed_login_attempts = 0
             user.locked_until = None
-            user.save(update_fields=["password", "failed_login_attempts", "locked_until"])
+            user.must_change_password = False
+            user.save(
+                update_fields=[
+                    "password",
+                    "failed_login_attempts",
+                    "locked_until",
+                    "must_change_password",
+                ]
+            )
         if member.phone_verified_at is None:
             member.phone_verified_at = timezone.now()
             member.save(update_fields=["phone_verified_at", "updated_at"])

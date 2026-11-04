@@ -37,6 +37,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
         help_text="The member behind this account has a verified identity. Membership needs "
         "none; agents, observers and appointed roles act only when it is."
     )
+    must_change_pin = serializers.BooleanField(
+        source="must_change_password",
+        read_only=True,
+        help_text="Signed in with a first password others know: nothing else works until "
+        "the account chooses its own PIN at auth/password/.",
+    )
 
     class Meta:
         model = User
@@ -52,6 +58,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "membership_number",
             "supervises",
             "identity_verified",
+            "must_change_pin",
         ]
         read_only_fields = fields
 

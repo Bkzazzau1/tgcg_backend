@@ -122,6 +122,7 @@ class GroupMember(TimeStampedModel):
         CONFIRMED = "confirmed", "Already a member, said yes in the app"
         CODE = "code", "Joined with the group's code"
         LINK = "link", "Joined TGCG with the group's link"
+        LIST = "list", "From the group's list, placed by TGCG"
 
     group = models.ForeignKey(SupportGroup, on_delete=models.CASCADE, related_name="memberships")
     member = models.ForeignKey(

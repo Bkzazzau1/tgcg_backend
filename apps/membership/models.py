@@ -57,12 +57,12 @@ def member_pvc_path(instance, filename):
     return _private_path("members/pvc", filename)
 
 
-def _normalize_phone_field(instance, field, required):
+def _normalize_phone_field(instance, field, required, empty=""):
     value = getattr(instance, field)
     if not value:
         if required:
             raise ValidationError({field: "A phone number is required."})
-        setattr(instance, field, "")
+        setattr(instance, field, empty)
         return
     # A number abroad only for members in the diaspora: each way of joining
     # checks its own numbers first.
@@ -94,7 +94,11 @@ class Member(TimeStampedModel, ScopedModel):
 
     membership_number = models.CharField(max_length=16, unique=True, editable=False)
     full_name = models.CharField(max_length=150, blank=True)
-    phone_number = models.CharField(max_length=16, unique=True)
+    # Empty (NULL) only for a member with a VIN, who signs in with it: a
+    # group's list may give no phone (4 November 2026).
+    phone_number = models.CharField(  # noqa: DJ001 - NULL keeps the unique index sparse
+        max_length=16, unique=True, null=True, blank=True
+    )
     whatsapp_number = models.CharField(
         max_length=16, blank=True, help_text="Only when WhatsApp is on another number."
     )
@@ -222,11 +226,11 @@ class Member(TimeStampedModel, ScopedModel):
         self.disabilities, self.disability_other = clean_disabilities(
             self.disabilities, self.disability_other
         )
-        _normalize_phone_field(self, "phone_number", required=True)
         if self.vin:
             self.vin = "".join(self.vin.split()).upper()
         else:
             self.vin = None
+        _normalize_phone_field(self, "phone_number", required=not self.vin, empty=None)
         self.normalize_scope()
 
     @property

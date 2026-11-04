@@ -79,9 +79,10 @@ def _check_new_password(user, new: str) -> None:
 class PasswordChangeView(APIView):
     """Change one's own password, or a member's 6-digit PIN, while signed in.
 
-    Members given their phone number as a first password change it here.
-    Every other session ends, as their refresh tokens are revoked; this device
-    gets new tokens.
+    Members given their phone number as a first password change it here, as
+    do those given their VIN, who must before anything else works. Every
+    other session ends, as their refresh tokens are revoked; this device gets
+    new tokens.
     """
 
     permission_classes = [IsAuthenticated]
@@ -102,7 +103,8 @@ class PasswordChangeView(APIView):
         _check_new_password(user, new)
         with transaction.atomic():
             user.set_password(new)
-            user.save(update_fields=["password"])
+            user.must_change_password = False
+            user.save(update_fields=["password", "must_change_password"])
             for token in OutstandingToken.objects.filter(user=user):
                 BlacklistedToken.objects.get_or_create(token=token)
             audit.record(

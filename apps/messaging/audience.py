@@ -98,7 +98,7 @@ def addressable(members, channel):
     """Those with somewhere to receive it: a phone number, or the app."""
     if channel == Channel.PUSH:
         return members.filter(user__in=Device.objects.values("user"))
-    return members.exclude(phone_number="")
+    return members.exclude(phone_number="").exclude(phone_number__isnull=True)
 
 
 def sms_pages(text: str) -> int:
