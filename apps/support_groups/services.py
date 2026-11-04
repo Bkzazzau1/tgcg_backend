@@ -180,19 +180,30 @@ def _check_waiting(actor):
         )
 
 
+def reserve_serial_number() -> str:
+    """The next serial number, taken first in any transaction that also
+    registers a member: the serial's row, then the membership number's, then
+    the audit chain's, always in that order, so two registrations never wait
+    on each other's locks (4 November 2026)."""
+    return _serial_number()
+
+
 @transaction.atomic
-def register_group(*, actor, leader: Member, details: dict, leader_said_yes=True) -> SupportGroup:
+def register_group(
+    *, actor, leader: Member, details: dict, leader_said_yes=True, serial_number=None
+) -> SupportGroup:
     """Register an organization, waiting for vetting, with `leader` leading it.
 
     A leader who is not the person registering it, and was already a
     member, leads it only once they say yes in the app; TGCG cannot approve
-    it before."""
+    it before. A `serial_number` from reserve_serial_number, when the leader
+    was registered in the same transaction."""
     if leader.membership_state != MembershipState.ACTIVE:
         raise ValidationError("The leader's membership is not active.")
     _check_waiting(actor)
     now = timezone.now()
     group = SupportGroup.objects.create(
-        serial_number=_serial_number(),
+        serial_number=serial_number or _serial_number(),
         leader=leader,
         leader_confirmed_at=now if leader_said_yes else None,
         registered_by=actor,
@@ -267,6 +278,7 @@ def register_for(
     if consent is not True:
         raise ValidationError({"consent": "Confirm that the leader agreed to join TGCG."})
     _check_waiting(actor)
+    serial = reserve_serial_number()
     try:
         leader = registration.register_someone(
             actor=actor, full_name=leader_name, phone_number=phone, consent=True
@@ -275,7 +287,7 @@ def register_for(
         raise _renamed(
             error, {"full_name": "leader_full_name", "phone_number": "leader_phone_number"}
         ) from error
-    return register_group(actor=actor, leader=leader, details=details)
+    return register_group(actor=actor, leader=leader, details=details, serial_number=serial)
 
 
 # --- vetting --------------------------------------------------------------------------
@@ -454,7 +466,8 @@ def add_person(*, actor, group, full_name, phone_number, scope=None, gender="") 
         if existing.membership_state != MembershipState.ACTIVE:
             return _outcome("problem", "This person cannot be added.")
         place = GroupMember.objects.filter(group=group, member=existing).first()
-        return _ask(actor, group, existing, " ".join((full_name or "").split()), place)
+        with transaction.atomic():
+            return _ask(actor, group, existing, " ".join((full_name or "").split()), place)
     if User.objects.filter(phone_number=phone).exists():
         return _outcome("problem", "This number belongs to a staff account.")
     try:
@@ -489,7 +502,11 @@ def add_person(*, actor, group, full_name, phone_number, scope=None, gender="") 
 
 
 def add_people(*, actor, group, people, consent) -> list[dict]:
-    """Add a batch from a list or the form; the app sends a long list in batches."""
+    """Add a batch from a list or the form; the app sends a long list in batches.
+
+    Each person is saved on their own (the view runs outside the request
+    transaction), so the membership number's and the audit chain's locks
+    are held for one person at a time, not the whole batch."""
     require_leader(actor, group)
     _active_member(actor)
     if consent is not True:
@@ -743,6 +760,38 @@ def totals() -> dict:
             }
             for kind in GroupKind.objects.all()
         ],
+    }
+
+
+def analysis(group) -> dict:
+    """Everything about the people in one group, for those who vet groups
+    (4 November 2026): what Members & Exco shows about members (totals,
+    gender, age, profession, identity, profiles, sign-in, week by week),
+    and the group's own: how each came into it, how many are asked and have
+    not said yes, where they are by state, and how they sign in."""
+    from apps.membership import analysis as member_analysis
+
+    now = timezone.now()
+    places = group.memberships.filter(status=M.ACTIVE)
+    members = Member.objects.filter(pk__in=places.values("member_id"))
+    states = (
+        members.values("state__code", "state__name")
+        .annotate(n=Count("pk"))
+        .order_by("-n", "state__name")
+    )
+    return {
+        "members": member_analysis.members_summary(members, now),
+        "via": dict(places.values_list("via").annotate(n=Count("pk")).order_by()),
+        "waiting": group.memberships.filter(status=M.INVITED).count(),
+        "states": [
+            {"code": row["state__code"] or "", "name": row["state__name"] or "", "count": row["n"]}
+            for row in states
+        ],
+        "sign_in": members.aggregate(
+            phone=Count("pk", filter=Q(phone_number__isnull=False) & ~Q(phone_number="")),
+            vin_only=Count("pk", filter=Q(phone_number__isnull=True) | Q(phone_number="")),
+            pin_to_choose=Count("pk", filter=Q(user__must_change_password=True)),
+        ),
     }
 
 

@@ -336,7 +336,12 @@ api_v1 = [
         name="led-group-remove",
     ),
     path("my-groups/<uuid:uuid>/read-list/", groups.ReadListView.as_view(), name="led-group-read"),
-    path("my-groups/<uuid:uuid>/add/", groups.AddPeopleView.as_view(), name="led-group-add"),
+    # Each person in a batch is saved on its own (services.add_people).
+    path(
+        "my-groups/<uuid:uuid>/add/",
+        transaction.non_atomic_requests(groups.AddPeopleView.as_view()),
+        name="led-group-add",
+    ),
     path(
         "my-groups/<uuid:uuid>/message/",
         groups.GroupMessageView.as_view(),

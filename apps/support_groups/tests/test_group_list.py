@@ -11,6 +11,8 @@ from rest_framework.test import APIClient
 
 from apps.access.tests.test_access import client_for, member_account
 from apps.accounts.models import User
+from apps.core.models import Sequence
+from apps.membership import registration
 from apps.membership.models import Member
 from apps.support_groups import group_list
 from apps.support_groups.group_list import Person, read_line
@@ -110,6 +112,25 @@ def test_new_people_are_registered_in_the_group(admin, group):
     phoneless = Member.objects.filter(phone_number__isnull=True)
     assert phoneless.count() == 2
     assert all(m.user.must_change_password and m.user.phone_number is None for m in phoneless)
+
+
+def test_the_pin_is_hashed_before_the_membership_number_is_taken(admin, group, monkeypatch):
+    """The number's row stays locked until the registration commits: hashing
+    under it queued every registration behind the one hashing."""
+    numbers = Sequence.objects.filter(name="member").values_list("value", flat=True)
+    before = numbers.first()
+    seen = []
+    real = registration._hashed
+
+    def spy(pin):
+        seen.append(numbers.first())
+        return real(pin)
+
+    monkeypatch.setattr(registration, "_hashed", spy)
+    assert place(admin, group, Person("Aisha Sani", vin=VIN_B)) == "registered with the VIN"
+    assert seen == [before]
+    assert numbers.first() == (before or 0) + 1
+    assert Member.objects.get(vin=VIN_B).user.check_password(VIN_B)
 
 
 def test_without_a_phone_the_vin_signs_in_and_a_pin_comes_first(admin, group):

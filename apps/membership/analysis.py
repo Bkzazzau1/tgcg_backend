@@ -265,7 +265,9 @@ def _profile(totals: dict) -> dict:
     }
 
 
-def _members_summary(members, now) -> dict:
+def members_summary(members, now) -> dict:
+    """What the Members & Exco page shows about any set of members; a
+    support group's page shows the same about its own (4 November 2026)."""
     today = timezone.localdate(now)
     filters = member_filters(now)
     detail_filters = {
@@ -491,7 +493,7 @@ def summary(scope, by=None) -> dict:
     areas = exco_areas(scope, now)
     by, parts = _parts(members, areas, scope, now, by or next(iter(breakdowns(scope)), None))
     return {
-        "members": _members_summary(members, now),
+        "members": members_summary(members, now),
         "exco": _exco_summary(areas, scope),
         "by": by,
         "parts": parts,

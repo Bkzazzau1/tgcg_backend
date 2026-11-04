@@ -1,6 +1,7 @@
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, inline_serializer
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -11,7 +12,8 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from apps.accounts.phone import local_ng_phone
+from apps.accounts.phone import local_ng_phone, normalize_phone
+from apps.core.caching import remembered
 
 from . import reading, services
 from .models import GroupKind, GroupMember, SupportGroup
@@ -55,6 +57,22 @@ def _groups():
         "registered_by",
         "decided_by",
     )
+
+
+def _matching(text: str) -> Q:
+    """People in a group by every word of their name (or the name the group
+    gave), their membership number, phone or VIN."""
+    condition = Q(member__membership_number__iexact=text)
+    names = Q()
+    for word in text.split():
+        names &= Q(member__full_name__icontains=word) | Q(given_name__icontains=word)
+    condition |= names
+    if phone := normalize_phone(text):
+        condition |= Q(member__phone_number=phone)
+    compact = "".join(text.split()).upper()
+    if len(compact) == 19:
+        condition |= Q(member__vin=compact)
+    return condition
 
 
 def _places(group, status=None):
@@ -197,12 +215,37 @@ class SupportGroupViewSet(
     def restore(self, request, uuid=None):
         return self._answer(services.restore(actor=request.user, group=self.get_object()))
 
-    @extend_schema(parameters=[PLACE_STATUS], responses=VettedPlaceSerializer(many=True))
+    @extend_schema(
+        parameters=[
+            PLACE_STATUS,
+            OpenApiParameter(
+                "q", str, description="Words of a name, a membership number, a phone or a VIN"
+            ),
+        ],
+        responses=VettedPlaceSerializer(many=True),
+    )
     @action(detail=True, methods=["get"])
     def members(self, request, uuid=None):
         places = _places(self.get_object(), request.query_params.get("status"))
+        if text := request.query_params.get("q", "").strip():
+            places = places.filter(_matching(text))
         page = self.paginate_queryset(places)
         return self.get_paginated_response(VettedPlaceSerializer(page, many=True).data)
+
+    @extend_schema(responses={200: OpenApiTypes.OBJECT})
+    @action(detail=True, methods=["get"])
+    def analysis(self, request, uuid=None):
+        """Everything about the people in the group: what Members & Exco
+        shows about members, how each came into the group, where they are
+        by state, and how they sign in (services.analysis)."""
+        group = self.get_object()
+        return Response(
+            remembered(
+                "support-group-analysis",
+                {"group": str(group.uuid)},
+                lambda: services.analysis(group),
+            )
+        )
 
     @extend_schema(responses=TOTALS)
     @action(detail=False, methods=["get"])

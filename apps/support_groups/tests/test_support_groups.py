@@ -140,6 +140,14 @@ def test_approving_gives_the_group_a_code_and_link(admin, leader):
     assert client_for(admin).post(f"{GROUPS}{group.uuid}/approve/").status_code == 400
 
 
+# Adding people runs outside the request transaction (each person is saved on
+# their own), and DRF marks the surrounding transaction for rollback when it
+# refuses: tests that are refused there use real transactions, as the
+# registration tests do.
+REAL_TRANSACTIONS = pytest.mark.django_db(transaction=True, serialized_rollback=True)
+
+
+@REAL_TRANSACTIONS
 def test_turning_down_and_suspending_need_a_reason(admin, group, leader):
     assert client_for(admin).post(f"{GROUPS}{group.uuid}/suspend/", {}).status_code == 400
     suspended = client_for(admin).post(f"{GROUPS}{group.uuid}/suspend/", {"reason": "Inactive"})
@@ -254,6 +262,7 @@ def test_problems_are_reported_line_by_line(group, leader):
     assert "staff account" in results[1]["detail"]
 
 
+@REAL_TRANSACTIONS
 def test_the_leader_confirms_people_agreed(group, leader):
     response = add(leader.user, group, person("Usman Garba", "08035550101"), consent=False)
     assert response.status_code == 400 and "consent" in response.json()
@@ -265,6 +274,7 @@ def test_batches_are_limited(group, leader):
     assert add(leader.user, group, *people).status_code == 400
 
 
+@REAL_TRANSACTIONS
 def test_nobody_else_sees_or_changes_the_group(group, leader, admin):
     other = member_account("08035550401", name="Other Member")
     assert client_for(other.user).get(f"/api/v1/my-groups/{group.uuid}/members/").status_code == 404

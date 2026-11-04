@@ -11,7 +11,7 @@ import re
 import uuid
 
 from django.conf import settings
-from django.contrib.auth.hashers import identify_hasher, is_password_usable
+from django.contrib.auth.hashers import identify_hasher, is_password_usable, make_password
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -162,7 +162,17 @@ def _save_member(member: Member) -> Member:
     return member
 
 
-def _member_account(member: Member, pin: str) -> User:
+def _hashed(pin: str) -> str:
+    """A PIN as the account keeps it. Hashing takes about half a second on
+    the server, so it is done before _save_member takes the next membership
+    number, whose row stays locked until the registration commits: hashed
+    under the lock, registrations queued one behind another (4 November
+    2026). PIN rules are checked by validate_pin, not password validators."""
+    return make_password(pin)
+
+
+def _member_account(member: Member, hashed: str) -> User:
+    """The member's app account, with a PIN hashed beforehand (_hashed)."""
     user = User(
         access_id=member.membership_number,
         full_name=member.full_name,
@@ -170,9 +180,9 @@ def _member_account(member: Member, pin: str) -> User:
         email=member.email,
         role=Role.MEMBER,
         scope_level=member.scope_level,
+        password=hashed,
         **{field: getattr(member, field) for field in SCOPE_FIELDS},
     )
-    user.set_password(pin)  # PIN rules are checked by validate_pin, not password validators
     user.full_clean(exclude=["password"])
     user.save()
     member.user = user
@@ -289,20 +299,25 @@ def self_register(
 
     if code:
         consume_code(phone, PURPOSE.REGISTER, code)
+    hashed = _hashed(pin)
     with transaction.atomic():
+        # An organization's serial first: see groups.reserve_serial_number.
+        serial = groups.reserve_serial_number() if details is not None else None
         now = timezone.now()
         if code:
             member.phone_verified_at = now
         member.consent_at = now
         _save_member(member)
-        user = _member_account(member, pin)
+        user = _member_account(member, hashed)
         if abroad is not None:
             diaspora.record(member, abroad)
-        member = identity.record_checks(member)
         if group is not None:
             groups.join_when_registering(member=member, group=group)
         if details is not None:
-            groups.register_group(actor=user, leader=member, details=details)
+            groups.register_group(actor=user, leader=member, details=details, serial_number=serial)
+    # After the membership number's lock is let go: the checks may read the
+    # card photo, which can take many seconds.
+    member = identity.record_checks(member)
     if inviter is not None:
         from apps.wallets.services import reward_registration_quietly
 
@@ -386,8 +401,8 @@ def assisted_register(
         member.phone_verified_at = now
         member.consent_at = now
         _save_member(member)
-        member = identity.record_checks(member)
-    return member
+    # After the membership number's lock is let go, as in self_register.
+    return identity.record_checks(member)
 
 
 # --- self-registration by USSD ---------------------------------------------------
@@ -431,14 +446,15 @@ def ussd_register(
         polling_unit=polling_unit,
     )
     member.full_clean(exclude=["membership_number"])
+    hashed = _hashed(pin)
     with transaction.atomic():
         now = timezone.now()
         member.phone_verified_at = now
         member.consent_at = now
         _save_member(member)
-        _member_account(member, pin)
-        member = identity.record_checks(member)
-    return member
+        _member_account(member, hashed)
+    # After the membership number's lock is let go, as in self_register.
+    return identity.record_checks(member)
 
 
 # --- minimal USSD membership and later app account -----------------------------
@@ -642,8 +658,9 @@ def register_imported(
         **place,
     )
     member.full_clean(exclude=["membership_number"])
+    hashed = _hashed(password)
     _save_member(member)
-    _member_account(member, password)
+    _member_account(member, hashed)
     if verified:
         member.verification_status = VerificationStatus.VERIFIED
         member.verified_at = now
@@ -695,8 +712,9 @@ def register_from_list(
         **(scope or {}),
     )
     member.full_clean(exclude=["membership_number"])
+    hashed = _hashed(first_password(phone) if phone else vin)
     _save_member(member)
-    user = _member_account(member, first_password(phone) if phone else vin)
+    user = _member_account(member, hashed)
     if phone is None:
         user.must_change_password = True
         user.save(update_fields=["must_change_password"])
@@ -750,8 +768,9 @@ def register_someone(*, actor, full_name, phone_number, consent, scope=None) -> 
         **(scope or {}),
     )
     member.full_clean(exclude=["membership_number"])
+    hashed = _hashed(first_password(phone))
     _save_member(member)
-    _member_account(member, first_password(phone))
+    _member_account(member, hashed)
     audit.record(
         actor=actor,
         action="member.registeredByOther",
@@ -795,7 +814,7 @@ def set_pin(*, phone_number, code, pin):
     consume_code(phone, PURPOSE.SET_PIN, code)
     with transaction.atomic():
         if member.user is None:
-            user = _member_account(member, pin)
+            user = _member_account(member, _hashed(pin))
         else:
             user = member.user
             user.set_password(pin)
