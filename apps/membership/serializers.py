@@ -976,6 +976,13 @@ class StandingChangeSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True, max_length=1000)
 
 
+class PinResetSerializer(serializers.Serializer):
+    """What a reset PIN now is: "phone number", "phone number with its country
+    code", "VIN" or "NIN" (never the PIN)."""
+
+    first_password = serializers.CharField()
+
+
 class PollingUnitChangeSerializer(serializers.ModelSerializer):
     """A request to move a member's registered polling unit."""
 

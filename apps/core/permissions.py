@@ -96,6 +96,8 @@ class Capability(models.TextChoices):
     # Protected: only National Administrators, never delegable.
     APPOINT_NATIONAL_ADMINISTRATOR = "appointNationalAdministrator"
     APPROVE_ADMINISTRATOR_REMOVAL = "approveAdministratorRemoval"
+    # Resetting a member's PIN to their phone number (5 November 2026).
+    RESET_MEMBER_PINS = "resetMemberPins"
     MANAGE_PROJECTS = "manageProjects"
 
 

@@ -15,7 +15,7 @@ from apps.core.choices import (
     VerificationStatus,
 )
 from apps.core.models import Sequence
-from apps.core.permissions import Capability
+from apps.core.permissions import Capability, has_capability
 from apps.geography.scope import scope_contains_any
 
 from .models import (
@@ -436,6 +436,98 @@ def restore_membership(*, actor, member: Member, reason: str = "") -> Member:
         User.objects.filter(pk=member.user_id).update(is_active=True)
     _audit(actor, "member.restored", member, reason.strip(), changes={"from": before})
     return member
+
+
+# --- a forgotten PIN --------------------------------------------------------------
+
+
+@transaction.atomic
+def reset_member_pin(*, actor, member: Member) -> str:
+    """A National Administrator resets a member's PIN (5 November 2026, the
+    owner's decision): it becomes what members registered by others first
+    sign in with, their phone number (08031234567), or with no phone their
+    VIN or NIN, and they must choose their own PIN before anything else
+    works. Every session ends, any lockout lifts, and they are told in the
+    app. Returns which it is: "phone number", "VIN" or "NIN".
+
+    Never one's own PIN (Account changes it), nor any administrator account,
+    suspended or not yet started too: no administrator takes over another's,
+    nor gets round the two-administrator rule. Nor a staff account, which
+    keeps a staff password rather than a PIN, nor one that opens the site's
+    administration."""
+    from apps.access.services import _lock_administrators, end_sessions, is_administrator_account
+    from apps.accounts.models import User
+    from apps.messaging.services import notify
+
+    if not has_capability(actor, C.RESET_MEMBER_PINS):
+        raise PermissionDenied("Only a National Administrator resets PINs.")
+    _lock_administrators()  # who is an administrator holds still meanwhile
+    member = Member.objects.select_for_update().get(pk=member.pk)
+    if member.user_id is None:
+        raise ValidationError({"account": "This member has no app account to sign in with."})
+    user = User.objects.select_for_update().get(pk=member.user_id)
+    if user.pk == actor.pk:
+        raise ValidationError({"account": "Change your own PIN from your account."})
+    if is_administrator_account(user) or engine.is_national_administrator(user):
+        raise PermissionDenied("A National Administrator's PIN cannot be reset here.")
+    if user.is_staff or user.is_superuser:
+        raise PermissionDenied(
+            "This account opens the site's administration: it is not reset here."
+        )
+    if user.role != Role.MEMBER:
+        staff = "This is a staff account, which keeps a staff password: it is not reset here."
+        raise ValidationError({"account": staff})
+    if member.membership_state == MS.DEACTIVATED or not user.is_active:
+        raise ValidationError(
+            {"state": "This membership has ended. Restore it before resetting the PIN."}
+        )
+    pin, kind = first_pin_for(user, member)
+    if not pin:
+        raise ValidationError({"account": "This member has no phone, VIN or NIN to sign in with."})
+    user.set_password(pin)
+    user.must_change_password = True
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    user.save(
+        update_fields=["password", "must_change_password", "failed_login_attempts", "locked_until"]
+    )
+    end_sessions(user)
+    changes = {"first_password": kind, "sessions": "ended"}
+    _audit(actor, "account.pin_reset", member, changes=changes)
+    abroad = " (its digits, without the +)" if kind == ABROAD else ""
+    notify(
+        sender=None,
+        member=member,
+        title="Your PIN was reset",
+        body=f"A National Administrator reset your PIN. Sign in with your {kind}{abroad} as "
+        "your PIN, then choose a new 6-digit PIN only you know. If you did not ask for "
+        "this, tell TGCG.",
+        sms=False,
+    )
+    return kind
+
+
+ABROAD = "phone number with its country code"
+
+
+def first_pin_for(user, member) -> tuple[str | None, str | None]:
+    """A first password everyone knows how to type, and what it is called: the
+    phone they sign in with (08031234567; abroad, its digits with the country
+    code, which a keypad types), or with none their VIN, else their NIN."""
+    from apps.accounts.phone import is_nigerian
+
+    from .registration import first_password
+
+    phone = user.phone_number or (member.phone_number if member is not None else None)
+    if phone and is_nigerian(phone):
+        return first_password(phone), "phone number"
+    if phone:
+        return "".join(ch for ch in phone if ch.isdigit()) or None, ABROAD
+    if member is not None and member.vin:
+        return member.vin, "VIN"
+    if member is not None and member.nin:
+        return member.nin, "NIN"
+    return None, None
 
 
 # --- registered polling unit ------------------------------------------------------

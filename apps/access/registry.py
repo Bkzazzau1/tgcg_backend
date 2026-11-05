@@ -78,6 +78,13 @@ PERMISSIONS: dict[str, PermissionInfo] = {
         ),
         _p(C.SUSPEND_MEMBERS, M.MEMBERSHIP, "suspend", "Suspend or deactivate members"),
         _p(
+            C.RESET_MEMBER_PINS,
+            M.MEMBERSHIP,
+            "reset",
+            "Reset a member's PIN to their phone number",
+            protected=True,
+        ),
+        _p(
             C.MANAGE_SUPPORT_GROUPS,
             M.MEMBERSHIP,
             "approve",

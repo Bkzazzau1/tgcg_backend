@@ -264,6 +264,7 @@ def test_with_neither_phone_nor_vin_the_nin_signs_in_and_a_pin_comes_first(admin
     )
     assert login.status_code == 200, login.content
     assert login.json()["user"]["must_change_pin"] is True
+    assert login.json()["user"]["first_pin"] == "NIN"
 
     # Kept only to sign in: someone with a phone signs in with the phone.
     musa = Person("Musa Bello", phone="+2348031234567", nin=NIN_B)

@@ -49,6 +49,7 @@ from .serializers import (
     DecisionSerializer,
     ExcoSerializer,
     MemberSerializer,
+    PinResetSerializer,
     PollingUnitChangeSerializer,
     PvcUpdateSerializer,
     ReadinessSerializer,
@@ -147,6 +148,8 @@ class MemberViewSet(
             return [requires(C.VIEW_MEMBER_SENSITIVE_DATA, C.VERIFY_MEMBER_IDENTITY)()]
         if self.action in STANDING_ACTIONS:
             return [requires(C.SUSPEND_MEMBERS)()]
+        if self.action == "reset_pin":
+            return [requires(C.RESET_MEMBER_PINS)()]
         if self.action in VERIFICATION_ACTIONS:
             return [requires(C.VERIFY_MEMBER_IDENTITY)()]
         if self.action == "history":
@@ -451,6 +454,14 @@ class MemberViewSet(
     @action(detail=True, methods=["post"])
     def restore(self, request, membership_number=None):
         return self._standing(request, services.restore_membership)
+
+    @extend_schema(request=None, responses=PinResetSerializer)
+    @action(detail=True, methods=["post"], url_path="reset-pin")
+    def reset_pin(self, request, membership_number=None):
+        """A National Administrator resets the member's PIN to their phone
+        number (or VIN or NIN), to be changed at their next sign-in."""
+        kind = services.reset_member_pin(actor=request.user, member=self.get_object())
+        return Response(PinResetSerializer({"first_password": kind}).data)
 
     def _verification(self, member):
         checks = VerificationCheck.objects.select_related("checked_by")

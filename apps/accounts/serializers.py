@@ -43,6 +43,11 @@ class UserProfileSerializer(serializers.ModelSerializer):
         help_text="Signed in with a first password others know: nothing else works until "
         "the account chooses its own PIN at auth/password/.",
     )
+    first_pin = serializers.SerializerMethodField(
+        help_text='While must_change_pin: what that first password is, "phone number", '
+        '"phone number with its country code" (abroad: its digits, without the +), "VIN" '
+        'or "NIN" (never the password itself).'
+    )
 
     class Meta:
         model = User
@@ -59,11 +64,21 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "supervises",
             "identity_verified",
             "must_change_pin",
+            "first_pin",
         ]
         read_only_fields = fields
 
     def get_capabilities(self, user) -> list[str]:
         return sorted(capabilities_for(user))
+
+    def get_first_pin(self, user) -> str | None:
+        """As the first password was chosen, on a list or at a reset: the phone,
+        else the VIN, else the NIN (apps.membership.services.first_pin_for)."""
+        from apps.membership.services import first_pin_for
+
+        if not user.must_change_password:
+            return None
+        return first_pin_for(user, getattr(user, "member", None))[1]
 
     @extend_schema_field(GrantSerializer(many=True))
     def get_access(self, user) -> list:
