@@ -1,7 +1,7 @@
 """A group's own members' list (4 November 2026): reading the PDF's rows,
-keeping only VINs and phones that are a person's own, placing people in the
-group, and members without a phone signing in with their VIN and choosing
-their own PIN first. Every name and number here is made up."""
+keeping only VINs, phones and NINs that are a person's own, placing people
+in the group, and members without a phone signing in with their VIN or NIN
+and choosing their own PIN first. Every name and number here is made up."""
 
 import json
 
@@ -9,12 +9,13 @@ import pytest
 from django.core.management import call_command
 from rest_framework.test import APIClient
 
+from apps.access.models import AuditEvent
 from apps.access.tests.test_access import client_for, member_account
 from apps.accounts.models import User
 from apps.core.models import Sequence
 from apps.membership import registration
 from apps.membership.models import Member
-from apps.support_groups import group_list
+from apps.support_groups import group_list, table_list
 from apps.support_groups.group_list import Person, read_line
 from apps.support_groups.models import GroupMember
 from apps.support_groups.places import Places
@@ -24,6 +25,8 @@ pytestmark = pytest.mark.django_db
 VIN_A = "90F5B0E8D0295847263"
 VIN_B = "90F5B0E8D0295847264"
 VIN_C = "90F5B0E8D0295847265"
+NIN_A = "12345678901"
+NIN_B = "12345678902"
 SOURCE = "Directorate list, 4 November 2026"
 
 
@@ -85,7 +88,132 @@ def test_only_a_persons_own_vin_or_phone_counts():
         (5, "phone shared with 2 other names"),
         (6, "phone shared with 2 other names"),
         (7, "VIN column has 17 characters; a VIN has 19"),
-        (8, "no VIN or phone"),
+        (8, "no VIN, phone or NIN"),
+    ]
+    assert group_list.from_json(json.loads(json.dumps(group_list.to_json(people)))) == people
+
+
+# A spreadsheet's header printed to PDF: each column's left edge (5 November 2026).
+HEADER = [
+    (51.5, "S/NO2"),
+    (70.9, "CODE NUMBER"),
+    (119.1, "FULL NAMES"),
+    (177.5, "DISABILITY"),
+    (225.7, "GENDER"),
+    (252.7, "OCCUPATION"),
+    (300.9, "LOCAL GOVERNMENT"),
+    (355.7, "WARD"),
+    (403.9, "PHONE NUMBER"),
+    (452.1, "NIN"),
+    (500.3, "HIGHEST QUALIFICATION"),
+]
+
+
+def cells_at(y, *values):
+    """A row's pieces of text, one per cell; S/N right-aligned in its column."""
+    lefts = [60.2] + [left for left, _ in HEADER[1:]]
+    return [(y, left, value) for left, value in zip(lefts, values, strict=False) if value]
+
+
+def test_a_spreadsheets_table_is_read_by_where_its_cells_stand():
+    first = [(733.4, 51.5, "LIST OF PERSONS WITH DISABILITIES")]
+    first += [(721.0, left, text) for left, text in HEADER]
+    first += cells_at(
+        713.3,
+        "1",
+        "KD-01",
+        "MUSA BELLO",
+        "SPINAL CORD INJUR",
+        "MALE",
+        "FARMER",
+        "ZARIA",
+        "Kufena",
+        "7031234567",
+        "No",
+        "SSCE",
+    )
+    first += cells_at(
+        705.7,
+        "2",
+        "KD-02",
+        "Hauwa",
+        "DEAF",
+        "FEMAL",
+        "FARMER",
+        "ZARIA",
+        "Kufena",
+        "0803 555 0101",
+        NIN_A,
+        "SSCE",
+    )
+    first.append((702.0, 119.1, "Sani"))  # the name cell's wrapped line
+    # Cells moved one column right as far as GENDER, as the last rows of a list.
+    second = cells_at(
+        733.4,
+        "3",
+        "5/10/24 23:08",
+        "KD-ZAR -23-03",
+        "Ladi Musa",
+        "LEPER",
+        "FARMER",
+        "ZARIA",
+        "ZARIA",
+        "",
+        NIN_B,
+        "MSC",
+    )
+    rows = table_list.read_pages([first, second], state="Kaduna")
+    assert [(r.page, r.serial, r.name) for r in rows] == [
+        (1, 1, "Musa Bello"),
+        (1, 2, "Hauwa Sani"),
+        (2, 3, "Ladi Musa"),
+    ]
+    musa, hauwa, ladi = rows
+    assert musa.places == ["Kaduna", "ZARIA", "Kufena"]
+    assert (musa.phone, musa.nin, musa.gender) == ("+2347031234567", "", "male")
+    assert (musa.disabilities, musa.occupation) == (["physical"], "Farmer")
+    assert (hauwa.phone, hauwa.nin, hauwa.gender) == ("+2348035550101", NIN_A, "female")
+    assert hauwa.disabilities == ["hearing"]
+    assert (ladi.disabilities, ladi.disability_other, ladi.gender) == (["other"], "Leprosy", "")
+    assert (ladi.phone, ladi.nin, ladi.places[1]) == ("", NIN_B, "ZARIA")
+    assert "KD-0" not in str(rows) and "SSCE" not in str(rows)
+
+
+def test_a_nin_counts_when_it_is_their_own():
+    def row(serial, name, phone="", nin="", **more):
+        return group_list.Row(page=1, serial=serial, name=name, phone=phone, nin_column=nin, **more)
+
+    rows = [
+        row(1, "Musa Bello", "+2348031234567", NIN_A, gender="male", disabilities=["visual"]),
+        row(2, "Musa Bello", "+2348031234567", NIN_A),  # listed twice
+        row(3, "Hauwa Sani", "+2348035550001", NIN_B),
+        row(4, "Ladi Musa", "+2348035550001", "12345678903"),  # one phone, two names
+        row(5, "Kabiru Ali", "+2348035550004", "12345678904"),
+        row(6, "Kabiru Ali", "+2348035550005", "12345678904"),  # two phones, one NIN
+        row(7, "Bala Umar", nin="1234567890"),
+        row(8, "Sani Bello", nin="08031234599"),
+        row(9, "Zainab Yusuf"),
+        row(10, "", "+2348035550010"),
+        row(11, "Ade Obi", phone_column="0810587467", nin="195758976673"),
+    ]
+    people, held = group_list.plan(rows)
+    assert [(p.name, p.phone, p.nin, p.rows) for p in people] == [
+        ("Musa Bello", "+2348031234567", NIN_A, [[1, 1], [1, 2]]),
+        ("Hauwa Sani", "", NIN_B, [[1, 3]]),
+        ("Ladi Musa", "", "12345678903", [[1, 4]]),
+        ("Kabiru Ali", "+2348035550004", "12345678904", [[1, 5]]),
+        ("Kabiru Ali", "+2348035550005", "", [[1, 6]]),
+    ]
+    assert (people[0].gender, people[0].disabilities) == ("male", ["visual"])
+    assert [(row.serial, reason) for row, reason in held] == [
+        (7, "NIN column has 10 digits; a NIN has 11"),
+        (8, "NIN column holds a phone number"),
+        (9, "no VIN, phone or NIN"),
+        (10, "no name"),
+        (
+            11,
+            "phone column is not a Nigerian mobile number + NIN column has 12 digits; a NIN has 11",
+        ),
     ]
     assert group_list.from_json(json.loads(json.dumps(group_list.to_json(people)))) == people
 
@@ -94,6 +222,44 @@ def place(admin, group, person):
     return group_list.place_person(
         actor=admin, group=group, person=person, places=Places(), source=SOURCE
     )
+
+
+def test_with_neither_phone_nor_vin_the_nin_signs_in_and_a_pin_comes_first(admin, group):
+    hauwa = Person(
+        "Hauwa Sani",
+        nin=NIN_A,
+        state="Kaduna",
+        gender="female",
+        disabilities=["other"],
+        disability_other="Leprosy",
+        occupation="Farmer",
+    )
+    assert place(admin, group, hauwa) == "registered with the NIN"
+    member = Member.objects.get(nin=NIN_A)
+    assert member.phone_number is None and member.vin is None and member.state.code == "KD"
+    assert (member.gender, member.disabilities, member.disability_other, member.occupation) == (
+        "female",
+        ["other"],
+        "Leprosy",
+        "Farmer",
+    )
+    assert member.user.must_change_password and member.user.check_password(NIN_A)
+    assert NIN_A not in str(list(AuditEvent.objects.values_list("changes", flat=True)))
+
+    login = APIClient().post(
+        "/api/v1/auth/login/", {"username": "1234 5678 901", "password": NIN_A}, format="json"
+    )
+    assert login.status_code == 200, login.content
+    assert login.json()["user"]["must_change_pin"] is True
+
+    # Kept only to sign in: someone with a phone signs in with the phone.
+    musa = Person("Musa Bello", phone="+2348031234567", nin=NIN_B)
+    assert place(admin, group, musa) == "registered with the phone"
+    assert Member.objects.get(phone_number="+2348031234567").nin is None
+    assert place(admin, group, Person("Hauwa Sani", nin=NIN_A)) == "already in the group"
+    member_account("08035550009", name="Grace Obi")
+    other = Person("Hauwa Sani", phone="+2348035550009", nin=NIN_A)
+    assert place(admin, group, other) == "held: the NIN belongs to another member"
 
 
 def test_new_people_are_registered_in_the_group(admin, group):

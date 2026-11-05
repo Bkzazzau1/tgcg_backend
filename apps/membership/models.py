@@ -42,6 +42,7 @@ ACTIVE_ACCREDITATION = (AccreditationStatus.PENDING, AccreditationStatus.APPROVE
 
 # INEC voter identification numbers are 19 letters/digits.
 VIN_VALIDATOR = RegexValidator(r"^[A-Z0-9]{19}$", "A VIN has 19 letters and digits.")
+NIN_VALIDATOR = RegexValidator(r"^\d{11}$", "A NIN has 11 digits.")
 
 
 def _private_path(folder, filename):
@@ -94,8 +95,8 @@ class Member(TimeStampedModel, ScopedModel):
 
     membership_number = models.CharField(max_length=16, unique=True, editable=False)
     full_name = models.CharField(max_length=150, blank=True)
-    # Empty (NULL) only for a member with a VIN, who signs in with it: a
-    # group's list may give no phone (4 November 2026).
+    # Empty (NULL) only for a member with a VIN or a NIN, who signs in with
+    # it: a group's list may give no phone (4 and 5 November 2026).
     phone_number = models.CharField(  # noqa: DJ001 - NULL keeps the unique index sparse
         max_length=16, unique=True, null=True, blank=True
     )
@@ -113,6 +114,17 @@ class Member(TimeStampedModel, ScopedModel):
         null=True,
         blank=True,
         validators=[VIN_VALIDATOR],
+    )
+    # Kept only for a member from a group's list with neither a phone nor a
+    # VIN, who signs in with it (5 November 2026). As the list gives it: not
+    # checked with NIMC, and never shown.
+    nin = models.CharField(  # noqa: DJ001 - NULL keeps the unique index sparse
+        "national identification number",
+        max_length=11,
+        unique=True,
+        null=True,
+        blank=True,
+        validators=[NIN_VALIDATOR],
     )
     gender = models.CharField(max_length=8, choices=Gender.choices, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
@@ -230,7 +242,10 @@ class Member(TimeStampedModel, ScopedModel):
             self.vin = "".join(self.vin.split()).upper()
         else:
             self.vin = None
-        _normalize_phone_field(self, "phone_number", required=not self.vin, empty=None)
+        self.nin = "".join((self.nin or "").split()) or None
+        _normalize_phone_field(
+            self, "phone_number", required=not (self.vin or self.nin), empty=None
+        )
         self.normalize_scope()
 
     @property

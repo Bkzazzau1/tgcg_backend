@@ -2,11 +2,11 @@
 decided with the owner for the Directorate of Contact and Mobilization).
 
 Takes the JSON read_group_list wrote. Someone already a member, by the same
-VIN or phone, is placed in the group at once and told in the app; anyone
-else is registered, with no post and the identity not checked, by --by, a
-National Administrator, on the group's word that they agreed. A member
-without a phone signs in with their VIN and must choose their own PIN
-first. See apps.support_groups.group_list.
+VIN, phone or NIN, is placed in the group at once and told in the app;
+anyone else is registered, with no post and the identity not checked, by
+--by, a National Administrator, on the group's word that they agreed. A
+member without a phone signs in with their VIN, or with neither, their NIN,
+and must choose their own PIN first. See apps.support_groups.group_list.
 
 A dry run unless --commit: it then only checks the group and the actor.
 --shard i/n places every n-th person from the i-th, so shards can run side by

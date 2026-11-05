@@ -779,6 +779,8 @@ def analysis(group) -> dict:
         .annotate(n=Count("pk"))
         .order_by("-n", "state__name")
     )
+    no_phone = Q(phone_number__isnull=True) | Q(phone_number="")
+    no_vin = Q(vin__isnull=True) | Q(vin="")
     return {
         "members": member_analysis.members_summary(members, now),
         "via": dict(places.values_list("via").annotate(n=Count("pk")).order_by()),
@@ -789,7 +791,8 @@ def analysis(group) -> dict:
         ],
         "sign_in": members.aggregate(
             phone=Count("pk", filter=Q(phone_number__isnull=False) & ~Q(phone_number="")),
-            vin_only=Count("pk", filter=Q(phone_number__isnull=True) | Q(phone_number="")),
+            vin_only=Count("pk", filter=no_phone & ~no_vin),
+            nin_only=Count("pk", filter=no_phone & no_vin),
             pin_to_choose=Count("pk", filter=Q(user__must_change_password=True)),
         ),
     }

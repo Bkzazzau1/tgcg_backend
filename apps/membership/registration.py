@@ -122,9 +122,9 @@ def validate_image(upload, field: str, *, required: bool):
         raise ValidationError({field: "Upload a JPEG, PNG or WEBP photo."})
 
 
-def ensure_available(phone: str | None, vin: str | None = None) -> None:
-    """Reject a phone or VIN that already belongs to a member or an account.
-    Only a member with a VIN may have no phone."""
+def ensure_available(phone: str | None, vin: str | None = None, nin: str | None = None) -> None:
+    """Reject a phone, VIN or NIN that already belongs to a member or an
+    account. Only a member with a VIN or a NIN may have no phone."""
     if phone and Member.objects.filter(phone_number=phone).exists():
         raise ValidationError({"phone_number": "This phone number is already registered."})
     if phone and User.objects.filter(phone_number=phone).exists():
@@ -133,6 +133,8 @@ def ensure_available(phone: str | None, vin: str | None = None) -> None:
         )
     if vin and Member.objects.filter(vin=vin).exists():
         raise ValidationError({"vin": "This PVC is already registered to a member."})
+    if nin and Member.objects.filter(nin=nin).exists():
+        raise ValidationError({"nin": "This NIN is already registered to a member."})
 
 
 def _clean_vin(vin):
@@ -158,7 +160,7 @@ def _save_member(member: Member) -> Member:
         with transaction.atomic():
             member.save()
     except IntegrityError as exc:
-        raise ValidationError("This phone number or PVC was registered a moment ago.") from exc
+        raise ValidationError("This phone number, PVC or NIN was registered a moment ago.") from exc
     return member
 
 
@@ -686,33 +688,53 @@ def register_imported(
 
 @transaction.atomic
 def register_from_list(
-    *, actor, full_name, source, phone_number=None, vin=None, scope=None
+    *,
+    actor,
+    full_name,
+    source,
+    phone_number=None,
+    vin=None,
+    nin=None,
+    scope=None,
+    gender="",
+    occupation="",
+    disabilities=(),
+    disability_other="",
 ) -> Member:
     """A member from a support group's own list, registered by a National
     Administrator on the group's word that they agreed to join (4 November
     2026: the Directorate of Contact and Mobilization's). The identity is not
-    checked. The place is the list's, when it gives one that matches.
+    checked. The place is the list's, when it gives one that matches, and so
+    are the gender, occupation and disabilities (5 November 2026: the persons
+    with disabilities' list).
 
     A list may give no phone, so a member with a VIN may have none, and signs
-    in with the VIN. With a phone, the first password is the phone number
-    (08031234567), as for every list; without one it is the VIN, which
-    whoever holds the list knows, so the member must choose their own PIN
-    before anything else works."""
+    in with the VIN; with neither, with the NIN, which is kept only then. With
+    a phone, the first password is the phone number (08031234567), as for
+    every list; without one it is the VIN or NIN, which whoever holds the list
+    knows, so the member must choose their own PIN before anything else
+    works."""
     phone = require_phone(phone_number) if phone_number else None
     vin = _clean_vin(vin)
-    if phone is None and vin is None:
-        raise ValidationError("A member from a list needs a phone or a VIN.")
-    ensure_available(phone, vin)
+    nin = None if phone or vin else "".join((nin or "").split()) or None
+    if phone is None and vin is None and nin is None:
+        raise ValidationError("A member from a list needs a phone, a VIN or a NIN.")
+    ensure_available(phone, vin, nin)
     member = Member(
         full_name=full_name,
         phone_number=phone,
         vin=vin,
+        nin=nin,
+        gender=gender,
+        occupation=occupation,
+        disabilities=list(disabilities),
+        disability_other=disability_other,
         registration_channel=RegistrationChannel.IMPORT,
         consent_at=timezone.now(),
         **(scope or {}),
     )
     member.full_clean(exclude=["membership_number"])
-    hashed = _hashed(first_password(phone) if phone else vin)
+    hashed = _hashed(first_password(phone) if phone else vin or nin)
     _save_member(member)
     user = _member_account(member, hashed)
     if phone is None:
@@ -728,7 +750,9 @@ def register_from_list(
         changes={
             "identity": "not checked yet",
             "consent": "through the group's list",
-            "first_password": "phone number" if phone else "VIN, changed at first sign-in",
+            "first_password": "phone number"
+            if phone
+            else f"{'VIN' if vin else 'NIN'}, changed at first sign-in",
         },
     )
     return member

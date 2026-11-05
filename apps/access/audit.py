@@ -13,6 +13,7 @@ SENSITIVE_KEYS = frozenset(
         "phone_number",
         "phone",
         "vin",
+        "nin",
         "photo",
         "pvc_image",
         "pin",

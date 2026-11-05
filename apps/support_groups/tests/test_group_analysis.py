@@ -17,13 +17,14 @@ VIN_B = "90F5B0E8D0295847264"
 
 @pytest.fixture
 def listed(admin, group):
-    """The group's leader, two people from its list (one with no phone), and
-    a member already registered, placed from the list too."""
+    """The group's leader, three people from its list (two with no phone),
+    and a member already registered, placed from the list too."""
     member_account("08035550002", name="Grace Obi")
     for person in (
         Person("Musa Bello", vin=VIN_A, phone="+2348031234567", state="Kaduna"),
         Person("Aisha Sani", vin=VIN_B, state="Kaduna"),
         Person("Grace Obi", phone="+2348035550002"),
+        Person("Hauwa Lawal", nin="12345678901", state="Kaduna", gender="female"),
     ):
         group_list.place_person(
             actor=admin, group=group, person=person, places=Places(), source="a list"
@@ -35,14 +36,14 @@ def test_those_who_vet_groups_see_a_groups_analytics(admin, listed):
     figures = client_for(admin).get(f"{GROUPS}{listed.uuid}/analysis/")
     assert figures.status_code == 200, figures.content
     body = figures.json()
-    assert body["members"]["total"] == 4
-    assert body["members"]["channel"]["import"] == 2
-    assert body["via"] == {"leader": 1, "list": 3}
+    assert body["members"]["total"] == 5
+    assert body["members"]["channel"]["import"] == 3
+    assert body["via"] == {"leader": 1, "list": 4}
     assert body["waiting"] == 0
-    assert body["sign_in"] == {"phone": 3, "vin_only": 1, "pin_to_choose": 1}
+    assert body["sign_in"] == {"phone": 3, "vin_only": 1, "nin_only": 1, "pin_to_choose": 2}
     kaduna = next(row for row in body["states"] if row["code"] == "KD")
-    assert kaduna["name"] and kaduna["count"] >= 2
-    assert sum(row["count"] for row in body["states"]) == 4
+    assert kaduna["name"] and kaduna["count"] >= 3
+    assert sum(row["count"] for row in body["states"]) == 5
 
 
 def test_a_groups_analytics_are_for_those_who_vet_groups_only(listed):
