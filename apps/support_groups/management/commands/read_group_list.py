@@ -21,8 +21,8 @@ from apps.support_groups import group_list, table_list
 
 def _signs_in(person) -> str:
     has = [label for label, value in (("VIN", person.vin), ("phone", person.phone)) if value]
-    if person.nin and not has:
-        return "NIN only"
+    if not has:
+        return "NIN only" if person.nin else "nothing to sign in with"
     return " and ".join(has) if len(has) > 1 else f"{has[0]} only"
 
 

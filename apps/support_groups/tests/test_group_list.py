@@ -17,6 +17,7 @@ from apps.membership import registration
 from apps.membership.models import Member
 from apps.support_groups import group_list, table_list
 from apps.support_groups.group_list import Person, read_line
+from apps.support_groups.management.commands.read_group_list import _signs_in
 from apps.support_groups.models import GroupMember
 from apps.support_groups.places import Places
 
@@ -195,6 +196,10 @@ def test_a_nin_counts_when_it_is_their_own():
         row(9, "Zainab Yusuf"),
         row(10, "", "+2348035550010"),
         row(11, "Ade Obi", phone_column="0810587467", nin="195758976673"),
+        row(12, "Ladi Bala", nin="07212345678"),  # sign-in reads it as a phone
+        row(13, "Yusuf Ali", "+2348035550013", "12345678913"),
+        row(14, "Yusuf Ali", "+2348035550014", "12345678914"),
+        row(15, "Yusuf Ali", "+2348035550014", "12345678913"),  # each with another row
     ]
     people, held = group_list.plan(rows)
     assert [(p.name, p.phone, p.nin, p.rows) for p in people] == [
@@ -203,8 +208,12 @@ def test_a_nin_counts_when_it_is_their_own():
         ("Ladi Musa", "", "12345678903", [[1, 4]]),
         ("Kabiru Ali", "+2348035550004", "12345678904", [[1, 5]]),
         ("Kabiru Ali", "+2348035550005", "", [[1, 6]]),
+        ("Yusuf Ali", "+2348035550013", "12345678913", [[1, 13]]),
+        ("Yusuf Ali", "+2348035550014", "12345678914", [[1, 14]]),
     ]
     assert (people[0].gender, people[0].disabilities) == ("male", ["visual"])
+    # A shared phone stays with them, to find them if registered with it before.
+    assert [p.other_phones for p in people[:3]] == [[], ["+2348035550001"], ["+2348035550001"]]
     assert [(row.serial, reason) for row, reason in held] == [
         (7, "NIN column has 10 digits; a NIN has 11"),
         (8, "NIN column holds a phone number"),
@@ -214,8 +223,12 @@ def test_a_nin_counts_when_it_is_their_own():
             11,
             "phone column is not a Nigerian mobile number + NIN column has 12 digits; a NIN has 11",
         ),
+        (12, "NIN column holds a phone number"),
+        (15, "phone and NIN each with another row of this name"),
     ]
     assert group_list.from_json(json.loads(json.dumps(group_list.to_json(people)))) == people
+    assert [_signs_in(p) for p in people[:2]] == ["phone only", "NIN only"]
+    assert _signs_in(Person("Nobody")) == "nothing to sign in with"
 
 
 def place(admin, group, person):
@@ -260,6 +273,21 @@ def test_with_neither_phone_nor_vin_the_nin_signs_in_and_a_pin_comes_first(admin
     member_account("08035550009", name="Grace Obi")
     other = Person("Hauwa Sani", phone="+2348035550009", nin=NIN_A)
     assert place(admin, group, other) == "held: the NIN belongs to another member"
+
+
+def test_a_corrected_list_still_finds_who_registered_with_a_phone(admin, group):
+    """A correction may give someone else the phone a person registered
+    with: the person then comes with their NIN only, and the phone among
+    their rows' other phones."""
+    assert place(admin, group, Person("Musa Bello", phone="+2348031234567", nin=NIN_A)) == (
+        "registered with the phone"
+    )
+    again = Person("Musa Bello", nin=NIN_A, other_phones=["+2348031234567"])
+    assert place(admin, group, again) == "already in the group"
+    hauwa = Person("Hauwa Sani", nin=NIN_B, other_phones=["+2348031234567"])
+    assert place(admin, group, hauwa) == "registered with the NIN"
+    assert Member.objects.filter(full_name="Musa Bello").count() == 1
+    assert Member.objects.filter(nin__isnull=False).count() == 1
 
 
 def test_new_people_are_registered_in_the_group(admin, group):

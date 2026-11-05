@@ -33,7 +33,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
-from apps.accounts.phone import normalize_ng_phone
+from apps.accounts.phone import normalize_ng_phone, normalize_phone
 from apps.core.choices import MembershipState
 from apps.geography.scope import ScopeField
 from apps.membership import registration
@@ -75,14 +75,23 @@ class Row:
 
     @property
     def nin(self) -> str:
-        """11 digits, unless they are a phone number written in the column."""
+        """11 digits, unless sign-in would read them as a phone number."""
         column = self.nin_column
-        return column if NIN.fullmatch(column) and not PHONE.fullmatch(column) else ""
+        return column if NIN.fullmatch(column) and not _reads_as_phone(column) else ""
 
     @property
     def key(self) -> str:
-        """The name as compared: capitals and spaces only."""
-        return " ".join(re.sub(r"[^A-Z ]", " ", self.name.upper()).split())
+        return name_key(self.name)
+
+
+def name_key(name: str) -> str:
+    """A name as compared: capitals and spaces only."""
+    return " ".join(re.sub(r"[^A-Z ]", " ", (name or "").upper()).split())
+
+
+def _reads_as_phone(value: str) -> bool:
+    """As sign-in reads it, which tries a phone number before a NIN."""
+    return bool(PHONE.fullmatch(value) or normalize_phone(value))
 
 
 def read_line(page: int, line: str) -> Row | None:
@@ -138,6 +147,9 @@ class Person:
     disabilities: list = field(default_factory=list)
     disability_other: str = ""
     occupation: str = ""
+    # Their rows' phones that are not theirs alone: someone registered with
+    # one before, under this name, is them (a corrected list may share it).
+    other_phones: list = field(default_factory=list)
 
 
 def plan(rows: list[Row]) -> tuple[list[Person], list[tuple[Row, str]]]:
@@ -181,6 +193,10 @@ def plan(rows: list[Row]) -> tuple[list[Person], list[tuple[Row, str]]]:
         ):
             person = by_phone[phone]
         if person is None:
+            if not (vin or (nin and nin not in by_nin) or (phone and phone not in by_phone)):
+                # Its phone and NIN are each another row's of this name, crossed.
+                held.append((row, "phone and NIN each with another row of this name"))
+                continue
             person = Person(row.name, "", "", *(row.places + ["", "", "", ""])[:4])
             person.unit = row.unit or person.unit
             people.append(person)
@@ -200,6 +216,8 @@ def plan(rows: list[Row]) -> tuple[list[Person], list[tuple[Row, str]]]:
         for value, found in ((person.vin, by_vin), (person.nin, by_nin), (person.phone, by_phone)):
             if value:
                 found[value] = person
+        if row.phone and row.phone != person.phone and row.phone not in person.other_phones:
+            person.other_phones.append(row.phone)
         person.rows.append([row.page, row.serial])
     return people, held
 
@@ -217,7 +235,7 @@ def _why(row, names) -> str:
     if row.phone_column and not row.phone:
         reasons.append("phone column is not a Nigerian mobile number")
     column = row.nin_column
-    if column and PHONE.fullmatch(column):
+    if column and (PHONE.fullmatch(column) or (NIN.fullmatch(column) and _reads_as_phone(column))):
         reasons.append("NIN column holds a phone number")
     elif column and column.isdigit() and not row.nin:
         reasons.append(f"NIN column has {len(column)} digits; a NIN has 11")
@@ -290,6 +308,18 @@ def place_person(*, actor, group, person: Person, places: Places, source: str) -
         "Account, then Support groups, to see it, or to leave if this is wrong.",
     )
     existing = existing or by_nin
+    if existing is None and person.other_phones:
+        key = name_key(person.name)
+        existing = next(
+            (
+                member
+                for member in Member.objects.filter(phone_number__in=person.other_phones)
+                if name_key(member.full_name) == key
+                and not (member.nin and person.nin and member.nin != person.nin)
+                and not (member.vin and person.vin and member.vin != person.vin)
+            ),
+            None,
+        )
     if existing is not None:
         return _place_existing(actor=actor, group=group, member=existing, notice=notice)
     if person.phone and User.objects.filter(phone_number=person.phone).exists():
